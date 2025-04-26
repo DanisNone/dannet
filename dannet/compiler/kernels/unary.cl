@@ -21,10 +21,6 @@ __kernel void general(
 )
 {
     size_t x = get_global_id(0);
-    //size_t size = get_global_size(0);
-
-    //for (; x < sizeB; x += size)
-        B[x + offsetB] = operation(A[x + offsetA]);
-
+    B[x + offsetB] = operation(A[x + offsetA]);
 }
 #endif

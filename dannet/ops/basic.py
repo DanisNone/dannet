@@ -233,7 +233,7 @@ class _Pad(dt.core.TensorBase):
         self.x = dt.convert_to_tensor(x)
         norm_paddings = []
         for p in paddings:
-            if hasattr(p, "__index__"):
+            if hasattr(p, '__index__'):
                 norm_paddings.append((int(p), int(p)))
             else:
                 norm_paddings.append(tuple(p))
@@ -241,11 +241,11 @@ class _Pad(dt.core.TensorBase):
         paddings = norm_paddings
         if len(paddings) != self.x.ndim:
             raise ValueError(
-                f"Paddings length {len(paddings)} must match tensor ndim {self.x.ndim}"
+                f'Paddings length {len(paddings)} must match tensor ndim {self.x.ndim}'
             )
         for p in paddings:
             if not (isinstance(p[0], int) and isinstance(p[1], int) and p[0] >= 0 and p[1] >= 0):
-                raise ValueError(f"Invalid padding {p}, must be non-negative ints")
+                raise ValueError(f'Invalid padding {p}, must be non-negative ints')
         self.paddings = paddings
 
         new_shape = tuple(
@@ -276,9 +276,9 @@ class _Slice(dt.core.TensorBase):
         ndim = self.x.ndim
 
         if not isinstance(slices, (list, tuple)):
-            raise TypeError("slices must be a sequence of tuples")
+            raise TypeError('slices must be a sequence of tuples')
         if len(slices) > ndim:
-            raise ValueError(f"Too many slice tuples ({len(slices)}) for tensor of ndim {ndim}")
+            raise ValueError(f'Too many slice tuples ({len(slices)}) for tensor of ndim {ndim}')
         slices = list(slices) + [(None, None, None)] * (ndim - len(slices))
 
         orig_shape = self.x.shape
@@ -294,7 +294,7 @@ class _Slice(dt.core.TensorBase):
             if step is None:
                 step = 1
             if step == 0:
-                raise ValueError("slice step cannot be zero")
+                raise ValueError('slice step cannot be zero')
             if step < 0:
                 default_start = dim - 1
                 default_stop = -1
@@ -321,7 +321,7 @@ class _Slice(dt.core.TensorBase):
             offset += stride * start
 
         if 0 in new_shape:
-            raise NotImplementedError("TensorBase not support slice with zero size")
+            raise NotImplementedError('TensorBase not support slice with zero size')
 
         self._shape = tuple(new_shape)
         self._dtype = self.x.dtype
@@ -338,7 +338,7 @@ class _Slice(dt.core.TensorBase):
         pads = []
         for (start, stop, step), out_dim in zip(self._slices, grad.shape):
             if step not in (None, 1):
-                raise NotImplementedError("Gradient for step != 1 slicing is not yet supported")
+                raise NotImplementedError('Gradient for step != 1 slicing is not yet supported')
 
             dim = self.x.shape[len(pads)]
             start = 0 if start is None else (start + dim if start < 0 else start)

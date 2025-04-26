@@ -18,7 +18,7 @@ def convert_to_tensor(x: dt.typing.TensorLike) -> dt.core.TensorBase:
     if isinstance(x, float):
         return dt.core.Constant(x, 'float32')
     
-    if hasattr(x, "__array__"):
+    if hasattr(x, '__array__'):
         x = np.asarray(x)
     if isinstance(x, (np.ndarray, list, tuple)):
         return dt.core.Constant(x)

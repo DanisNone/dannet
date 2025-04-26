@@ -157,7 +157,7 @@ class _Divide(_ElementWiseBinary):
 
 class _Power(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2, "uint32")
+        return dt.dtype.max_dtype(dtype1, dtype2, 'uint32')
 
     def compute_gradients(self, grad):
         grad_x = grad * self.y * dt.power(self.x, self.y - 1)
@@ -215,6 +215,7 @@ class _Where(_ElementWiseTernary):
         return dt.dtype.max_dtype(dtype2, dtype3)
 
     def compute_gradients(self, grad):
+        return [dt.zeros_like(grad), dt.where(self.x, grad, 0), dt.where(self.x, 0, grad)]
         #TODO
         raise NotImplementedError
     

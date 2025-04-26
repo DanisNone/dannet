@@ -45,7 +45,7 @@ class DannetTrainer(base_trainer.Trainer):
             gradients = dt.gradients(loss, trainable_weights)
             self.optimizer.apply(gradients, self.trainable_weights)
         else:
-            warnings.warn("The model does not have any trainable weights.")
+            warnings.warn('The model does not have any trainable weights.')
 
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -81,12 +81,12 @@ class DannetTrainer(base_trainer.Trainer):
 
         if self.steps_per_execution > 1:
             raise ValueError(
-                "`steps_per_execution` must be 1 with the dannet backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
+                '`steps_per_execution` must be 1 with the dannet backend. '
+                f'Received: steps_per_execution={self.steps_per_execution}'
             )
 
         def one_step_on_data(data):
-            """Runs a single training step on a batch of data."""
+            '''Runs a single training step on a batch of data.'''
             data = data[0]
             return self.train_step(data)
         self.train_function = dt.function(one_step_on_data)
@@ -97,12 +97,12 @@ class DannetTrainer(base_trainer.Trainer):
 
         if self.steps_per_execution > 1:
             raise ValueError(
-                "`steps_per_execution` must be 1 with the dannet backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
+                '`steps_per_execution` must be 1 with the dannet backend. '
+                f'Received: steps_per_execution={self.steps_per_execution}'
             )
 
         def one_step_on_data(data):
-            """Runs a single test step on a batch of data."""
+            '''Runs a single test step on a batch of data.'''
             data = data[0]
             return self.test_step(data)
 
@@ -114,12 +114,12 @@ class DannetTrainer(base_trainer.Trainer):
 
         if self.steps_per_execution > 1:
             raise ValueError(
-                "`steps_per_execution` must be 1 with the dannet backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
+                '`steps_per_execution` must be 1 with the dannet backend. '
+                f'Received: steps_per_execution={self.steps_per_execution}'
             )
 
         def one_step_on_data(data):
-            """Runs a predict test step on a batch of data."""
+            '''Runs a predict test step on a batch of data.'''
             data = data[0]
             return self.predict_step(data)
 
@@ -132,7 +132,7 @@ class DannetTrainer(base_trainer.Trainer):
         y=None,
         batch_size=None,
         epochs=1,
-        verbose="auto",
+        verbose='auto',
         callbacks=None,
         validation_split=0.0,
         validation_data=None,
@@ -147,7 +147,7 @@ class DannetTrainer(base_trainer.Trainer):
     ):
         if not self.compiled:
             raise ValueError(
-                "You must call `compile()` before calling `fit()`."
+                'You must call `compile()` before calling `fit()`.'
             )
 
         # TODO: respect compiled trainable state
@@ -226,7 +226,7 @@ class DannetTrainer(base_trainer.Trainer):
                 epoch, validation_freq
             ):
                 # Create EpochIterator for evaluation and cache it.
-                if getattr(self, "_eval_epoch_iterator", None) is None:
+                if getattr(self, '_eval_epoch_iterator', None) is None:
                     self._eval_epoch_iterator = EpochIterator(
                         x=val_x,
                         y=val_y,
@@ -247,7 +247,7 @@ class DannetTrainer(base_trainer.Trainer):
                     _use_cached_eval_dataset=True,
                 )
                 val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
+                    'val_' + name: val for name, val in val_logs.items()
                 }
                 epoch_logs.update(val_logs)
 
@@ -263,7 +263,7 @@ class DannetTrainer(base_trainer.Trainer):
             self.optimizer.finalize_variable_values(self.trainable_weights)
 
         # If _eval_epoch_iterator exists, delete it after all epochs are done.
-        if getattr(self, "_eval_epoch_iterator", None) is not None:
+        if getattr(self, '_eval_epoch_iterator', None) is not None:
             del self._eval_epoch_iterator
         callbacks.on_train_end(logs=training_logs)
         return self.history
@@ -274,7 +274,7 @@ class DannetTrainer(base_trainer.Trainer):
         x=None,
         y=None,
         batch_size=None,
-        verbose="auto",
+        verbose='auto',
         sample_weight=None,
         steps=None,
         callbacks=None,
@@ -282,9 +282,9 @@ class DannetTrainer(base_trainer.Trainer):
         **kwargs,
     ):
         # TODO: respect compiled trainable state
-        use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
+        use_cached_eval_dataset = kwargs.pop('_use_cached_eval_dataset', False)
         if kwargs:
-            raise ValueError(f"Arguments not recognized: {kwargs}")
+            raise ValueError(f'Arguments not recognized: {kwargs}')
 
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
@@ -335,7 +335,7 @@ class DannetTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self, x, batch_size=None, verbose='auto', steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
@@ -380,7 +380,7 @@ class DannetTrainer(base_trainer.Trainer):
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(step, {'outputs': batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
@@ -395,14 +395,14 @@ class DannetTrainer(base_trainer.Trainer):
         class_weight=None,
         return_dict=False,
     ):
-        self._assert_compile_called("train_on_batch")
+        self._assert_compile_called('train_on_batch')
         if class_weight is not None:
             if sample_weight is not None:
                 raise ValueError(
-                    "Arguments `sample_weight` and `class_weight` "
-                    "cannot be specified at the same time. "
-                    f"Received: sample_weight={sample_weight}, "
-                    f"class_weight={class_weight}"
+                    'Arguments `sample_weight` and `class_weight` '
+                    'cannot be specified at the same time. '
+                    f'Received: sample_weight={sample_weight}, '
+                    f'class_weight={class_weight}'
                 )
             sample_weight = data_adapter_utils.class_weight_to_sample_weights(
                 y, class_weight
@@ -427,7 +427,7 @@ class DannetTrainer(base_trainer.Trainer):
         sample_weight=None,
         return_dict=False,
     ):
-        self._assert_compile_called("test_on_batch")
+        self._assert_compile_called('test_on_batch')
 
         data = (x, y, sample_weight)
 

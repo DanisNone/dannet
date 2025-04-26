@@ -9,7 +9,7 @@ class _UpSample(dt.core.TensorBase):
         else:
             self.scale = tuple(scale)
         if len(self.scale) != self.x.ndim:
-            raise ValueError(f"Scale {self.scale} must match tensor ndim {self.x.ndim}")
+            raise ValueError(f'Scale {self.scale} must match tensor ndim {self.x.ndim}')
 
         self._shape = tuple(s * sc for s, sc in zip(self.x.shape, self.scale))
         self._dtype = self.x.dtype

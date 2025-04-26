@@ -22,9 +22,9 @@ def matmul(
         B=node
     )
     pad_left, pad_right = zip(*node.paddings)
-    headers.append(insert_static_array("pad_left", pad_left))
-    headers.append(insert_static_array("pad_right", pad_right))
-    headers.append(generate_mode("zero"))
+    headers.append(insert_static_array('pad_left', pad_left))
+    headers.append(insert_static_array('pad_right', pad_right))
+    headers.append(generate_mode('zero'))
 
     global_size = (node.size, )
     local_size = None

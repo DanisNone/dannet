@@ -9,7 +9,7 @@ def copy(device, node: dt.basic._Copy, input_buffers, output_buffer):
     B = output_buffer
 
     headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(insert_static_array("stridesAN", node.x._default_strides()))
+    headers.append(insert_static_array('stridesAN', node.x._default_strides()))
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
 
@@ -25,7 +25,7 @@ def cast(device, node: dt.basic._Cast, input_buffers, output_buffer):
     B = output_buffer
 
     headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(insert_static_array("stridesAN", node.x._default_strides()))
+    headers.append(insert_static_array('stridesAN', node.x._default_strides()))
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
 
@@ -46,7 +46,7 @@ def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
         return lambda:None
 
     headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(insert_static_array("stridesAN", node.x._default_strides()))
+    headers.append(insert_static_array('stridesAN', node.x._default_strides()))
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
 
@@ -62,7 +62,7 @@ def update(device, node: dt.core.Update, input_buffers, output_buffer):
     assert var is output_buffer
 
     headers = generate_nodes_info(A=node._value, B=node._variable)
-    headers.append(insert_static_array("stridesAN", node._value._default_strides()))
+    headers.append(insert_static_array('stridesAN', node._value._default_strides()))
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
 

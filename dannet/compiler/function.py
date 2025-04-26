@@ -16,7 +16,7 @@ class function:
 
     def __call__(self, *args, **kwargs):
         if function._run_instance is not None:
-            raise NotImplementedError("Nested function calls are not supported")
+            raise NotImplementedError('Nested function calls are not supported')
 
         struct = get_struct((args, kwargs))
 
@@ -30,7 +30,7 @@ class function:
                 placeholders.append(placeholder)
                 inputs.append(np.asarray(obj))
             elif isinstance(obj, dt.core.TensorBase):
-                raise NotImplementedError("TensorBase inputs not supported yet")
+                raise NotImplementedError('TensorBase inputs not supported yet')
         
         if struct in self._cached_sign:
             compiled, output_struct, output_indexes, output_template = self._cached_sign[struct]
@@ -42,7 +42,7 @@ class function:
             return to_struct(output_flatten, output_struct)
 
         if self._nodes:
-            raise RuntimeError("Internal node buffer not empty before graph build")
+            raise RuntimeError('Internal node buffer not empty before graph build')
 
         args_t, kwargs_t = to_struct(input_flatten, struct)
         function._run_instance = self
@@ -112,17 +112,17 @@ def get_struct(obj) -> Any:
         return ('ndarray', (obj.shape, str(obj.dtype)))
     if isinstance(obj, (bool, int, float, str)):
         return (type(obj).__name__, obj)
-    return ("unknown", obj)
+    return ('unknown', obj)
 
 
 def to_flatten(obj, struct) -> list:
     type_, args = struct
 
-    if type_ == "tuple":
+    if type_ == 'tuple':
         assert isinstance(obj, tuple)
         assert len(obj) == len(args)
         return join_list([to_flatten(el, sub) for el, sub in zip(obj, args)])
-    if type_ == "list":
+    if type_ == 'list':
         assert isinstance(obj, list)
         assert len(obj) == len(args)
         return join_list([to_flatten(el, sub) for el, sub in zip(obj, args)])
@@ -161,7 +161,7 @@ def to_flatten(obj, struct) -> list:
         assert obj == args
 
         return [obj]
-    if type_ == "unknown":
+    if type_ == 'unknown':
         assert obj is args
         return [obj]
     
@@ -171,47 +171,47 @@ def to_struct(data: list, struct) -> Any:
     def _rebuild(iterator, struct):
         type_, args = struct
 
-        if type_ == "tuple":
+        if type_ == 'tuple':
             return tuple(_rebuild(iterator, sub) for sub in args)
-        if type_ == "list":
+        if type_ == 'list':
             return [_rebuild(iterator, sub) for sub in args]
-        if type_ == "dict":
+        if type_ == 'dict':
             return {
                 _rebuild(iterator, k): _rebuild(iterator, v)
                 for k, v in args
             }
-        if type_ == "ndarray":
+        if type_ == 'ndarray':
             value = next(iterator)
             assert isinstance(value, (np.ndarray, dt.core.TensorBase))
             assert value.shape == args[0]
             assert str(value.dtype) == args[1]
             return value
-        if type_ == "bool":
+        if type_ == 'bool':
             value = next(iterator)
             assert isinstance(value, bool)
             assert value == args
             return value
-        if type_ == "int":
+        if type_ == 'int':
             value = next(iterator)
             assert isinstance(value, int)
             assert value == args
             return value
-        if type_ == "float":
+        if type_ == 'float':
             value = next(iterator)
             assert isinstance(value, float)
             assert value == args
             return value
-        if type_ == "str":
+        if type_ == 'str':
             value = next(iterator)
             assert isinstance(value, str)
             assert value == args
             return value
-        if type_ == "unknown":
+        if type_ == 'unknown':
             value = next(iterator)
             assert value is args
             return value
     
-        raise TypeError(f"Unknown type: {type_!r}")
+        raise TypeError(f'Unknown type: {type_!r}')
 
     return _rebuild(iter(data), struct)
 

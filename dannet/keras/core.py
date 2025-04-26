@@ -43,9 +43,9 @@ class Variable(KerasVariable, dt.core.Variable): # type: ignore
                 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
-        raise ValueError("`sparse=True` is not supported with dannet backend")
+        raise ValueError('`sparse=True` is not supported with dannet backend')
     if ragged:
-        raise ValueError("`ragged=True` is not supported with dannet backend")
+        raise ValueError('`ragged=True` is not supported with dannet backend')
     if isinstance(x, Variable):
         return x.value
 
@@ -191,7 +191,7 @@ def unstack(x, num=None, axis=0):
     raise NotImplementedError
 
 def random_seed_dtype():
-    return "int32"
+    return 'int32'
 
 
 def remat(f):

@@ -10,7 +10,7 @@ def conv(device, node: dt.nnet.convolve._ConvND, input_buffers, output_buffer, r
     C = output_buffer
     assert 1 <= rank <= 3
     headers = generate_nodes_info(A=node.x, B=node.kernel, C=node)
-    headers.append(insert_static_array("stride", node.stride))
+    headers.append(insert_static_array('stride', node.stride))
 
     if depthwise:
         headers.append(generate_mode(f'conv{rank}d_depthwise'))

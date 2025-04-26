@@ -27,9 +27,6 @@ class _ConvND(dt.core.TensorBase):
     def inputs(self):
         return [self.x, self.kernel]
 
-    def compute_gradients(self, grad):
-        raise NotImplementedError("Backprop for ConvND not yet implemented.")
-
 
 class _Conv1D(_ConvND):
     def _compute_output_shape(self):
@@ -37,7 +34,7 @@ class _Conv1D(_ConvND):
         KW, C_in_, C_out = self.kernel._shape
         
         if C_in != C_in_:
-            raise ValueError(f"Incomplete shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incomplete shapes: {self.x._shape}, {self.kernel._shape}')
 
         SW = self.stride
         
@@ -45,7 +42,7 @@ class _Conv1D(_ConvND):
         return (B, W_out, C_out)
     
     def compute_gradients(self, grad):
-        raise NotImplementedError("Backprop for Conv1D not yet implemented.")
+        raise NotImplementedError('Backprop for Conv1D not yet implemented.')
 
 
 class _Conv2D(_ConvND):
@@ -54,7 +51,7 @@ class _Conv2D(_ConvND):
         KW, KH, C_in_, C_out = self.kernel._shape    
 
         if C_in != C_in_:
-            raise ValueError(f"Incompatible shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
 
         SW, SH = self.stride                         
 
@@ -63,7 +60,23 @@ class _Conv2D(_ConvND):
         return (B, W_out, H_out, C_out)
 
     def compute_gradients(self, grad):
-        raise NotImplementedError("Backprop for Conv2D not yet implemented.")
+        if self.stride != (1, 1):
+            raise NotImplementedError(self.stride)
+        
+        k = dt.transpose(self.kernel, (0, 1, 3, 2))
+        k = dt.flip(k, (0, 1))
+
+        grad_x = dt.nnet.conv2d(grad, k, padding='full')
+
+
+        x = dt.transpose(self.x, (3, 1, 2, 0))
+        g = dt.transpose(grad, (1, 2, 0, 3))
+
+        grad_k = dt.nnet.conv2d(x, g)
+        grad_k = dt.transpose(grad_k, (1, 2, 0, 3))
+
+        return [grad_x, grad_k]
+
 
 class _Conv3D(_ConvND):
     def _compute_output_shape(self):
@@ -71,7 +84,7 @@ class _Conv3D(_ConvND):
         KW, KH, KD, C_in_, C_out = self.kernel._shape
         
         if C_in != C_in_:
-            raise ValueError(f"Incompatible shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
 
         SW, SH, SD = self.stride
         
@@ -81,14 +94,14 @@ class _Conv3D(_ConvND):
         return (B, W_out, H_out, D_out, C_out)
 
     def compute_gradients(self, grad):
-        raise NotImplementedError("Backprop for Conv3D not yet implemented.")
+        raise NotImplementedError('Backprop for Conv3D not yet implemented.')
 
 class _DepthwiseConv1D(_ConvND):
     def _compute_output_shape(self):
         B, W, C = self.x._shape
         KW, C_ = self.kernel._shape
         if C != C_:
-            raise ValueError(f"Incompatible shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
         SW = self.stride
         W_out = (W - KW) // SW + 1
         return (B, W_out, C)
@@ -98,7 +111,7 @@ class _DepthwiseConv2D(_ConvND):
         B, W, H, C = self.x._shape
         KW, KH, C_ = self.kernel._shape
         if C != C_:
-            raise ValueError(f"Incompatible shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
         SW, SH = self.stride
         W_out = (W - KW) // SW + 1
         H_out = (H - KH) // SH + 1
@@ -109,7 +122,7 @@ class _DepthwiseConv3D(_ConvND):
         B, W, H, D, C = self.x._shape
         KW, KH, KD, C_ = self.kernel._shape
         if C != C_:
-            raise ValueError(f"Incompatible shapes: {self.x._shape}, {self.kernel._shape}")
+            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
         SW, SH, SD = self.stride
         W_out = (W - KW) // SW + 1
         H_out = (H - KH) // SH + 1
@@ -117,45 +130,60 @@ class _DepthwiseConv3D(_ConvND):
         return (B, W_out, H_out, D_out, C)
 
 
+def _pad(x_shape, kernel_shape, stride, padding):
+    if padding not in ('valid', 'same', 'full'):
+            raise ValueError(f'invalid padding: {padding}')
+    x_shape = dt.utils.normalize_shape(x_shape)
+    kernel_shape = dt.utils.normalize_shape(kernel_shape)
+    stride = dt.utils.normalize_shape(stride)
+    
+    assert len(x_shape) == len(kernel_shape) == len(stride)
+    paddings = []
+    for i in range(len(x_shape)):
+        x_dim, k_dim, s = x_shape[i], kernel_shape[i], stride[i]
+
+        if padding == 'valid':
+            paddings.append((0, 0))
+        elif padding == 'same':
+            y_dim = (x_dim + s - 1) // s
+            pad = max((y_dim - 1) * s + k_dim - x_dim, 0)
+            pad_left = pad // 2
+            pad_right = pad - pad_left
+            paddings.append((pad_left, pad_right))
+        else:
+            pad = (k_dim - 1)
+            paddings.append((pad, pad))
+    return paddings
+
+
+
 def _make_conv(name: str, class_: type[_ConvND]):
-    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding="valid"):
+    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding='valid'):
         x = dt.convert_to_tensor(x)
         kernel = dt.convert_to_tensor(kernel)
-        
-        if padding not in ("same", "valid"):
-            raise ValueError(f"invalid padding: {padding}")
         if strides is None:
             strides = [1] * (x.ndim - 2)
         
-        if padding == "same":
-            _, *S, _ = x.shape
-            *K, _, _ = kernel.shape
+        paddings = _pad(x.shape[1:-1], kernel.shape[:-2], strides,padding)
+        paddings = [0, *paddings, 0]
 
-            paddings = []
-            for dim, k, s in zip(S, K, strides):
-                out_dim = (dim + s - 1) // s
-                pad_needed = max((out_dim - 1) * s + k - dim, 0)
-                pad_before = pad_needed // 2
-                pad_after = pad_needed - pad_before
-                paddings.append((pad_before, pad_after))
-            paddings = [0, *paddings, 0]
-            x = dt.pad(x, paddings)
+        x = dt.pad(x, paddings)
         z = class_(x, kernel, strides)
         return dt.core._node_prepare(z)
     inner.__name__ = name
     return inner
 
 def _make_depthwise_conv(name: str, class_: type[_ConvND]):
-    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding="valid"):
+    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding='valid'):
         x = dt.convert_to_tensor(x)
         kernel = dt.convert_to_tensor(kernel)
 
-        if padding not in ("same", "valid"):
-            raise ValueError(f"invalid padding: {padding}")
+        if padding not in ('same', 'valid'):
+            raise ValueError(f'invalid padding: {padding}')
         if strides is None:
             strides = [1] * (x.ndim - 2)
 
-        if padding == "same":
+        if padding == 'same':
             _, *S, _ = x.shape
             *K, _ = kernel.shape
             paddings = []
@@ -178,15 +206,15 @@ conv1d = _make_conv('conv1d', _Conv1D)
 conv2d = _make_conv('conv2d', _Conv2D)
 conv3d = _make_conv('conv3d', _Conv3D)
 
-depthwise_conv1d = _make_depthwise_conv("depthwise_conv1d", _DepthwiseConv1D)
-depthwise_conv2d = _make_depthwise_conv("depthwise_conv2d", _DepthwiseConv2D)
-depthwise_conv3d = _make_depthwise_conv("depthwise_conv3d", _DepthwiseConv3D)
+depthwise_conv1d = _make_depthwise_conv('depthwise_conv1d', _DepthwiseConv1D)
+depthwise_conv2d = _make_depthwise_conv('depthwise_conv2d', _DepthwiseConv2D)
+depthwise_conv3d = _make_depthwise_conv('depthwise_conv3d', _DepthwiseConv3D)
 
 __all__ = [
-    "conv1d",
-    "conv2d",
-    "conv3d",
-    "depthwise_conv1d",
-    "depthwise_conv2d",
-    "depthwise_conv3d"
+    'conv1d',
+    'conv2d',
+    'conv3d',
+    'depthwise_conv1d',
+    'depthwise_conv2d',
+    'depthwise_conv3d'
 ]

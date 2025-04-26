@@ -129,15 +129,15 @@ class TensorBase(abc.ABC):
     
     def __repr__(self):
         name = type(self).__name__
-        name = "".join(f"_{c.lower()}" if c.isupper() else c for c in name)
+        name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name)
         name = name.lstrip('_')
-        return f"<{name} shape={self._shape} dtype={self._dtype}>"
+        return f'<{name} shape={self._shape} dtype={self._dtype}>'
     
     def __bool__(self):
         if not dt.is_eager():
-            raise NotImplementedError("Boolean evaluation is only supported in eager mode.")
+            raise NotImplementedError('Boolean evaluation is only supported in eager mode.')
         if self.size != 1:
-            raise ValueError("Only scalar tensors can be used as a boolean.")
+            raise ValueError('Only scalar tensors can be used as a boolean.')
         
         self = dt.reshape(self, ())
         self = dt.eval(self)
@@ -200,8 +200,8 @@ class Constant(TensorBase):
     def __repr__(self):
         v = str(self._value)
         if len(v) > 50:
-            v = v[:50] + "..."
-        return f"Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})"
+            v = v[:50] + '...'
+        return f'Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})'
 
 class Variable(TensorBase):
     def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None = None):
@@ -266,8 +266,8 @@ class Variable(TensorBase):
     def __repr__(self):
         v = str(self._value)
         if len(v) > 50:
-            v = v[:50] + "..."
-        return f"Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})"
+            v = v[:50] + '...'
+        return f'Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})'
 
     
 class Placeholder(TensorBase):

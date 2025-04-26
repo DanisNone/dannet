@@ -23,9 +23,9 @@ from dannet.keras.core import shape
 from dannet.keras.core import stop_gradient
 from dannet.keras.core import vectorized_map
 
-"""
+'''
 from dannet.keras.rnn import cudnn_ok
 from dannet.keras.rnn import gru
 from dannet.keras.rnn import lstm
 from dannet.keras.rnn import rnn
-"""
+'''

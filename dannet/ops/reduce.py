@@ -90,8 +90,9 @@ class _Min(_Reduce):
         return dtype
 
     def compute_gradients(self, grad):
+        self_b = dt.reshape(self, self._keepdims_shape)
         grad = dt.reshape(grad, self._keepdims_shape)
-        mask = dt.equal(self.x, self)
+        mask = dt.equal(self.x, self_b)
         return [dt.broadcast_to(grad, self.x.shape) * mask]
 
 
@@ -100,8 +101,9 @@ class _Max(_Reduce):
         return dtype
 
     def compute_gradients(self, grad):
+        self_b = dt.reshape(self, self._keepdims_shape)
         grad = dt.reshape(grad, self._keepdims_shape)
-        mask = dt.equal(self.x, self)
+        mask = dt.equal(self.x, self_b)
         return [dt.broadcast_to(grad, self.x.shape) * mask]
 
 
@@ -119,11 +121,11 @@ class _ArgReduce(dt.core.TensorBase):
             if isinstance(axis, int):
                 axis = axis
             else:
-                raise ValueError("axis must be an integer")
+                raise ValueError('axis must be an integer')
             if axis < 0:
                 axis += x.ndim
             if axis < 0 or axis >= x.ndim:
-                raise ValueError(f"axis {axis} is out of bounds for tensor of dimension {x.ndim}")
+                raise ValueError(f'axis {axis} is out of bounds for tensor of dimension {x.ndim}')
             self.axis = axis
             self.full_reduce = False
 
@@ -147,8 +149,8 @@ class _ArgReduce(dt.core.TensorBase):
 
     def get_config(self):
         config = super(_ArgReduce, self).get_config()
-        config["axis"] = self.axis
-        config["keepdims"] = self.keepdims
+        config['axis'] = self.axis
+        config['keepdims'] = self.keepdims
 
         return config
     

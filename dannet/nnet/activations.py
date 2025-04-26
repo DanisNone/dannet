@@ -1,6 +1,4 @@
-from typing import Sequence
 import dannet as dt
-from dannet.core import TensorBase
 from dannet.ops.math import _ElementWiseUnaryFloat, _ElementWiseUnary, _make_unary
 
 

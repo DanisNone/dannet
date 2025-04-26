@@ -3,7 +3,7 @@ from dannet.topsort import topological_sort
 
 def gradients(loss: dt.core.TensorBase, params: list[dt.core.TensorBase]) -> list[dt.core.TensorBase]:
     if dt.is_eager():
-        raise RuntimeError("gradient not work in eager mode")
+        raise RuntimeError('gradient not work in eager mode')
     
     gradients: dict[dt.core.TensorBase, dt.core.TensorBase] = {loss: dt.ones_like(loss)}
     

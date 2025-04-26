@@ -109,15 +109,15 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     if target.shape != output.shape:
         raise ValueError(
-            "Arguments `target` and `output` must have the same shape. "
-            "Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
+            'Arguments `target` and `output` must have the same shape. '
+            'Received: '
+            f'target.shape={target.shape}, output.shape={output.shape}'
         )
     if len(target.shape) < 1:
         raise ValueError(
-            "Arguments `target` and `output` must be at least rank 1. "
-            "Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
+            'Arguments `target` and `output` must be at least rank 1. '
+            'Received: '
+            f'target.shape={target.shape}, output.shape={output.shape}'
         )
 
     if from_logits:
@@ -134,9 +134,9 @@ def binary_crossentropy(target, output, from_logits=False):
 
     if target.shape != output.shape:
         raise ValueError(
-            "Arguments `target` and `output` must have the same shape. "
-            "Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
+            'Arguments `target` and `output` must have the same shape. '
+            'Received: '
+            f'target.shape={target.shape}, output.shape={output.shape}'
         )
 
     if from_logits:
@@ -150,7 +150,7 @@ def conv(
     inputs,
     kernel,
     strides=1,
-    padding="valid",
+    padding='valid',
     data_format=None,
     dilation_rate=1,
 ):
@@ -168,7 +168,7 @@ def depthwise_conv(
     inputs,
     kernel,
     strides=1,
-    padding="valid",
+    padding='valid',
     data_format=None,
     dilation_rate=1,
 ):
@@ -188,7 +188,7 @@ def conv2d(
     inputs,
     kernel,
     strides=1,
-    padding="valid",
+    padding='valid',
     data_format=None,
     dilation_rate=1,
 ):
@@ -203,7 +203,7 @@ def conv2d(
         raise NotImplementedError(dilation_rate)
     
     data_format = backend.standardize_data_format(data_format)
-    if data_format != "channels_last":
+    if data_format != 'channels_last':
         raise NotImplementedError(data_format)
     
     return dt.nnet.conv2d(inputs, kernel, strides, padding)
@@ -212,7 +212,7 @@ def depthwise_conv2d(
     inputs,
     kernel,
     strides=1,
-    padding="valid",
+    padding='valid',
     data_format=None,
     dilation_rate=1,
 ):
@@ -227,7 +227,7 @@ def depthwise_conv2d(
         raise NotImplementedError(dilation_rate)
     
     data_format = backend.standardize_data_format(data_format)
-    if data_format != "channels_last":
+    if data_format != 'channels_last':
         raise NotImplementedError(data_format)
     
     return dt.nnet.depthwise_conv2d(inputs, kernel, strides, padding)
@@ -236,12 +236,19 @@ def max_pool(
     inputs,
     pool_size,
     strides=None,
-    padding="valid",
+    padding='valid',
     data_format=None,
 ):
+    inputs = convert_to_tensor(inputs)
+
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
 
+    if num_spatial_dims == 2 and padding=="valid" and strides==(2, 2) and pool_size==(2, 2):
+        b, w, h, c = inputs.shape
+        assert w%2 == h%2 == 0
+        inputs = dt.reshape(inputs, (b, w // 2, 2, h//2, 2, c))
+        return dt.max(inputs, axis=(2, 4))
     print(inputs, pool_size, strides, padding, data_format)
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format

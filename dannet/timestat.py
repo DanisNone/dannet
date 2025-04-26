@@ -39,10 +39,10 @@ def print_stats(out=None):
         out = sys.stdout
 
     with _lock:
-        print("Time statistics:", file=out)
+        print('Time statistics:', file=out)
         for name, times in sorted(_stats.items(), key=lambda nt:sum(nt[1])/len(nt[1])):
             total = sum(times) / len(times)
-            print(f"{total * 1000:8.3f} ms; {len(times)} calls; {name:20}", file=out)
+            print(f'{total * 1000:8.3f} ms; {len(times)} calls; {name:20}', file=out)
 
 def reset():
     with _lock:
