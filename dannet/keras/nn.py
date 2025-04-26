@@ -1,0 +1,277 @@
+import dannet as dt
+
+from keras.src import backend
+from dannet.keras.core import cast
+from dannet.keras.core import convert_to_tensor
+from dannet.keras.numpy import expand_dims
+from dannet.keras.numpy import maximum
+from dannet.keras.numpy import where
+from keras.src.utils.argument_validation import standardize_tuple
+
+def relu(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.relu(x)
+
+
+def relu6(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.relu6(x)
+
+
+def sigmoid(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.sigmoid(x)
+
+
+def tanh(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.tanh(x)
+
+
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.tanhshrink(x)
+
+
+def softplus(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.softplus(x)
+
+
+def softsign(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.softsign(x)
+
+
+def silu(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b)
+    y = x + dt.sqrt(dt.square(x) + b)
+    return y / 2
+
+
+def log_sigmoid(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.logsigmoid(x)
+
+
+def leaky_relu(x, negative_slope=0.2):
+    x = convert_to_tensor(x)
+    return dt.nnet.leaky_relu(x, negative_slope=negative_slope)
+
+
+def hard_sigmoid(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.hard_sigmoid(x)
+
+
+def hard_silu(x):
+    x = convert_to_tensor(x)
+    return dt.nnet.hard_swish(x)
+
+
+def elu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return dt.nnet.elu(x, alpha)
+
+
+def softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if axis is None:
+        output = dt.reshape(x, [-1])
+        output = dt.nnet.softmax(output, axis=-1)
+        output = dt.reshape(output, x.shape)
+    else:
+        output = dt.nnet.softmax(x, axis=axis)
+    return cast(output, dtype)
+
+
+def log_softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if axis is None:
+        output = dt.reshape(x, [-1])
+        output = dt.nnet.log_softmax(output, axis=-1)
+        output = dt.reshape(output, x.shape)
+    else:
+        output = dt.nnet.log_softmax(x, axis=axis)
+    return cast(output, dtype)
+
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if len(target.shape) < 1:
+        raise ValueError(
+            "Arguments `target` and `output` must be at least rank 1. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        log_prob = dt.nnet.log_softmax(output, axis=axis)
+    else:
+        output = output / dt.sum(output, axis=axis, keepdims=True)
+        output = dt.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        log_prob = dt.log(output)
+    return -dt.sum(target * log_prob, axis=axis)
+
+def binary_crossentropy(target, output, from_logits=False):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        output = sigmoid(output)
+    else:
+        output = dt.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    bce = target * dt.log(output) + (1.0 - target) * dt.log(1.0 - output)
+    return -bce
+
+def conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+
+    rank = inputs.ndim - 2
+
+    if rank == 2:
+        return conv2d(inputs, kernel, strides, padding, data_format, dilation_rate)
+    raise NotImplementedError(rank)
+
+
+def depthwise_conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+
+    assert kernel.shape[-1] == 1
+    kernel = dt.reshape(kernel, kernel.shape[:-1])
+    rank = inputs.ndim - 2
+
+    if rank == 2:
+        return depthwise_conv2d(inputs, kernel, strides, padding, data_format, dilation_rate)
+    raise NotImplementedError(rank)
+
+
+def conv2d(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, dilation_rate)
+    
+    strides = tuple(strides)
+    dilation_rate = tuple(dilation_rate)
+    if dilation_rate != (1, 1):
+        raise NotImplementedError(dilation_rate)
+    
+    data_format = backend.standardize_data_format(data_format)
+    if data_format != "channels_last":
+        raise NotImplementedError(data_format)
+    
+    return dt.nnet.conv2d(inputs, kernel, strides, padding)
+
+def depthwise_conv2d(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, dilation_rate)
+    
+    strides = tuple(strides)
+    dilation_rate = tuple(dilation_rate)
+    if dilation_rate != (1, 1):
+        raise NotImplementedError(dilation_rate)
+    
+    data_format = backend.standardize_data_format(data_format)
+    if data_format != "channels_last":
+        raise NotImplementedError(data_format)
+    
+    return dt.nnet.depthwise_conv2d(inputs, kernel, strides, padding)
+
+def max_pool(
+    inputs,
+    pool_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    num_spatial_dims = inputs.ndim - 2
+
+    print(inputs, pool_size, strides, padding, data_format)
+    pool_size = _convert_to_spatial_operand(
+        pool_size, num_spatial_dims, data_format
+    )
+    strides = pool_size if strides is None else strides
+    strides = _convert_to_spatial_operand(
+        strides, num_spatial_dims, data_format
+    )
+    return _pool(inputs, -np.inf, lax.max, pool_size, strides, padding)
+
+
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
+    x = convert_to_tensor(x)
+    mean = convert_to_tensor(mean)
+    variance = convert_to_tensor(variance)
+    
+    shape = [1] * x.ndim
+    shape[axis] = mean.shape[0]
+    mean = dt.reshape(mean, shape)
+    variance = dt.reshape(variance, shape)
+
+    inv = dt.rsqrt(variance + epsilon)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+        inv *= dt.reshape(scale, shape)
+    
+    res = (x - mean) * inv
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+        res += dt.reshape(offset, shape)
+    return res
