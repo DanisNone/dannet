@@ -40,7 +40,8 @@ def print_stats(out=None):
 
     with _lock:
         print('Time statistics:', file=out)
-        for name, times in sorted(_stats.items(), key=lambda nt:sum(nt[1])/len(nt[1])):
+        # sort by sum, print avg
+        for name, times in sorted(_stats.items(), key=lambda nt:sum(nt[1])):
             total = sum(times) / len(times)
             print(f'{total * 1000:8.3f} ms; {len(times)} calls; {name:20}', file=out)
 

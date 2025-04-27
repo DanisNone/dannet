@@ -96,7 +96,7 @@ class compile:
         
         with timestat.record('load_constants'):
             for const in self._constant_nodes:
-                value = const.get_value()
+                value = const.numpy()
                 buffer = self._buffers[const._buffer]
                 
                 assert value.nbytes == buffer.size
@@ -109,7 +109,7 @@ class compile:
                 if var._used_by == self:
                     continue
 
-                value = var.get_value()
+                value = var.numpy()
                 var._used_by = self
 
                 buffer = self._buffers[var._buffer]

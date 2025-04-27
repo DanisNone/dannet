@@ -60,9 +60,11 @@ class _Conv2D(_ConvND):
         return (B, W_out, H_out, C_out)
 
     def compute_gradients(self, grad):
-        if self.stride != (1, 1):
-            raise NotImplementedError(self.stride)
-        
+        batch, w, h, c1  = self.x._shape
+        kw, kh, c1, c2 = self.kernel._shape
+
+        grad = _up_sample_zeros(grad, [1, *self.stride, 1], (batch, w - kw + 1, h - kh + 1, c2))
+
         k = dt.transpose(self.kernel, (0, 1, 3, 2))
         k = dt.flip(k, (0, 1))
 
@@ -75,6 +77,9 @@ class _Conv2D(_ConvND):
         grad_k = dt.nnet.conv2d(x, g)
         grad_k = dt.transpose(grad_k, (1, 2, 0, 3))
 
+        assert grad_x.shape == self.x.shape, (grad_x.shape, self.x.shape)
+        assert grad_k.shape == self.kernel.shape, (grad_k.shape, self.kernel.shape)
+        
         return [grad_x, grad_k]
 
 
@@ -129,6 +134,54 @@ class _DepthwiseConv3D(_ConvND):
         D_out = (D - KD) // SD + 1
         return (B, W_out, H_out, D_out, C)
 
+class _UpSampleZeros(dt.core.TensorBase):
+    def __init__(self, x, factors: dt.typing.ShapeLike, shape: dt.typing.ShapeLike):
+        self.x = dt.convert_to_tensor(x)
+        factors = dt.utils.normalize_shape(factors)
+        shape = dt.utils.normalize_shape(shape)
+
+        if len(factors) != self.x.ndim:
+            raise ValueError('Factors must have the same ndim as input')
+        if len(shape) != self.x.ndim:
+            raise ValueError('Shape must have the same ndim as input')
+
+        if min(factors) <= 0:
+            raise ValueError('Upsample factors must be > 0')
+
+        expected_shape = [dim * f for dim, f in zip(self.x._shape, factors)]
+        for exp, shp in zip(expected_shape, shape):
+            if exp < shp:
+                raise ValueError(f'Cannot upsample to smaller shape: expected at least {expected_shape}, got {shape}')
+        
+        self._upsample_size = factors
+        self._shape = shape
+        self._dtype = self.x.dtype
+
+        self._strides = self._default_strides()
+        self._buffer = dt.core.Buffer(self)
+        self._buffer_offset = 0
+
+    def inputs(self):
+        return [self.x]
+    
+    def compute_gradients(self, grad):
+        slices = [(None, None, s) for s in self._upsample_size]
+        return [dt.slice(grad, slices)]
+    
+    def get_config(self):
+        config = super(_UpSampleZeros, self).get_config()
+        config["factors"] = self._upsample_size
+        config["shape"] = self._shape
+        return config
+
+
+def _up_sample_zeros(x: dt.typing.TensorLike, factors: dt.typing.ShapeLike, shape: dt.typing.ShapeLike):
+    x = dt.convert_to_tensor(x)
+    y = _UpSampleZeros(x, factors, shape)
+
+    if x.shape == y.shape:
+        y = x
+    return dt.core._node_prepare(y)
 
 def _pad(x_shape, kernel_shape, stride, padding):
     if padding not in ('valid', 'same', 'full'):

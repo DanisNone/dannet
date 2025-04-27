@@ -164,7 +164,7 @@ class Constant(TensorBase):
         self._strides = self._default_strides()        
         
 
-    def get_value(self):
+    def numpy(self):
         return self._value.copy()
     
     def inputs(self):
@@ -206,7 +206,7 @@ class Constant(TensorBase):
 class Variable(TensorBase):
     def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None = None):
         if isinstance(value, Constant):
-            value = value.get_value()
+            value = value.numpy()
         elif isinstance(value, TensorBase):
             raise NotImplementedError()
         
@@ -222,7 +222,7 @@ class Variable(TensorBase):
 
         self._used_by: dt.compiler.compile | None = None
     
-    def get_value(self):
+    def numpy(self):
         if self._used_by is None:
             return self._value.copy()
 

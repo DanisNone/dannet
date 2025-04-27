@@ -232,34 +232,6 @@ def depthwise_conv2d(
     
     return dt.nnet.depthwise_conv2d(inputs, kernel, strides, padding)
 
-def max_pool(
-    inputs,
-    pool_size,
-    strides=None,
-    padding='valid',
-    data_format=None,
-):
-    inputs = convert_to_tensor(inputs)
-
-    data_format = backend.standardize_data_format(data_format)
-    num_spatial_dims = inputs.ndim - 2
-
-    if num_spatial_dims == 2 and padding=="valid" and strides==(2, 2) and pool_size==(2, 2):
-        b, w, h, c = inputs.shape
-        assert w%2 == h%2 == 0
-        inputs = dt.reshape(inputs, (b, w // 2, 2, h//2, 2, c))
-        return dt.max(inputs, axis=(2, 4))
-    print(inputs, pool_size, strides, padding, data_format)
-    pool_size = _convert_to_spatial_operand(
-        pool_size, num_spatial_dims, data_format
-    )
-    strides = pool_size if strides is None else strides
-    strides = _convert_to_spatial_operand(
-        strides, num_spatial_dims, data_format
-    )
-    return _pool(inputs, -np.inf, lax.max, pool_size, strides, padding)
-
-
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):

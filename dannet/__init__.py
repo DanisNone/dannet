@@ -1,12 +1,12 @@
 from . import core
 from .core import Constant, Variable
+from . import typing
 
 from .ops import*
 from . import nnet
 from .gradient import gradients
 
 from . import dtype
-from . import typing
 from . import utils
 from .utils import convert_to_tensor
 
