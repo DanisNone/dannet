@@ -1,11 +1,6 @@
 import math
 from .utils import *
 
-
-def default_strides(shape):
-    return [math.prod(shape[i + 1 :]) for i in range(len(shape))]
-
-
 def reduce(
     device,
     node: dt.reduce._Reduce,

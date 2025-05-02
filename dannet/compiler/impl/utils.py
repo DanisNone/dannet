@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 
+import math
 from pathlib import Path
 from typing import Sequence
 import pyopencl as cl
@@ -76,3 +77,6 @@ def build_kernel(device: dt.Device, name: str, headers: list[str] = []):
         print(f'//{name}\n'+code, file=file)
     _build_cache[key] = cl.Program(device.context, code).build()
     return _build_cache[key]
+
+def default_strides(shape):
+    return [math.prod(shape[i + 1 :]) for i in range(len(shape))]

@@ -103,6 +103,15 @@ def log_softmax(x, axis=-1):
         output = dt.nnet.log_softmax(x, axis=axis)
     return cast(output, dtype)
 
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with Dannet backend")
+
+    x = convert_to_tensor(x, dtype=dt.dtype.uint_dtype)
+
+    output = dt.one_hot(x, num_classes, axis, dtype)
+    return output
+
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
@@ -126,6 +135,34 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = output / dt.sum(output, axis=axis, keepdims=True)
         output = dt.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = dt.log(output)
+    return -dt.sum(target * log_prob, axis=axis)
+
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = convert_to_tensor(target, dtype=dt.dtype.uint_dtype)
+    output = convert_to_tensor(output)
+
+    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
+        target = dt.squeeze(target, axis=-1)
+
+    if len(output.shape) < 1:
+        raise ValueError(
+            "Argument `output` must be at least rank 1. "
+            "Received: "
+            f"output.shape={output.shape}"
+        )
+    if target.shape != output.shape[:-1]:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape "
+            "up until the last dimension: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if from_logits:
+        log_prob = dt.nnet.log_softmax(output, axis=axis)
+    else:
+        output = output / dt.sum(output, axis=axis, keepdims=True)
+        output = dt.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        log_prob = dt.log(output)
+    target = one_hot(target, output.shape[axis], axis=axis)
     return -dt.sum(target * log_prob, axis=axis)
 
 def binary_crossentropy(target, output, from_logits=False):
@@ -197,7 +234,6 @@ def conv2d(
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate, dilation_rate)
     
-    strides = tuple(strides)
     dilation_rate = tuple(dilation_rate)
     if dilation_rate != (1, 1):
         raise NotImplementedError(dilation_rate)

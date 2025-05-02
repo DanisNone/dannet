@@ -345,6 +345,55 @@ class _Slice(dt.core.TensorBase):
         zero = zeros(self.x.shape, self.x.dtype)
         return [pad(grad, pads) + zero]
 
+class _Gather(dt.core.TensorBase):
+    def __init__(self, x, indices):
+        self.x = dt.convert_to_tensor(x)
+        self.indices = dt.cast(indices, dt.dtype.int_dtype)
+
+        self._shape = self.indices.shape + self.x.shape[1:]
+        self._dtype = self.x.dtype
+
+        self._strides = self._default_strides()
+        self._buffer = dt.core.Buffer(self)
+        self._buffer_offset = 0
+
+    def inputs(self):
+        return [self.x, self.indices]
+
+    def compute_gradients(self, grad):
+        flat_dim = math.prod(self.x.shape[1:])
+
+        one_hot = dt.one_hot(self.indices, self.x.shape[0], dtype=grad.dtype)
+        
+        grad_2d = dt.reshape(grad, (-1, flat_dim))
+        one_hot_2d = dt.reshape(one_hot, (-1, self.x.shape[0]))
+
+        grad_x_flat = dt.matmul(dt.transpose(one_hot_2d, (1, 0)), grad_2d)  # shape: [x_shape[0], flat_dim]
+
+        grad_x = dt.reshape(grad_x_flat, self.x.shape)
+        return [grad_x, dt.zeros_like(self.indices)]
+
+class _OneHot(dt.core.TensorBase):
+    def __init__(self, indices, depth, dtype):
+        self.indices = dt.cast(indices, dt.dtype.uint_dtype)
+        self.depth = int(depth)
+
+        if self.depth <= 0:
+            raise ValueError(f"depth must be positivev integer, not {self.depth}")        
+            
+        self._shape = (*self.indices._shape, depth)
+        self._dtype = dt.dtype.normalize_dtype(dtype)
+        
+        self._strides = self._default_strides()
+        self._buffer = dt.core.Buffer(self)
+        self._buffer_offset = 0
+
+    def inputs(self):
+        return [self.indices]
+
+    def compute_gradients(self, grad):
+        return [dt.zeros_like(grad)]
+    
 def zeros(shape, dtype):
     t = _Zeros(shape, dtype)
     return dt.core._node_prepare(t)
@@ -463,6 +512,65 @@ def slice(x, slices):
     y = _Slice(x, slices)
     return dt.core._node_prepare(y)
 
+import math
+import dannet as dt
+
+def take(x, indices, axis=None, mode='raise'):
+    x = dt.convert_to_tensor(x)
+    indices = dt.cast(indices, dt.dtype.int_dtype)
+
+    if axis is None:
+        flat = dt.reshape(x, (-1,))
+        res = _Gather(flat, indices)
+        return dt.core._node_prepare(res)
+    
+    ndim = x.ndim
+    norm_axis = axis if axis >= 0 else axis + ndim
+    if not (0 <= norm_axis < ndim):
+        raise ValueError(f"axis {axis} out of range for tensor of ndim {ndim}")
+
+    if norm_axis != 0:
+        perm = [norm_axis] + [i for i in range(ndim) if i != norm_axis]
+        x = dt.transpose(x, perm)
+
+    head = x.shape[0]
+    tail = math.prod(x.shape[1:])
+    x_flat = dt.reshape(x, (head, tail))
+
+    gathered = _Gather(x_flat, indices)
+    gathered = dt.core._node_prepare(gathered)
+
+    out_shape = indices.shape + x.shape[1:]
+    out = dt.reshape(gathered, out_shape)
+
+    if norm_axis != 0:
+        i_ndim = indices.ndim
+
+        perm2 = [
+            *range(i_ndim, norm_axis + i_ndim),
+            *range(i_ndim),
+            *range(norm_axis + i_ndim, ndim + i_ndim - 1)
+        ]
+        out = dt.transpose(out, perm2)
+
+    return out
+
+
+def one_hot(x, depth, axis=-1, dtype=None):
+    if dtype is None:
+        dtype = dt.dtype.float_dtype
+    x = dt.convert_to_tensor(x)
+    if axis < 0:
+        axis += x.ndim + 1
+
+    res = _OneHot(x, depth, dtype)
+    res = dt.core._node_prepare(res)
+
+    ndim = res.ndim
+    axes = list(range(ndim))
+    axes[axis], axes[-1] = axes[-1], axes[axis]
+    return transpose(res, axes)
+
 __all__ = [
     'zeros',
     'ones',
@@ -478,4 +586,6 @@ __all__ = [
     'flip',
     'pad',
     'slice',
+    'take',
+    'one_hot',
 ]

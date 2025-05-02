@@ -359,8 +359,13 @@ def std(x, axis=None, keepdims=False):
     raise NotImplementedError('std')
 def swapaxes(x, axis1, axis2):
     raise NotImplementedError('swapaxes')
+
 def take(x, indices, axis=None):
-    raise NotImplementedError('take')
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices)
+
+    return dt.take(x, indices, axis)
+
 def take_along_axis(x, indices, axis=None):
     raise NotImplementedError('take_along_axis')
 def tan(x):

@@ -12,3 +12,5 @@ from . import matmul
 from . import convolve
 from . import padding
 from . import upsamplezeros
+from . import gather
+from . import onehot
