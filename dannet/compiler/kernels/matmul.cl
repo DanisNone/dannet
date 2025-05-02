@@ -27,12 +27,12 @@ __kernel void general(
     for (long y = 0; y < N; y += tile_size)
     {
         if (x < M && (y + lz) < N)
-            Asub[lx][lz] = A[Ashift + x * N + (y + lz)];
+            Asub[lx][lz] = A[Ashift + x * stridesA[ndimA - 2] + (y + lz) * stridesA[ndimA - 1]];
         else
             Asub[lx][lz] = 0;
         
         if ((y + lx) < N && z < K)
-            Bsub[lx][lz] = B[Bshift + (y + lx) * K + z];
+            Bsub[lx][lz] = B[Bshift + (y + lx) * stridesB[ndimB - 2] + z * stridesB[ndimB - 1]];
         else
             Bsub[lx][lz] = 0;
             

@@ -20,9 +20,9 @@ def subtract(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return dt.subtract(x1, x2)
 
-def matmul(x1, x2):
+def matmul(x1, x2, transpose_a = False, transpose_b = False):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return dt.matmul(x1, x2)
+    return dt.matmul(x1, x2, transpose_a, transpose_b)
 
 def multiply(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
@@ -436,9 +436,13 @@ def sqrt(x):
     return dt.sqrt(x)
 
 def squeeze(x, axis=None):
-    raise NotImplementedError('squeeze')
+    x = convert_to_tensor(x)
+    return dt.squeeze(x, axis)
+
 def transpose(x, axes=None):
-    raise NotImplementedError('transpose')
+    x = convert_to_tensor(x)
+    return dt.transpose(x, axes)
+
 def var(x, axis=None, keepdims=False):
     raise NotImplementedError('var')
 

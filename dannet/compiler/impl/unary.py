@@ -63,11 +63,11 @@ def log(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Sqrt)
 def sqrt(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'sqrt(x)')
+    return unary(device, node, input_buffers, output_buffer, 'sqrt((dtypeB)x)')
 
 @register_impl(dt.math._Rsqrt)
 def rsqrt(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, '1.0 / sqrt(x)')
+    return unary(device, node, input_buffers, output_buffer, '1.0 / sqrt((dtypeB)x)')
 
 
 @register_impl(dt.math._Sin)

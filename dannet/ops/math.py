@@ -289,7 +289,7 @@ class _Matmul(dt.core.TensorBase):
             grad_A = grad * B
             grad_B = grad * A
         elif A.ndim == 1 and B.ndim >= 2:
-            grad_A = dt.matmul(grad, dt.transpose(B, axes=Bperm))
+            grad_A = dt.matmul(grad, dt.transpose(B, perm=Bperm))
             grad_B = dt.matmul(
                 dt.reshape(A, (*A.shape, 1)), dt.reshape(grad, (1, *grad.shape))
             )
@@ -297,10 +297,10 @@ class _Matmul(dt.core.TensorBase):
             grad_A = dt.matmul(
                 dt.reshape(grad, (*grad.shape, 1)), dt.reshape(B, (1, *B.shape))
             )
-            grad_B = dt.matmul(dt.transpose(A, axes=Aperm), grad)
+            grad_B = dt.matmul(dt.transpose(A, perm=Aperm), grad)
         else:
-            grad_A = dt.matmul(grad, dt.transpose(B, axes=Bperm))
-            grad_B = dt.matmul(dt.transpose(A, axes=Aperm), grad)
+            grad_A = dt.matmul(grad, dt.transpose(B, perm=Bperm))
+            grad_B = dt.matmul(dt.transpose(A, perm=Aperm), grad)
 
         grad_A = dt.reduce_to(grad_A, A.shape)
         grad_B = dt.reduce_to(grad_B, B.shape)
@@ -329,9 +329,20 @@ def _make_ternary(name: str, class_: type[_ElementWiseTernary]):
     return inner
 
 
-def matmul(x, y):
+def matmul(x, y, transpose_a=False, transpose_b=False):
     x = dt.convert_to_tensor(x)
     y = dt.convert_to_tensor(y)
+
+    if x.ndim >= 2 and transpose_a:
+        perm = list(range(x.ndim))
+        perm[-1], perm[-2] = perm[-2], perm[-1]
+        x = dt.transpose(x, perm)
+    
+    if y.ndim >= 2 and transpose_b:
+        perm = list(range(y.ndim))
+        perm[-1], perm[-2] = perm[-2], perm[-1]
+        y = dt.transpose(y, perm)
+    
     z = _Matmul(x, y)
     return dt.core._node_prepare(z)
 

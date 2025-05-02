@@ -132,35 +132,35 @@ class _Reshape(dt.core.TensorBase):
 
 
 class _Transpose(dt.core.TensorBase):
-    def __init__(self, x, axes=None):
+    def __init__(self, x, perm=None):
         self.x = dt.convert_to_tensor(x)
 
-        if axes is None:
-            axes = range(self.x.ndim)[::-1]
-        axes = [a if a >= 0 else a + self.x.ndim for a in axes]
+        if perm is None:
+            perm = range(self.x.ndim)[::-1]
+        perm = [a if a >= 0 else a + self.x.ndim for a in perm]
 
-        if sorted(axes) != list(range(self.x.ndim)):
-            raise ValueError(f'Invalid axes for transpose')
+        if sorted(perm) != list(range(self.x.ndim)):
+            raise ValueError(f'Invalid perm for transpose')
 
-        self._shape = tuple(self.x._shape[a] for a in axes)
+        self._shape = tuple(self.x._shape[a] for a in perm)
         self._dtype = self.x.dtype
 
-        self._strides = tuple(self.x._strides[a] for a in axes)
+        self._strides = tuple(self.x._strides[a] for a in perm)
         self._buffer = self.x._buffer
         self._buffer_offset = self.x._buffer_offset
 
-        self.axes = tuple(axes)
+        self.perm = tuple(perm)
 
     def inputs(self):
         return [self.x]
 
     def compute_gradients(self, grad):
-        inv = [self.axes.index(i) for i in range(self.x.ndim)]
+        inv = [self.perm.index(i) for i in range(self.x.ndim)]
         return [transpose(grad, inv)]
     
     def get_config(self):
         config = super(_Transpose, self).get_config()
-        config['axes'] = self.axes
+        config['axes'] = self.perm
         return config
 
 class _Flip(dt.core.TensorBase):
@@ -481,11 +481,11 @@ def squeeze(x, axis=None):
     new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
     return reshape(x, new_shape)
         
-def transpose(x, axes):
+def transpose(x, perm=None):
     x = dt.convert_to_tensor(x)
-    y = _Transpose(x, axes)
+    y = _Transpose(x, perm)
 
-    if list(y.axes) == sorted(y.axes):
+    if list(y.perm) == sorted(y.perm):
         y = x
     return dt.core._node_prepare(y)
 

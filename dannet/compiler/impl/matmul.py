@@ -13,9 +13,6 @@ def matmul(
 ):
     A, B = input_buffers
     C = output_buffer
-
-    assert node.x._is_default_strides()
-    assert node.y._is_default_strides()
     assert node._is_default_strides()
 
     shapeA, shapeB = node.x._shape, node.y._shape
