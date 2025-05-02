@@ -221,7 +221,6 @@ def depthwise_conv2d(
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate, dilation_rate)
     
-    strides = tuple(strides)
     dilation_rate = tuple(dilation_rate)
     if dilation_rate != (1, 1):
         raise NotImplementedError(dilation_rate)
@@ -254,3 +253,21 @@ def batch_normalization(
         offset = convert_to_tensor(offset)
         res += dt.reshape(offset, shape)
     return res
+
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with Dannet."
+        )
+    x = convert_to_tensor(x)
+    
+    axes = tuple(axes) if isinstance(axes, list) else axes
+
+    mean = dt.mean(x, axes, keepdims=True)
+    variance = dt.mean(dt.square(x), axis=axes, keepdims=True) - dt.square(mean)
+    
+    if not keepdims:
+        mean = dt.squeeze(mean, axes)
+        variance = dt.squeeze(variance, axes)
+        
+    return mean, variance

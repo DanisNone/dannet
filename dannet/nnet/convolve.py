@@ -3,136 +3,102 @@ import dannet as dt
 
 
 class _ConvND(dt.core.TensorBase):
-    def __init__(self, x, kernel, stride):
-        self.x = dt.convert_to_tensor(x)
-        self.kernel = dt.convert_to_tensor(kernel)
-
-        if not self.x._is_default_strides():
-            self.x = dt.copy(self.x)
-        if not self.kernel._is_default_strides():
-            self.kernel = dt.copy(self.kernel)
+    def __init__(self,
+        rank: int,
+        input: dt.typing.TensorLike,
+        kernel: dt.typing.TensorLike, 
+        strides: tuple[int, ...] | int = 1,
+        padding: str ='valid'
+    ):
+        self.rank = int(rank)
+        if self.rank != 2:
+            raise NotImplementedError(f'{self.rank}-rank conv not implemented')
         
-        self.stride = stride
+        self.input = dt.convert_to_tensor(input)
+        self.kernel = dt.convert_to_tensor(kernel)
+        self.conv_strides = normalize_strides(self.rank, strides)
 
-        self._shape = self._compute_output_shape()
-        self._dtype = dt.dtype.max_dtype(self.x._dtype, self.kernel._dtype)
-
+        if self.input.ndim != self.rank + 2:
+            raise ValueError(f"Input shape must have {self.rank + 2} dimensions, got {self.input.ndim}")
+        if self.kernel.ndim != self.rank + 2:
+            raise ValueError(f"Kernel shape must have {self.rank + 2} dimensions, got {self.kernel.ndim}")
+        if len(self.conv_strides) != self.rank:
+            raise ValueError(f"Strides must have {self.rank} dimensions, got {len(self.conv_strides)}")
+        
+        self.input = conv_pad(self.rank, self.input, self.kernel, self.conv_strides, padding)
+        
+        self._shape = conv_output_shape(self.input._shape, self.kernel._shape, self.conv_strides)
+        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, "uint32")
+        self._strides = self._default_strides()
         self._buffer = dt.core.Buffer(self)
         self._buffer_offset = 0
-        self._strides = self._default_strides()
-
-    def _compute_output_shape(self):
-        raise NotImplementedError
 
     def inputs(self):
-        return [self.x, self.kernel]
-
-
-class _Conv1D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, C_in = self.x._shape  
-        KW, C_in_, C_out = self.kernel._shape
-        
-        if C_in != C_in_:
-            raise ValueError(f'Incomplete shapes: {self.x._shape}, {self.kernel._shape}')
-
-        SW = self.stride
-        
-        W_out = (W - KW) // SW + 1
-        return (B, W_out, C_out)
+        return [self.input, self.kernel]
     
     def compute_gradients(self, grad):
-        raise NotImplementedError('Backprop for Conv1D not yet implemented.')
+        batch, *x_shape, c1  = self.input._shape
+        *k_shape, c1, c2 = self.kernel._shape
 
+        grad_up_shape = [batch, *(x - k + 1 for x, k in zip(x_shape, k_shape)), c2]
+        grad_up = _up_sample_zeros(grad, [1, *self.conv_strides, 1], grad_up_shape)
 
-class _Conv2D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, H, C_in = self.x._shape                
-        KW, KH, C_in_, C_out = self.kernel._shape    
-
-        if C_in != C_in_:
-            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
-
-        SW, SH = self.stride                         
-
-        W_out = (W - KW) // SW + 1
-        H_out = (H - KH) // SH + 1
-        return (B, W_out, H_out, C_out)
-
-    def compute_gradients(self, grad):
-        batch, w, h, c1  = self.x._shape
-        kw, kh, c1, c2 = self.kernel._shape
-
-        grad = _up_sample_zeros(grad, [1, *self.stride, 1], (batch, w - kw + 1, h - kh + 1, c2))
-
-        k = dt.transpose(self.kernel, (0, 1, 3, 2))
-        k = dt.flip(k, (0, 1))
-
-        grad_x = dt.nnet.conv2d(grad, k, padding='full')
-
-
-        x = dt.transpose(self.x, (3, 1, 2, 0))
-        g = dt.transpose(grad, (1, 2, 0, 3))
-
-        grad_k = dt.nnet.conv2d(x, g)
-        grad_k = dt.transpose(grad_k, (1, 2, 0, 3))
-
-        assert grad_x.shape == self.x.shape, (grad_x.shape, self.x.shape)
-        assert grad_k.shape == self.kernel.shape, (grad_k.shape, self.kernel.shape)
+        axis = list(range(self.kernel.ndim))
+        axis[-1], axis[-2] = axis[-2], axis[-1]
         
+        k_transpose = dt.transpose(self.kernel, axis)
+        k_flipped = dt.flip(k_transpose, range(self.rank))
+
+        grad_x = dt.nnet.conv2d(grad_up, k_flipped, padding='full')
+
+
+        axis = list(range(self.input.ndim))
+        axis[0], axis[-1] = axis[-1], axis[0]
+        x_transpose = dt.transpose(self.input, axis)
+
+        axis = list(range(1, self.input.ndim - 1)) + [0, grad.ndim - 1]
+        grad_transpose = dt.transpose(grad_up, axis)
+
+        grad_k = dt.nnet.conv2d(x_transpose, grad_transpose)
+        grad_k = dt.transpose(grad_k, axis)
+
         return [grad_x, grad_k]
 
+class _DepthwiseConv2D(dt.core.TensorBase):
+    def __init__(
+        self,
+        input: dt.typing.TensorLike,
+        kernel: dt.typing.TensorLike,
+        strides: tuple[int, int] | int = 1,
+        padding: str = 'valid'
+    ):
+        self.input = dt.convert_to_tensor(input)
+        self.kernel = dt.convert_to_tensor(kernel)
 
-class _Conv3D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, H, D, C_in = self.x._shape
-        KW, KH, KD, C_in_, C_out = self.kernel._shape
-        
-        if C_in != C_in_:
-            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
+        self.conv_strides = normalize_strides(2, strides)
 
-        SW, SH, SD = self.stride
+        if self.input.ndim != 4:
+            raise ValueError(f"Input must have 4 dims, got {self.input.ndim}")
         
-        W_out = (W - KW) // SW + 1
-        H_out = (H - KH) // SH + 1
-        D_out = (D - KD) // SD + 1
-        return (B, W_out, H_out, D_out, C_out)
+        if self.kernel.ndim == 3:
+            self.kernel = dt.reshape(self.kernel, [*self.kernel._shape, 1])
+
+        if self.kernel.ndim != 4:
+            raise ValueError(f"Kernel must have 4 dims, got {self.kernel.ndim}")
+
+        self.input = conv_pad(2, self.input, self.kernel, self.conv_strides, padding)
+        self._shape = conv_output_shape_depthwise(self.input._shape, self.kernel._shape, self.conv_strides)
+
+        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, "uint32")
+        self._strides = self._default_strides()
+        self._buffer = dt.core.Buffer(self)
+        self._buffer_offset = 0
+
+    def inputs(self):
+        return [self.input, self.kernel]
 
     def compute_gradients(self, grad):
-        raise NotImplementedError('Backprop for Conv3D not yet implemented.')
-
-class _DepthwiseConv1D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, C = self.x._shape
-        KW, C_ = self.kernel._shape
-        if C != C_:
-            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
-        SW = self.stride
-        W_out = (W - KW) // SW + 1
-        return (B, W_out, C)
-
-class _DepthwiseConv2D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, H, C = self.x._shape
-        KW, KH, C_ = self.kernel._shape
-        if C != C_:
-            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
-        SW, SH = self.stride
-        W_out = (W - KW) // SW + 1
-        H_out = (H - KH) // SH + 1
-        return (B, W_out, H_out, C)
-
-class _DepthwiseConv3D(_ConvND):
-    def _compute_output_shape(self):
-        B, W, H, D, C = self.x._shape
-        KW, KH, KD, C_ = self.kernel._shape
-        if C != C_:
-            raise ValueError(f'Incompatible shapes: {self.x._shape}, {self.kernel._shape}')
-        SW, SH, SD = self.stride
-        W_out = (W - KW) // SW + 1
-        H_out = (H - KH) // SH + 1
-        D_out = (D - KD) // SD + 1
-        return (B, W_out, H_out, D_out, C)
+        raise NotImplementedError("gradient for depthwise2d conv not implemented")
 
 class _UpSampleZeros(dt.core.TensorBase):
     def __init__(self, x, factors: dt.typing.ShapeLike, shape: dt.typing.ShapeLike):
@@ -142,6 +108,7 @@ class _UpSampleZeros(dt.core.TensorBase):
 
         if len(factors) != self.x.ndim:
             raise ValueError('Factors must have the same ndim as input')
+        
         if len(shape) != self.x.ndim:
             raise ValueError('Shape must have the same ndim as input')
 
@@ -175,6 +142,73 @@ class _UpSampleZeros(dt.core.TensorBase):
         return config
 
 
+def normalize_strides(rank: int, strides: int | tuple[int, ...]) -> tuple[int, ...]:
+    if isinstance(strides, int):
+        strides = (strides, ) * rank
+    strides = tuple(int(s) for s in strides)
+    if len(strides) != rank:
+        raise ValueError(f'Strides length {len(strides)} does not match rank {rank}')
+    if min(strides) <= 0:
+        raise ValueError('All stride values must be positive integers')
+    return strides
+
+def conv_output_shape(input_shape: tuple[int, ...], kernel_shape: tuple[int, ...], strides: tuple[int, ...]) -> tuple[int, ...]:
+    B, *x, C1 = input_shape                
+    *k, C1_, C2 = kernel_shape    
+
+    if C1 != C1_:
+        raise ValueError(f'Input channels ({C1}) and kernel channels ({C1_}) must match')
+
+    result = []
+    for inp, ker, stride in zip(x, k, strides):
+        out = (inp - ker) // stride + 1
+        if out <= 0:
+            raise ValueError(f'Invalid output size computed: {(inp - ker)} // {stride} + 1 = {out}')
+        result.append(out)
+    return tuple([B, *result, C2])
+
+def conv_output_shape_depthwise(input_shape: tuple[int, ...], kernel_shape: tuple[int, ...], strides: tuple[int, ...]) -> tuple[int, ...]:
+    B, *x, C = input_shape
+    *k, C_k, M = kernel_shape
+    if C != C_k:
+        raise ValueError(f'Input channels ({C}) and kernel channels ({C_k}) must match')
+    result = []
+    for inp, ker, stride in zip(x, k, strides):
+        out = (inp - ker) // stride + 1
+        if out <= 0:
+            raise ValueError(f'Invalid output size: {(inp - ker)} // {stride} + 1 = {out}')
+        result.append(out)
+    return tuple([B, *result, C * M])
+
+def conv_pad(rank: int, input: dt.core.TensorBase, kernel: dt.core.TensorBase, strides: tuple[int, ...], padding: str):
+    if padding not in ('valid', 'same', 'full'):
+            raise ValueError(f'invalid padding: {padding}')
+    
+    assert rank + 2 == input.ndim
+    assert rank + 2 == kernel.ndim
+    assert rank == len(strides)
+
+    x_shape = input.shape[1:-1]
+    k_shape = kernel.shape[:-2]
+    paddings = []
+    for x, k, s in zip(x_shape, k_shape, strides):
+        if padding == 'valid':
+            paddings.append((0, 0))
+        
+        elif padding == 'same':
+            out = (x + s - 1) // s
+            pad = max((out - 1) * s + k - x, 0)
+            pad_left = pad // 2
+            pad_right = pad - pad_left
+            paddings.append((pad_left, pad_right))
+        
+        else:
+            pad = k - 1
+            paddings.append((pad, pad))
+    paddings = [0, *paddings, 0]
+    return dt.pad(input, paddings)
+
+
 def _up_sample_zeros(x: dt.typing.TensorLike, factors: dt.typing.ShapeLike, shape: dt.typing.ShapeLike):
     x = dt.convert_to_tensor(x)
     y = _UpSampleZeros(x, factors, shape)
@@ -183,91 +217,16 @@ def _up_sample_zeros(x: dt.typing.TensorLike, factors: dt.typing.ShapeLike, shap
         y = x
     return dt.core._node_prepare(y)
 
-def _pad(x_shape, kernel_shape, stride, padding):
-    if padding not in ('valid', 'same', 'full'):
-            raise ValueError(f'invalid padding: {padding}')
-    x_shape = dt.utils.normalize_shape(x_shape)
-    kernel_shape = dt.utils.normalize_shape(kernel_shape)
-    stride = dt.utils.normalize_shape(stride)
-    
-    assert len(x_shape) == len(kernel_shape) == len(stride)
-    paddings = []
-    for i in range(len(x_shape)):
-        x_dim, k_dim, s = x_shape[i], kernel_shape[i], stride[i]
 
-        if padding == 'valid':
-            paddings.append((0, 0))
-        elif padding == 'same':
-            y_dim = (x_dim + s - 1) // s
-            pad = max((y_dim - 1) * s + k_dim - x_dim, 0)
-            pad_left = pad // 2
-            pad_right = pad - pad_left
-            paddings.append((pad_left, pad_right))
-        else:
-            pad = (k_dim - 1)
-            paddings.append((pad, pad))
-    return paddings
+def conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = "valid"):
+    y = _ConvND(2, input, kernel, strides, padding)
+    return dt.core._node_prepare(y)
 
-
-
-def _make_conv(name: str, class_: type[_ConvND]):
-    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding='valid'):
-        x = dt.convert_to_tensor(x)
-        kernel = dt.convert_to_tensor(kernel)
-        if strides is None:
-            strides = [1] * (x.ndim - 2)
-        
-        paddings = _pad(x.shape[1:-1], kernel.shape[:-2], strides,padding)
-        paddings = [0, *paddings, 0]
-
-        x = dt.pad(x, paddings)
-        z = class_(x, kernel, strides)
-        return dt.core._node_prepare(z)
-    inner.__name__ = name
-    return inner
-
-def _make_depthwise_conv(name: str, class_: type[_ConvND]):
-    def inner(x: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides=None, padding='valid'):
-        x = dt.convert_to_tensor(x)
-        kernel = dt.convert_to_tensor(kernel)
-
-        if padding not in ('same', 'valid'):
-            raise ValueError(f'invalid padding: {padding}')
-        if strides is None:
-            strides = [1] * (x.ndim - 2)
-
-        if padding == 'same':
-            _, *S, _ = x.shape
-            *K, _ = kernel.shape
-            paddings = []
-            for dim, k, s in zip(S, K, strides):
-                out_dim = (dim + s - 1) // s
-                pad_needed = max((out_dim - 1) * s + k - dim, 0)
-                pad_before = pad_needed // 2
-                pad_after = pad_needed - pad_before
-                paddings.append((pad_before, pad_after))
-            paddings = [0, *paddings, 0]
-            x = dt.pad(x, paddings)
-
-        z = class_(x, kernel, strides)
-        return dt.core._node_prepare(z)
-
-    inner.__name__ = name
-    return inner
-
-conv1d = _make_conv('conv1d', _Conv1D)
-conv2d = _make_conv('conv2d', _Conv2D)
-conv3d = _make_conv('conv3d', _Conv3D)
-
-depthwise_conv1d = _make_depthwise_conv('depthwise_conv1d', _DepthwiseConv1D)
-depthwise_conv2d = _make_depthwise_conv('depthwise_conv2d', _DepthwiseConv2D)
-depthwise_conv3d = _make_depthwise_conv('depthwise_conv3d', _DepthwiseConv3D)
+def depthwise_conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = "valid"):
+    y = _DepthwiseConv2D(input, kernel, strides, padding)
+    return dt.core._node_prepare(y)
 
 __all__ = [
-    'conv1d',
     'conv2d',
-    'conv3d',
-    'depthwise_conv1d',
-    'depthwise_conv2d',
-    'depthwise_conv3d'
+    'depthwise_conv2d'
 ]

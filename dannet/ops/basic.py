@@ -168,11 +168,10 @@ class _Flip(dt.core.TensorBase):
         self.x = dt.convert_to_tensor(x)
         ndim = self.x.ndim
 
-        if isinstance(axes, (list, tuple)):
-            axes = tuple(axes)
-        else:
-            axes = (axes,)
-
+        if hasattr(axes, "__index__"):
+            axes = (axes, )
+        axes = tuple(axes)
+        
         norm_axes = []
         for a in axes:
             if a < 0:
@@ -410,6 +409,29 @@ def reshape(x, shape):
         y = x
     return dt.core._node_prepare(y)
 
+def squeeze(x, axis=None):
+    x = dt.convert_to_tensor(x)
+    shape = x.shape
+    ndim = x.ndim
+
+    if axis is None:
+        axes = [i for i, dim in enumerate(shape) if dim == 1]
+    else:
+        if isinstance(axis, (list, tuple)):
+            axes = list(axis)
+        else:
+            axes = [axis]
+        axes = [a + ndim if a < 0 else a for a in axes]
+
+    for a in axes:
+        if a < 0 or a >= ndim:
+            raise ValueError(f"axis {a} is out of bounds for tensor of dimension {ndim}")
+        if shape[a] != 1:
+            raise ValueError(f"cannot select an axis to squeeze out which has size not equal to one, axis {a} has size {shape[a]}")
+
+    new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
+    return reshape(x, new_shape)
+        
 def transpose(x, axes):
     x = dt.convert_to_tensor(x)
     y = _Transpose(x, axes)
@@ -450,6 +472,7 @@ __all__ = [
     'reduce_to',
     'cast',
     'reshape',
+    'squeeze',
     'transpose',
     'copy',
     'flip',
