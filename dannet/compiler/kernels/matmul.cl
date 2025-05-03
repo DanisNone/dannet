@@ -4,15 +4,15 @@ __kernel void general(
     __global dtypeC* C
 )
 {
-    long batch_shift = get_global_id(0) * M * K;
-    long x = get_global_id(1);
-    long z = get_global_id(2);
+    size_t batch_shift = get_global_id(0) * M * K;
+    size_t x = get_global_id(1);
+    size_t z = get_global_id(2);
 
-    long lx = get_local_id(1);
-    long lz = get_local_id(2);
+    size_t lx = get_local_id(1);
+    size_t lz = get_local_id(2);
     
-    long Ashift = 0;
-    long Bshift = 0;
+    size_t Ashift = 0;
+    size_t Bshift = 0;
     
     for (int axis = 0; axis < ndimC - 2; axis++)
     {
@@ -24,7 +24,7 @@ __kernel void general(
     __local dtypeC Bsub[tile_size][tile_size];
     
     dtypeC res = 0;
-    for (long y = 0; y < N; y += tile_size)
+    for (size_t y = 0; y < N; y += tile_size)
     {
         if (x < M && (y + lz) < N)
             Asub[lx][lz] = A[Ashift + x * stridesA[ndimA - 2] + (y + lz) * stridesA[ndimA - 1]];
@@ -39,7 +39,7 @@ __kernel void general(
         barrier(CLK_LOCAL_MEM_FENCE);
         
         
-        for (long ly = 0; ly < tile_size; ly++)
+        for (size_t ly = 0; ly < tile_size; ly++)
             res += Asub[lx][ly] * Bsub[ly][lz];
         barrier(CLK_LOCAL_MEM_FENCE);
     }

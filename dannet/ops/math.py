@@ -43,7 +43,7 @@ class _Square(_ElementWiseUnary):
         return dtype
 
     def compute_gradients(self, grad):
-        return [2 * grad * self.x]
+        return [dt.cast(2, grad.dtype) * grad * self.x]
 
 
 class _Abs(_ElementWiseUnary):
@@ -64,11 +64,11 @@ class _Sign(_ElementWiseUnary):
 
 class _Sqrt(_ElementWiseUnaryFloat):
     def compute_gradients(self, grad):
-        return [grad * 0.5 / self]
+        return [grad * dt.cast(0.5, grad.dtype) / self]
 
 class _Rsqrt(_ElementWiseUnaryFloat):
     def compute_gradients(self, grad):
-        return [grad * 0.5 * self / self.x]
+        return [grad * dt.cast(-0.5, grad.dtype) * self / self.x]
 
 class _Exp(_ElementWiseUnaryFloat):
     def result_dtype(self, dtype):
@@ -216,7 +216,7 @@ class _Where(_ElementWiseTernary):
 
     def compute_gradients(self, grad):
         zero = dt.zeros_like(grad)
-        return [dt.zeros_like(grad), dt.where(self.x, grad, zero), dt.where(self.x, zero, grad)]
+        return [zero, dt.where(self.x, grad, zero), dt.where(self.x, zero, grad)]
     
 class _Clip(_ElementWiseTernary):
     def result_dtype(self, dtype1, dtype2, dtype3):
@@ -252,8 +252,8 @@ class _Matmul(dt.core.TensorBase):
                 raise ValueError(f'Incompatible shapes for matmul: {self.x._shape} and {self.y._shape}')
             batch_shape = dt.utils.broadcast_shapes(self.x._shape[:-2], self.y._shape[:-2])
 
-            self.x = dt.broadcast_to(x, (*batch_shape, *self.x._shape[-2:]))
-            self.y = dt.broadcast_to(y, (*batch_shape, *self.y._shape[-2:]))
+            self.x = dt.broadcast_to(self.x, (*batch_shape, *self.x._shape[-2:]))
+            self.y = dt.broadcast_to(self.y, (*batch_shape, *self.y._shape[-2:]))
             self._shape = batch_shape + (self.x._shape[-2], self.y._shape[-1])
                 
         self._dtype = dt.dtype.max_dtype(self.x.dtype, self.y.dtype, 'uint32')
@@ -269,19 +269,11 @@ class _Matmul(dt.core.TensorBase):
         A = self.x
         B = self.y
 
-        Aperm = list(range(A.ndim))
-        if A.ndim >= 2:
-            Aperm[-2], Aperm[-1] = Aperm[-1], Aperm[-2]
-
-        Bperm = list(range(B.ndim))
-        if B.ndim >= 2:
-            Bperm[-2], Bperm[-1] = Bperm[-1], Bperm[-2]
-
         if A.ndim == 1 and B.ndim == 1:
             grad_A = grad * B
             grad_B = grad * A
         elif A.ndim == 1 and B.ndim >= 2:
-            grad_A = dt.matmul(grad, dt.transpose(B, perm=Bperm))
+            grad_A = dt.matmul(grad, B, transpose_b=True)
             grad_B = dt.matmul(
                 dt.reshape(A, (*A.shape, 1)), dt.reshape(grad, (1, *grad.shape))
             )
@@ -289,13 +281,11 @@ class _Matmul(dt.core.TensorBase):
             grad_A = dt.matmul(
                 dt.reshape(grad, (*grad.shape, 1)), dt.reshape(B, (1, *B.shape))
             )
-            grad_B = dt.matmul(dt.transpose(A, perm=Aperm), grad)
+            grad_B = dt.matmul(A, grad, transpose_a=True)
         else:
-            grad_A = dt.matmul(grad, dt.transpose(B, perm=Bperm))
-            grad_B = dt.matmul(dt.transpose(A, perm=Aperm), grad)
+            grad_A = dt.matmul(grad, B, transpose_b=True)
+            grad_B = dt.matmul(A, grad, transpose_a=True)
 
-        grad_A = dt.reduce_to(grad_A, A.shape)
-        grad_B = dt.reduce_to(grad_B, B.shape)
         return [grad_A, grad_B]
     
 def _make_unary(name: str, class_: type[_ElementWiseUnary]):

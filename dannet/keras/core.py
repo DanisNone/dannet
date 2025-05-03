@@ -55,8 +55,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         return x
     
     x = dt.convert_to_tensor(x)
-    if dtype is not None and x.dtype != dtype:
-        return cast(x, dtype)
+    if dtype is not None:
+        x = cast(x, dtype)
     return x
 
 def convert_to_numpy(x):
@@ -81,10 +81,7 @@ def cast(x, dtype):
     if isinstance(x, Variable):
         x = x.value
     if is_tensor(x):
-        if x.dtype == dtype:
-            return x
-        else:
-            return dt.cast(x, dtype)
+        return dt.cast(x, dtype)
     return convert_to_tensor(x, dtype)
 
 

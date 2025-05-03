@@ -109,7 +109,7 @@ def max(device, node, input_buffers, output_buffer):
     )
 
 @register_impl(dt.nnet.activations._LogSumExp)
-def max(device, node, input_buffers, output_buffer):
+def logsumexp(device, node, input_buffers, output_buffer):
     return reduce(
         device,
         node,

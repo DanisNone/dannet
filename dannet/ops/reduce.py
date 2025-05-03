@@ -71,7 +71,7 @@ class _Mean(_Reduce):
 
     def compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
-        grad = grad * dt.Constant(self.x.size / self.size, grad.dtype)
+        grad = grad * dt.cast(self.size / self.x.size, grad.dtype)
         return [dt.broadcast_to(grad, self.x.shape)]
 
 
@@ -172,6 +172,12 @@ def _make_reduce(name: str, class_: type[_Reduce] | type[_ArgReduce]):
     inner.__name__ = name
     return inner
 
+def var(x: dt.typing.TensorLike, axis=None, keepdims=False):
+    x = dt.convert_to_tensor(x)
+
+    mean = dt.mean(x, axis, keepdims=True)
+    variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims)
+    return variance
 
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)
@@ -185,6 +191,7 @@ argmax = _make_reduce('argmax', _ArgMax)
 __all__ = [
     'sum',
     'mean',
+    'var',
     'prod',
     'min',
     'max',

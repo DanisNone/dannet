@@ -1,3 +1,4 @@
+import numpy as np
 import dannet as dt
 
 from keras.src import backend
@@ -99,12 +100,11 @@ def log_softmax(x, axis=-1):
         output = dt.nnet.log_softmax(x, axis=axis)
     return cast(output, dtype)
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype='float32', sparse=False):
     if sparse:
-        raise ValueError("Unsupported value `sparse=True` with Dannet backend")
+        raise ValueError('Unsupported value `sparse=True` with Dannet backend')
 
-    x = convert_to_tensor(x, dtype=dt.dtype.uint_dtype)
-
+    x = convert_to_tensor(x, dtype=dt.dtype.int_dtype)
     output = dt.one_hot(x, num_classes, axis, dtype)
     return output
 
@@ -142,15 +142,15 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     if len(output.shape) < 1:
         raise ValueError(
-            "Argument `output` must be at least rank 1. "
-            "Received: "
-            f"output.shape={output.shape}"
+            'Argument `output` must be at least rank 1. '
+            'Received: '
+            f'output.shape={output.shape}'
         )
     if target.shape != output.shape[:-1]:
         raise ValueError(
-            "Arguments `target` and `output` must have the same shape "
-            "up until the last dimension: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
+            'Arguments `target` and `output` must have the same shape '
+            'up until the last dimension: '
+            f'target.shape={target.shape}, output.shape={output.shape}'
         )
     if from_logits:
         log_prob = dt.nnet.log_softmax(output, axis=axis)
@@ -289,17 +289,41 @@ def batch_normalization(
 def moments(x, axes, keepdims=False, synchronized=False):
     if synchronized:
         raise NotImplementedError(
-            "Argument synchronized=True is not supported with Dannet."
+            'Argument synchronized=True is not supported with Dannet.'
         )
     x = convert_to_tensor(x)
-    
-    axes = tuple(axes) if isinstance(axes, list) else axes
+    # The dynamic range of float16 is too limited for statistics. As a
+    # workaround, we simply perform the operations on float32 and convert back
+    # to float16
+    need_cast = False
+    ori_dtype = backend.standardize_dtype(x.dtype)
+    if ori_dtype == 'float16':
+        need_cast = True
+        x = cast(x, 'float32')
 
     mean = dt.mean(x, axes, keepdims=True)
-    variance = dt.mean(dt.square(x), axis=axes, keepdims=True) - dt.square(mean)
-    
+
+    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
+    # but less numerically stable.
+    variance = dt.mean(
+        dt.square(x), axes, keepdims=True
+    ) - dt.square(mean)
+
     if not keepdims:
         mean = dt.squeeze(mean, axes)
         variance = dt.squeeze(variance, axes)
-        
+    if need_cast:
+        # avoid overflow and underflow when casting from float16 to float32
+        mean = dt.clip(
+            mean,
+            np.finfo(np.float16).min,
+            np.finfo(np.float16).max,
+        )
+        variance = dt.clip(
+            variance,
+            np.finfo(np.float16).min,
+            np.finfo(np.float16).max,
+        )
+        mean = cast(mean, ori_dtype)
+        variance = cast(variance, ori_dtype)
     return mean, variance

@@ -363,7 +363,6 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices)
-
     return dt.take(x, indices, axis)
 
 def take_along_axis(x, indices, axis=None):
@@ -446,7 +445,8 @@ def transpose(x, axes=None):
     return dt.transpose(x, axes)
 
 def var(x, axis=None, keepdims=False):
-    raise NotImplementedError('var')
+    x = convert_to_tensor(x)
+    return dt.var(x, axis, keepdims)
 
 def sum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)

@@ -337,14 +337,14 @@ class _Gather(dt.core.TensorBase):
         grad_2d = dt.reshape(grad, (-1, flat_dim))
         one_hot_2d = dt.reshape(one_hot, (-1, self.x.shape[0]))
 
-        grad_x_flat = dt.matmul(dt.transpose(one_hot_2d, (1, 0)), grad_2d)  # shape: [x_shape[0], flat_dim]
+        grad_x_flat = dt.matmul(one_hot_2d, grad_2d, transpose_a=True)
 
         grad_x = dt.reshape(grad_x_flat, self.x.shape)
         return [grad_x, dt.zeros_like(self.indices)]
 
 class _OneHot(dt.core.TensorBase):
     def __init__(self, indices, depth, dtype):
-        self.indices = dt.cast(indices, dt.dtype.uint_dtype)
+        self.indices = dt.cast(indices, dt.dtype.int_dtype)
         self.depth = int(depth)
 
         if self.depth <= 0:
@@ -475,10 +475,7 @@ def slice(x, slices):
     y = _Slice(x, slices)
     return dt.core._node_prepare(y)
 
-import math
-import dannet as dt
-
-def take(x, indices, axis=None, mode='raise'):
+def take(x, indices, axis=None):
     x = dt.convert_to_tensor(x)
     indices = dt.cast(indices, dt.dtype.int_dtype)
 
@@ -529,10 +526,9 @@ def one_hot(x, depth, axis=-1, dtype=None):
     res = _OneHot(x, depth, dtype)
     res = dt.core._node_prepare(res)
 
-    ndim = res.ndim
-    axes = list(range(ndim))
-    axes[axis], axes[-1] = axes[-1], axes[axis]
-    return transpose(res, axes)
+    perm = list(range(res.ndim))
+    perm[axis], perm[-1] = perm[-1], perm[axis]
+    return transpose(res, perm)
 
 __all__ = [
     'zeros',
