@@ -327,7 +327,7 @@ class Update(TensorBase):
 def _node_prepare(node: TensorBase):
     if dt.is_eager():
         return dt.eval(node)
-    if node.inputs() and all(isinstance(node, Constant) for inp in node.inputs()):
+    if node.inputs() and all(isinstance(inp, Constant) for inp in node.inputs()):
         return dt.eval(node)
     dt.function._add_node(node)
     return node
