@@ -43,7 +43,8 @@ class _Softsign(_ElementWiseUnaryFloat):
 class _HardSigmoid(_ElementWiseUnaryFloat):
     # clip(x / 6 + 0.5, 0, 1)
     def compute_gradients(self, grad):
-        return [dt.where(dt.greater_equal(self.x, -3) * dt.less_equal(self.x, 3), grad * (1 / 6), 0)]
+        res = grad * (1 / 6)
+        return [dt.where(dt.greater_equal(self.x, -3) * dt.less_equal(self.x, 3), res, dt.zeros_like(res))]
     
 relu = _make_unary('relu', _Relu)
 relu6 = _make_unary('relu6', _Relu6)
@@ -88,11 +89,21 @@ def softmax(x, axis=-1):
     
     return x_exp / x_sum
 
+class _LogSumExp(dt.reduce._Reduce):
+    def result_type(self, dtype):
+        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
+
+    def compute_gradients(self, grad):
+        grad = dt.reshape(grad, self._keepdims_shape)
+        exp_x_minus_max = dt.exp(self.x - dt.reshape(self, self._keepdims_shape))
+        return [dt.broadcast_to(grad, self.x.shape) * exp_x_minus_max]
 
 def log_softmax(x, axis=-1):
     x = dt.convert_to_tensor(x)
 
     max_x = dt.max(x, axis=axis, keepdims=True)
-    exp_x = dt.exp(x - max_x)
-    logsumexp = dt.log(dt.sum(exp_x, axis=axis, keepdims=True))
+    logsumexp = dt.nnet.logsumexp(x - max_x, axis=axis, keepdims=True)
     return x - max_x - logsumexp
+
+
+logsumexp = dt.reduce._make_reduce("logsumexp", _LogSumExp)

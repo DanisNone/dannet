@@ -215,9 +215,8 @@ class _Where(_ElementWiseTernary):
         return dt.dtype.max_dtype(dtype2, dtype3)
 
     def compute_gradients(self, grad):
-        return [dt.zeros_like(grad), dt.where(self.x, grad, 0), dt.where(self.x, 0, grad)]
-        #TODO
-        raise NotImplementedError
+        zero = dt.zeros_like(grad)
+        return [dt.zeros_like(grad), dt.where(self.x, grad, zero), dt.where(self.x, zero, grad)]
     
 class _Clip(_ElementWiseTernary):
     def result_dtype(self, dtype1, dtype2, dtype3):
@@ -256,14 +255,7 @@ class _Matmul(dt.core.TensorBase):
             self.x = dt.broadcast_to(x, (*batch_shape, *self.x._shape[-2:]))
             self.y = dt.broadcast_to(y, (*batch_shape, *self.y._shape[-2:]))
             self._shape = batch_shape + (self.x._shape[-2], self.y._shape[-1])
-        
-        
-        if not self.x._is_default_strides():
-            self.x = dt.copy(self.x)
-        
-        if not self.y._is_default_strides():
-            self.y = dt.copy(self.y)
-            
+                
         self._dtype = dt.dtype.max_dtype(self.x.dtype, self.y.dtype, 'uint32')
         
         self._buffer = dt.core.Buffer(self)

@@ -243,7 +243,7 @@ class Variable(TensorBase):
             self._value = value.copy()
             self._used_by = None
             return
-        return dt.core._node_prepare(Update(self, value))
+        dt.core._node_prepare(Update(self, value))
 
     def inputs(self):
         return []
@@ -264,10 +264,10 @@ class Variable(TensorBase):
         return self._value.astype(dtype, copy=True)
     
     def __repr__(self):
-        v = str(self._value)
+        v = str(self.numpy())
         if len(v) > 50:
             v = v[:50] + '...'
-        return f'Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})'
+        return f'Variable(shape={self._shape}, dtype={self._dtype}, numpy={v})'
 
     
 class Placeholder(TensorBase):
@@ -326,6 +326,8 @@ class Update(TensorBase):
 
 def _node_prepare(node: TensorBase):
     if dt.is_eager():
+        return dt.eval(node)
+    if node.inputs() and all(isinstance(node, Constant) for inp in node.inputs()):
         return dt.eval(node)
     dt.function._add_node(node)
     return node

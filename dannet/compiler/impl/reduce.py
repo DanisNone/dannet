@@ -107,3 +107,15 @@ def max(device, node, input_buffers, output_buffer):
         'acc > x ? acc : x',
         'res',
     )
+
+@register_impl(dt.nnet.activations._LogSumExp)
+def max(device, node, input_buffers, output_buffer):
+    return reduce(
+        device,
+        node,
+        input_buffers,
+        output_buffer,
+        '0',
+        'acc + exp((dtypeB)x)',
+        'log(res)',
+    )

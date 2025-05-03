@@ -413,7 +413,9 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return dt.where(dt.equal(x2, 0), 0, dt.divide(x1, x2))
+
+    res = dt.divide(x1, x2)
+    return dt.where(dt.equal(x2, 0), dt.zeros_like(res), res)
 
 
 def true_divide(x1, x2):

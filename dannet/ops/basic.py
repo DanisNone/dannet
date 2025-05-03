@@ -1,37 +1,6 @@
 import math
 import dannet as dt
 
-
-class _Zeros(dt.core.TensorBase):
-    def __init__(self, shape, dtype):
-        self._shape = dt.utils.normalize_shape(shape)
-        self._dtype = dt.dtype.normalize_dtype(dtype)
-
-        self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
-        self._buffer_offset = 0
-
-    def inputs(self):
-        return []
-
-    def compute_gradients(self, grad):
-        return []
-
-class _Ones(dt.core.TensorBase):
-    def __init__(self, shape, dtype):
-        self._shape = dt.utils.normalize_shape(shape)
-        self._dtype = dt.dtype.normalize_dtype(dtype)
-
-        self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
-        self._buffer_offset = 0
-
-    def inputs(self):
-        return []
-
-    def compute_gradients(self, grad):
-        return []
-
 class _BroadcastTo(dt.core.TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
@@ -395,26 +364,22 @@ class _OneHot(dt.core.TensorBase):
         return [dt.zeros_like(grad)]
     
 def zeros(shape, dtype):
-    t = _Zeros(shape, dtype)
-    return dt.core._node_prepare(t)
+    return broadcast_to(cast(0, dtype), shape)
 
 def ones(shape, dtype):
-    t = _Ones(shape, dtype)
-    return dt.core._node_prepare(t)
+    return broadcast_to(cast(1, dtype), shape)
 
 def zeros_like(x, dtype=None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
-    t = _Zeros(x.shape, x.dtype)
-    return dt.core._node_prepare(t)
+    return broadcast_to(cast(0, x.dtype), x.shape)
 
 def ones_like(x, dtype=None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
-    t = _Ones(x.shape, x.dtype)
-    return dt.core._node_prepare(t)
+    return broadcast_to(cast(1, x.dtype), x.shape)
 
 def broadcast_to(x, shape):
     x = dt.convert_to_tensor(x)
@@ -504,8 +469,6 @@ def pad(x, paddings):
 def copy(x):
     x = dt.convert_to_tensor(x)
     y = _Copy(x)
-    if x._is_default_strides():
-        y = x
     return dt.core._node_prepare(y)
 
 def slice(x, slices):

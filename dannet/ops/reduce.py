@@ -165,6 +165,9 @@ def _make_reduce(name: str, class_: type[_Reduce] | type[_ArgReduce]):
     def inner(x: dt.typing.TensorLike, axis=None, keepdims=False):
         x = dt.convert_to_tensor(x)
         y = class_(x, axis=axis, keepdims=keepdims)
+
+        if x.size == y.size:
+            y = x
         return dt.core._node_prepare(y)   
     inner.__name__ = name
     return inner

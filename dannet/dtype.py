@@ -37,6 +37,11 @@ def is_float_dtype(dtype):
         'float32',
         'float64',
     ]
+
+def is_bool_dtype(dtype):
+    return normalize_dtype(dtype) == 'bool'
+
+
 def _reachable_from(dtype: str) -> set[str]:
     reached = {dtype}
     frontier = {dtype}

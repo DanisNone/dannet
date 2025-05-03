@@ -98,7 +98,11 @@ def is_eager():
 
 def eval(x):
     x = dt.convert_to_tensor(x)
-    res = dt.compiler.compile([], [x], topsort.topological_sort([x]))([])[0]
+    if isinstance(x, dt.core.Constant):
+        return x
+    
+    nodes = topsort.topological_sort([x])
+    res = dt.compiler.compile([], [x], nodes[::-1])([])[0]
     return dt.Constant(res)
 
 def get_struct(obj) -> Any:

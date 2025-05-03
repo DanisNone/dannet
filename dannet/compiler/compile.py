@@ -48,10 +48,10 @@ class compile:
         self._load_constants()
 
         with open('data.txt', 'w') as file:
-            for node in nodes:
-                idx = nodes.index(node)
-                idxinp = [nodes.index(inp) for inp in node.inputs()]
-                print(f'{idx}: {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
+            for node in self._nodes:
+                idx = self._nodes.index(node)
+                idxinp = [self._nodes.index(inp) for inp in node.inputs()]
+                print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
         
     def _filter_nodes(self):
         target_tensors = [
@@ -59,9 +59,9 @@ class compile:
             for node in self._nodes
             if (node in self._outputs) or isinstance(node, dt.core.Update)
         ]
+
         nodes = topological_sort(target_tensors)
         self._nodes = [node for node in self._nodes if node in nodes]
-
         for node in self._nodes:
             if not self.device.is_support(node._dtype):
                 raise TypeError(f'dtype {node.dtype} not supported on device {self.device}')
@@ -171,7 +171,7 @@ class compile:
                 if dt.timestat.enabled():
                     for node, kernel in zip(self._filtered_nodes, self._kernels):
                         s = str([(inp.shape, inp.dtype) for inp in node.inputs()])
-                        s = f"{node}: {s}"
+                        s = f'{node}: {s}'
                         with dt.timestat.record(s):
                             kernel()
                             self.device.queue.finish()

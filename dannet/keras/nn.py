@@ -3,10 +3,6 @@ import dannet as dt
 from keras.src import backend
 from dannet.keras.core import cast
 from dannet.keras.core import convert_to_tensor
-from dannet.keras.numpy import expand_dims
-from dannet.keras.numpy import maximum
-from dannet.keras.numpy import where
-from keras.src.utils.argument_validation import standardize_tuple
 
 def relu(x):
     x = convert_to_tensor(x)
