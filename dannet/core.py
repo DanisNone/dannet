@@ -101,31 +101,43 @@ class TensorBase(abc.ABC):
         return self._strides == self._default_strides()
     
     def __add__(self, other):
-        return dt.math.add(self, other)
+        return dt.add(self, other)
 
     def __sub__(self, other):
-        return dt.math.subtract(self, other)
+        return dt.subtract(self, other)
 
     def __mul__(self, other):
-        return dt.math.multiply(self, other)
+        return dt.multiply(self, other)
 
     def __truediv__(self, other):
-        return dt.math.divide(self, other)
+        return dt.divide(self, other)
 
     def __radd__(self, other):
-        return dt.math.add(other, self)
+        return dt.add(other, self)
 
     def __rsub__(self, other):
-        return dt.math.subtract(other, self)
+        return dt.subtract(other, self)
 
     def __rmul__(self, other):
-        return dt.math.multiply(other, self)
+        return dt.multiply(other, self)
 
     def __rtruediv__(self, other):
-        return dt.math.divide(other, self)
+        return dt.divide(other, self)
 
     def __neg__(self):
-        return dt.math.negative(self)
+        return dt.negative(self)
+    
+    def __lt__(self, other):
+        return dt.less(self, other)
+    
+    def __le__(self, other):
+        return dt.less_equal(self, other)
+    
+    def __gt__(self, other):
+        return dt.greater(self, other)
+    
+    def __ge__(self, other):
+        return dt.greater_equal(self, other)
     
     def __repr__(self):
         name = type(self).__name__
