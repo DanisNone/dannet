@@ -55,7 +55,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     keep_prob = 1.0 - rate
 
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
-    mask = dt.random.uniform(shape=noise_shape, rng=rng, dtype="float32")
+    mask = dt.random.uniform(shape=noise_shape, rng=rng, dtype='float32')
     mask = dt.less(mask, keep_prob)
     mask = dt.broadcast_to(mask, inputs.shape)
 

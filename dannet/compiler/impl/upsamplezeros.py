@@ -17,7 +17,7 @@ def matmul(
         A=node.x,
         B=node
     )
-    headers.append(insert_static_array("upsample_size", node._upsample_size))
+    headers.append(insert_static_array('upsample_size', node._upsample_size))
     
     global_size = (node.size, )
     local_size = None

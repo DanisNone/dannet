@@ -106,4 +106,4 @@ def log_softmax(x, axis=-1):
     return x - max_x - logsumexp
 
 
-logsumexp = dt.reduce._make_reduce("logsumexp", _LogSumExp)
+logsumexp = dt.reduce._make_reduce('logsumexp', _LogSumExp)

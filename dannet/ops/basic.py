@@ -137,7 +137,7 @@ class _Flip(dt.core.TensorBase):
         self.x = dt.convert_to_tensor(x)
         ndim = self.x.ndim
 
-        if hasattr(axes, "__index__"):
+        if hasattr(axes, '__index__'):
             axes = (axes, )
         axes = tuple(axes)
         
@@ -348,7 +348,7 @@ class _OneHot(dt.core.TensorBase):
         self.depth = int(depth)
 
         if self.depth <= 0:
-            raise ValueError(f"depth must be positivev integer, not {self.depth}")        
+            raise ValueError(f'depth must be positivev integer, not {self.depth}')        
             
         self._shape = (*self.indices._shape, depth)
         self._dtype = dt.dtype.normalize_dtype(dtype)
@@ -439,9 +439,9 @@ def squeeze(x, axis=None):
 
     for a in axes:
         if a < 0 or a >= ndim:
-            raise ValueError(f"axis {a} is out of bounds for tensor of dimension {ndim}")
+            raise ValueError(f'axis {a} is out of bounds for tensor of dimension {ndim}')
         if shape[a] != 1:
-            raise ValueError(f"cannot select an axis to squeeze out which has size not equal to one, axis {a} has size {shape[a]}")
+            raise ValueError(f'cannot select an axis to squeeze out which has size not equal to one, axis {a} has size {shape[a]}')
 
     new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
     return reshape(x, new_shape)
@@ -487,7 +487,7 @@ def take(x, indices, axis=None):
     ndim = x.ndim
     norm_axis = axis if axis >= 0 else axis + ndim
     if not (0 <= norm_axis < ndim):
-        raise ValueError(f"axis {axis} out of range for tensor of ndim {ndim}")
+        raise ValueError(f'axis {axis} out of range for tensor of ndim {ndim}')
 
     if norm_axis != 0:
         perm = [norm_axis] + [i for i in range(ndim) if i != norm_axis]

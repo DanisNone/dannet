@@ -19,16 +19,16 @@ class _ConvND(dt.core.TensorBase):
         self.conv_strides = normalize_strides(self.rank, strides)
 
         if self.input.ndim != self.rank + 2:
-            raise ValueError(f"Input shape must have {self.rank + 2} dimensions, got {self.input.ndim}")
+            raise ValueError(f'Input shape must have {self.rank + 2} dimensions, got {self.input.ndim}')
         if self.kernel.ndim != self.rank + 2:
-            raise ValueError(f"Kernel shape must have {self.rank + 2} dimensions, got {self.kernel.ndim}")
+            raise ValueError(f'Kernel shape must have {self.rank + 2} dimensions, got {self.kernel.ndim}')
         if len(self.conv_strides) != self.rank:
-            raise ValueError(f"Strides must have {self.rank} dimensions, got {len(self.conv_strides)}")
+            raise ValueError(f'Strides must have {self.rank} dimensions, got {len(self.conv_strides)}')
         
         self.input = conv_pad(self.rank, self.input, self.kernel, self.conv_strides, padding)
         
         self._shape = conv_output_shape(self.input._shape, self.kernel._shape, self.conv_strides)
-        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, "uint32")
+        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, 'uint32')
         self._strides = self._default_strides()
         self._buffer = dt.core.Buffer(self)
         self._buffer_offset = 0
@@ -78,18 +78,18 @@ class _DepthwiseConv2D(dt.core.TensorBase):
         self.conv_strides = normalize_strides(2, strides)
 
         if self.input.ndim != 4:
-            raise ValueError(f"Input must have 4 dims, got {self.input.ndim}")
+            raise ValueError(f'Input must have 4 dims, got {self.input.ndim}')
         
         if self.kernel.ndim == 3:
             self.kernel = dt.reshape(self.kernel, [*self.kernel._shape, 1])
 
         if self.kernel.ndim != 4:
-            raise ValueError(f"Kernel must have 4 dims, got {self.kernel.ndim}")
+            raise ValueError(f'Kernel must have 4 dims, got {self.kernel.ndim}')
 
         self.input = conv_pad(2, self.input, self.kernel, self.conv_strides, padding)
         self._shape = conv_output_shape_depthwise(self.input._shape, self.kernel._shape, self.conv_strides)
 
-        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, "uint32")
+        self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, 'uint32')
         self._strides = self._default_strides()
         self._buffer = dt.core.Buffer(self)
         self._buffer_offset = 0
@@ -98,7 +98,7 @@ class _DepthwiseConv2D(dt.core.TensorBase):
         return [self.input, self.kernel]
 
     def compute_gradients(self, grad):
-        raise NotImplementedError("gradient for depthwise2d conv not implemented")
+        raise NotImplementedError('gradient for depthwise2d conv not implemented')
 
 class _UpSampleZeros(dt.core.TensorBase):
     def __init__(self, x, factors: dt.typing.ShapeLike, shape: dt.typing.ShapeLike):
@@ -137,8 +137,8 @@ class _UpSampleZeros(dt.core.TensorBase):
     
     def get_config(self):
         config = super(_UpSampleZeros, self).get_config()
-        config["factors"] = self._upsample_size
-        config["shape"] = self._shape
+        config['factors'] = self._upsample_size
+        config['shape'] = self._shape
         return config
 
 
@@ -218,11 +218,11 @@ def _up_sample_zeros(x: dt.typing.TensorLike, factors: dt.typing.ShapeLike, shap
     return dt.core._node_prepare(y)
 
 
-def conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = "valid"):
+def conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = 'valid'):
     y = _ConvND(2, input, kernel, strides, padding)
     return dt.core._node_prepare(y)
 
-def depthwise_conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = "valid"):
+def depthwise_conv2d(input: dt.typing.TensorLike, kernel: dt.typing.TensorLike, strides: tuple[int, int] | int = 1, padding: str = 'valid'):
     y = _DepthwiseConv2D(input, kernel, strides, padding)
     return dt.core._node_prepare(y)
 
