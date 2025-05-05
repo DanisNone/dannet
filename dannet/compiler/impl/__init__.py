@@ -13,3 +13,4 @@ from . import padding
 from . import upsamplezeros
 from . import gather
 from . import onehot
+from . import range

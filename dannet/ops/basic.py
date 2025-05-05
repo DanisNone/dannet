@@ -365,6 +365,23 @@ class _OneHot(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return [dt.zeros_like(grad)]
     
+class _Range(dt.core.TensorBase):
+    def __init__(self, n: int):
+        assert n > 0
+
+        self._shape = (n,)
+        self._dtype = dt.dtype.uint_dtype
+
+        self._strides = self._default_strides()
+        self._buffer = dt.core.Buffer(self)
+        self._buffer_offset = 0
+
+    def inputs(self):
+        return []
+
+    def compute_gradients(self, grad):
+        return []
+
 def zeros(shape, dtype):
     return broadcast_to(cast(0, dtype), shape)
 
@@ -375,13 +392,13 @@ def zeros_like(x, dtype=None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
-    return broadcast_to(cast(0, x.dtype), x.shape)
+    return broadcast_to(cast(0, dtype), x.shape)
 
 def ones_like(x, dtype=None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
-    return broadcast_to(cast(1, x.dtype), x.shape)
+    return broadcast_to(cast(1, dtype), x.shape)
 
 def broadcast_to(x, shape):
     x = dt.convert_to_tensor(x)
@@ -410,8 +427,10 @@ def reduce_to(x, shape):
             raise ValueError(f'Fail reduce {x} to {shape}')
     return dt.reshape(dt.sum(x, axis=sum_axis), shape)
 
-def cast(x, dtype):
+def cast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None):
     x = dt.convert_to_tensor(x)
+    if dtype is None:
+        return x
     y = _Cast(x, dtype)
     if x.dtype == y.dtype:
         y = x
@@ -451,7 +470,7 @@ def squeeze(x, axis=None):
 def expand_dims(x, axis):
     x = dt.convert_to_tensor(x)
     
-    if hasattr(axis, "__index__"):
+    if hasattr(axis, '__index__'):
         axis = (int(axis), )
     axis = tuple(axis)
 
@@ -564,6 +583,36 @@ def one_hot(x, depth, axis=-1, dtype=None):
     perm[axis], perm[-1] = perm[-1], perm[axis]
     return transpose(res, perm)
 
+def arange(start: int | float, stop: int | float | None = None, step: int | float = 1, dtype = None):
+    if step == 0:
+        raise ValueError('arange() step cannot be zero')
+    if stop is None:
+        start, stop = 0, start
+    if any(not hasattr(el, '__index__') for el in (start, stop, step)):
+        start = float(start)
+        stop = float(stop)
+        step = float(step)
+    else:
+        start = int(start)
+        stop = int(stop)
+        step = int(step)
+
+    length = math.ceil((stop - start) / step)
+    if length <= 0:
+        raise ValueError(f'arange() invalid length ({length}) for range '
+                           f'[{start}, {stop}) with step {step}')
+    
+    res = _Range(length)
+    res = dt.core._node_prepare(res)
+
+    if dtype is not None and isinstance(step, float):
+        res *= dt.Constant(step, dt.dtype.max_dtype(dtype, dt.dtype.float_dtype))
+        res += dt.Constant(start, dt.dtype.max_dtype(dtype, dt.dtype.float_dtype))
+    else:
+        res *= step
+        res += step
+    return dt.cast(res, dtype)
+
 __all__ = [
     'zeros',
     'ones',
@@ -583,4 +632,5 @@ __all__ = [
     'slice',
     'take',
     'one_hot',
+    'arange',
 ]

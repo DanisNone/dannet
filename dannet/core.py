@@ -336,10 +336,19 @@ class Update(TensorBase):
         return id(self)
 
 
+def is_constant(node: TensorBase) -> bool:
+    if isinstance(node, Constant):
+        return True
+    inputs = node.inputs()
+    if inputs:
+        return all(is_constant(inp) for inp in inputs)
+    return False
+
 def _node_prepare(node: TensorBase):
     if dt.is_eager():
         return dt.eval(node)
-    if node.inputs() and all(isinstance(inp, Constant) for inp in node.inputs()):
+    # not evaluate broadcast_to, reshape, ...
+    if is_constant(node) and node._is_default_strides():
         return dt.eval(node)
     dt.function._add_node(node)
     return node

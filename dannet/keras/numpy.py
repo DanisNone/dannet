@@ -83,8 +83,10 @@ def amin(x, axis=None, keepdims=False):
 
 def append(x1, x2, axis=None):
     raise NotImplementedError('append')
+
 def arange(start, stop=None, step=1, dtype=None):
-    raise NotImplementedError('arange')
+    return dt.arange(start, stop, step, dtype)
+ 
 def arccos(x):
     raise NotImplementedError('arccos')
 def arccosh(x):
