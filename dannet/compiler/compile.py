@@ -42,7 +42,7 @@ class compile:
         self._nodes = nodes
         self._constant_nodes: list[dt.core.Constant] = []
         self._variable_nodes: list[dt.core.Variable] = []
-        self._filtered_nodes: list[TensorBase] = []
+        self._compute_nodes: list[TensorBase] = []
 
         self._buffers: dict[dt.core.Buffer, cl.Buffer] = {}
         self._constants_loaded: bool = False
@@ -128,7 +128,7 @@ class compile:
                 if node not in self._inputs:
                     raise ValueError('graph have unknown input')
             else:
-                self._filtered_nodes.append(node)
+                self._compute_nodes.append(node)
 
     def _allocate_buffers(self):
         if self._buffers:
@@ -211,7 +211,7 @@ class compile:
         if self._kernels:
             return
         with dt.timestat.record('compile_kernels'):
-            for node in self._filtered_nodes:
+            for node in self._compute_nodes:
                 input_buffers = [self._buffers[inp._buffer] for inp in node.inputs()]
                 output_buffer = self._buffers[node._buffer]
                 kernel = dt.compiler.compile_node(self.device, node, input_buffers, output_buffer)
