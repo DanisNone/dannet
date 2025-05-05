@@ -447,7 +447,31 @@ def squeeze(x, axis=None):
 
     new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
     return reshape(x, new_shape)
-        
+
+def expand_dims(x, axis):
+    x = dt.convert_to_tensor(x)
+    
+    if hasattr(axis, "__index__"):
+        axis = (int(axis), )
+    axis = tuple(axis)
+
+    if len(set(axis)) != len(axis):
+        raise ValueError(f'Duplicate axes: {axis}')
+    
+    normalized_axes = []
+    for ax in axis:
+        if ax < 0:
+            ax = x.ndim + 1 + ax
+        if ax < 0 or ax > x.ndim:
+            raise ValueError(f'Axis {ax} out of bounds for tensor of dimension {x.ndim}')
+        normalized_axes.append(ax)
+    
+    shape = list(x.shape)
+    for ax in sorted(normalized_axes, reverse=True):
+        shape.insert(ax, 1)
+    
+    return reshape(x, shape)
+
 def transpose(x, perm=None):
     x = dt.convert_to_tensor(x)
     y = _Transpose(x, perm)
@@ -550,6 +574,7 @@ __all__ = [
     'cast',
     'reshape',
     'squeeze',
+    'expand_dims',
     'transpose',
     'swapaxes',
     'copy',

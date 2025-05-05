@@ -209,25 +209,8 @@ def exp2(x):
 
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
-    
-    axis = to_tuple_or_list(axis)
-    if len(set(axis)) != len(axis):
-        raise ValueError(f'Duplicate axes: {axis}')
-    
-    normalized_axes = []
-    for ax in axis:
-        if ax < 0:
-            ax = x.ndim + 1 + ax
-        if ax < 0 or ax > x.ndim:
-            raise ValueError(f'Axis {ax} out of bounds for tensor of dimension {x.ndim}')
-        normalized_axes.append(ax)
-    
-    shape = list(x.shape)
-    for ax in sorted(normalized_axes, reverse=True):
-        shape.insert(ax, 1)
-    
-    return reshape(x, shape)
-    
+    return dt.expand_dims(x, axis)
+
 def expm1(x):
     raise NotImplementedError('expm1')
 def flip(x, axis=None):

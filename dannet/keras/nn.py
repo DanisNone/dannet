@@ -134,7 +134,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     return -dt.sum(target * log_prob, axis=axis)
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    target = convert_to_tensor(target, dtype=dt.dtype.uint_dtype)
+    target = convert_to_tensor(target, dtype=dt.dtype.int_dtype)
     output = convert_to_tensor(output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
@@ -158,8 +158,13 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = output / dt.sum(output, axis=axis, keepdims=True)
         output = dt.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = dt.log(output)
-    target = one_hot(target, output.shape[axis], axis=axis)
-    return -dt.sum(target * log_prob, axis=axis)
+    
+    
+    indices = dt.expand_dims(target, axis=axis)
+    selected_log_probs = dt.take(log_prob, indices, axis=axis)
+    selected_log_probs = dt.squeeze(selected_log_probs, axis=axis)
+    
+    return -selected_log_probs
 
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
