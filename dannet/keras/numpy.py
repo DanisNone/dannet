@@ -348,9 +348,7 @@ def not_equal(x1, x2):
 
 def outer(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    x1 = dt.reshape(x1, (-1, 1))
-    x2 = dt.reshape(x2, (1, -1))
-    return x1 * x2
+    return dt.outer(x1, x2)
 
 def pad(x, pad_width, mode='constant', constant_values=None):
     if mode != 'constant':

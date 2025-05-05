@@ -350,6 +350,12 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
         z = dt.squeeze(z, -1)
     return z
 
+def outer(x1: dt.typing.TensorLike, x2: dt.typing.TensorLike):
+    x1 = dt.reshape(x1, (-1, 1))
+    x2 = dt.reshape(x2, (1, -1))
+
+    return x1 * x2
+
 
 negative = _make_unary('negative', _Negative)
 reciprocal = _make_unary('reciprocal', _Reciprocal)
@@ -365,9 +371,9 @@ sin = _make_unary('sin', _Sin)
 cos = _make_unary('cos', _Cos)
 tan = _make_unary('tan', _Tan)
 
-sinh = _make_unary('sin', _Sinh)
-cosh = _make_unary('cos', _Cosh)
-tanh = _make_unary('tan', _Tanh)
+sinh = _make_unary('sinh', _Sinh)
+cosh = _make_unary('cosh', _Cosh)
+tanh = _make_unary('tanh', _Tanh)
 
 add = _make_binary('add', _Add)
 subtract = _make_binary('subtract', _Subtract)
@@ -386,5 +392,5 @@ __all__ = [
     'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
     'add', 'subtract', 'multiply', 'divide', 'power', 'minimum', 'maximum',
     'where', 'clip',
-    'matmul'
+    'matmul', 'outer'
 ]
