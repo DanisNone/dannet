@@ -43,7 +43,7 @@ def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
 
     if A is B:
         assert node._buffer_offset == node.x._buffer_offset
-        return lambda:None
+        return None
 
     headers = generate_nodes_info(A=node.x, B=node)
     headers.append(insert_static_array('stridesAN', node.x._default_strides()))
@@ -77,25 +77,25 @@ def broadcast_to(device, node, input_buffers, output_buffer):
     (A,) = input_buffers
 
     assert A is output_buffer
-    return lambda: None
+    return None
 
 @register_impl(dt.basic._Transpose)
 def transpose(device, node, input_buffers, output_buffer):
     (A,) = input_buffers
 
     assert A is output_buffer
-    return lambda: None
+    return None
 
 @register_impl(dt.basic._Flip)
 def flip(device, node, input_buffers, output_buffer):
     (A,) = input_buffers
 
     assert A is output_buffer
-    return lambda: None
+    return None
     
 @register_impl(dt.basic._Slice)
 def slice(device, node, input_buffers, output_buffer):
     (A,) = input_buffers
 
     assert A is output_buffer
-    return lambda: None
+    return None

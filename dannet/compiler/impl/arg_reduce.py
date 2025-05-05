@@ -2,10 +2,6 @@ import math
 from .utils import *
 
 
-def default_strides(shape):
-    return [math.prod(shape[i + 1 :]) for i in range(len(shape))]
-
-
 def arg_reduce_full(
     device,
     node: dt.reduce._ArgReduce,

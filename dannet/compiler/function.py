@@ -58,7 +58,7 @@ class function:
                 outputs.append(out)
                 output_indexes.append(i)
 
-        compiled = dt.compiler.compile(placeholders, outputs, self._nodes)
+        compiled = dt.compiler.compile(placeholders, outputs, self._nodes, is_eager_mode=False)
 
         output_template: list[Any] = []
         for val in output_flatten:
@@ -102,7 +102,7 @@ def eval(x):
         return x
     
     nodes = topsort.topological_sort([x])
-    res = dt.compiler.compile([], [x], nodes[::-1])([])[0]
+    res = dt.compiler.compile([], [x], nodes[::-1], is_eager_mode=True)([])[0]
     return dt.Constant(res)
 
 def get_struct(obj) -> Any:

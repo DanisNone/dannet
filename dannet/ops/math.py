@@ -337,8 +337,8 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
     
     if x._shape[-1] != y._shape[-2]:
         raise ValueError(
-            f"matmul: shapes {x._shape} and {y._shape} are incompatible: "
-            f"last dim of x ({x._shape[-1]}) must match second last dim of y ({y._shape[-2]})"
+            f'matmul: shapes {x._shape} and {y._shape} are incompatible: '
+            f'last dim of x ({x._shape[-1]}) must match second last dim of y ({y._shape[-2]})'
         )
     
     z = _Matmul(x, y)

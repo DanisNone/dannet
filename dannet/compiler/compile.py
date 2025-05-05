@@ -1,26 +1,35 @@
+import os
+import pathlib
 from typing import Callable
+from collections import OrderedDict
+
 import pyopencl as cl
 import numpy as np
+
 import dannet as dt
 from dannet.topsort import topological_sort
-from dannet import timestat
 
+from dannet.core import TensorBase
 
 class compile:
+    _compile_uid: int = 0
+    _log_dir_path: pathlib.Path | None = None
+    
     def __init__(self,
         inputs: list[dt.core.Placeholder],
-        outputs: list[dt.core.TensorBase],
-        nodes: list[dt.core.TensorBase]
+        outputs: list[TensorBase],
+        nodes: list[TensorBase],
+        is_eager_mode: bool
     ):
         self.device = dt.current_device()
 
         if not all(isinstance(inp, dt.core.Placeholder) for inp in inputs):
             raise TypeError('All inputs must be Placeholder instances.')
         
-        if not all(isinstance(out, dt.core.TensorBase) for out in outputs):
+        if not all(isinstance(out, TensorBase) for out in outputs):
             raise TypeError('All outputs must be TensorBase instances.')
 
-        if not all(isinstance(node, dt.core.TensorBase) for node in nodes):
+        if not all(isinstance(node, TensorBase) for node in nodes):
             raise TypeError('All nodes must be TensorBase instances.')
     
         self._inputs = inputs
@@ -33,35 +42,74 @@ class compile:
         self._nodes = nodes
         self._constant_nodes: list[dt.core.Constant] = []
         self._variable_nodes: list[dt.core.Variable] = []
-        self._filtered_nodes: list[dt.core.TensorBase] = []
-
-        self._filter_nodes()
-
+        self._filtered_nodes: list[TensorBase] = []
 
         self._buffers: dict[dt.core.Buffer, cl.Buffer] = {}
         self._constants_loaded: bool = False
-        self._kernels: list[Callable] = []
-        
+        self._kernels: OrderedDict[TensorBase, Callable[[], cl.Event | None]] = OrderedDict()
+
+
+        if not is_eager_mode:
+            self._remove_dead_code()
+            self._sort_nodes()
+
+        self._filter_nodes()
+
         self._allocate_buffers()
         self._compile_kernels()
 
         self._load_constants()
 
-        with open('data.txt', 'w') as file:
-            for node in self._nodes:
-                idx = self._nodes.index(node)
-                idxinp = [self._nodes.index(inp) for inp in node.inputs()]
-                print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
+        if is_eager_mode:
+            return
         
-    def _filter_nodes(self):
+        compile._compile_uid += 1 
+        if self._log_dir_path is not None:
+            name = self._log_dir_path / f"{compile._compile_uid}.data"
+            with open(name, 'w') as file:
+                for node in self._nodes:
+                    idx = self._nodes.index(node)
+                    idxinp = [self._nodes.index(inp) for inp in node.inputs()]
+                    print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
+
+    def _remove_dead_code(self):
         target_tensors = [
             node
             for node in self._nodes
-            if (node in self._outputs) or isinstance(node, dt.core.Update)
+            if (node in self._inputs + self._outputs) or isinstance(node, dt.core.Update)
         ]
 
         nodes = topological_sort(target_tensors)
         self._nodes = [node for node in self._nodes if node in nodes]
+    
+    def _sort_nodes(self):
+        dependencies: dict[TensorBase, set[TensorBase]] = {}
+        update_dependencies: dict[TensorBase, set[TensorBase]] = {}
+    
+        for node in self._nodes:
+            dependencies[node] = set(node.inputs())
+            for inp in node.inputs():
+                dependencies[node] |= update_dependencies[inp]
+            update_dependencies[node] = dependencies[node].copy()
+
+            if isinstance(node, dt.core.Update):
+                update_dependencies[node._variable].add(node)
+        
+        nodes: list[TensorBase] = []
+        not_visited: set[TensorBase] = set(self._nodes)
+        visited: set[TensorBase] = set()
+        while not_visited:
+            removed = set()
+            for node in not_visited:
+                if len(dependencies[node] & not_visited) == 0:
+                    removed.add(node)
+                    visited.add(node)
+                    nodes.append(node)
+            not_visited -= removed
+        self._nodes = nodes
+            
+
+    def _filter_nodes(self):
         for node in self._nodes:
             if not self.device.is_support(node._dtype):
                 raise TypeError(f'dtype {node.dtype} not supported on device {self.device}')
@@ -94,7 +142,7 @@ class compile:
         if self._constants_loaded:
             return
         
-        with timestat.record('load_constants'):
+        with dt.timestat.record('load_constants'):
             for const in self._constant_nodes:
                 value = const.numpy()
                 buffer = self._buffers[const._buffer]
@@ -102,9 +150,10 @@ class compile:
                 assert value.nbytes == buffer.size
                 cl.enqueue_copy(self.device.queue, buffer, value)
             self._constants_loaded = True
+            self.device.queue.finish()
 
     def _load_variables(self):
-        with timestat.record('load_variables'):
+        with dt.timestat.record('load_variables'):
             for var in self._variable_nodes:
                 if var._used_by == self:
                     continue
@@ -121,7 +170,7 @@ class compile:
         if len(self._inputs) != len(data):
             raise ValueError(f'Expected {len(self._inputs)} input(s), but got {len(data)}.')
         
-        with timestat.record('load_inputs'):
+        with dt.timestat.record('load_inputs'):
             for inp, array in zip(self._inputs, data):
                 if inp.shape != array.shape:
                     raise ValueError(f'Shape mismatch for input {inp}: expected {inp.shape}, got {array.shape}')
@@ -132,7 +181,7 @@ class compile:
             
     def _get_results(self) -> list[np.ndarray]:
         result = []
-        with timestat.record('get_results'):
+        with dt.timestat.record('get_results'):
             for out in self._outputs:
                 res = np.empty(out.shape, dtype=out.dtype)
                 buffer = self._buffers[out._buffer]
@@ -155,21 +204,23 @@ class compile:
     def _compile_kernels(self):
         if self._kernels:
             return
-        with timestat.record('compile_kernels'):
+        with dt.timestat.record('compile_kernels'):
             for node in self._filtered_nodes:
                 input_buffers = [self._buffers[inp._buffer] for inp in node.inputs()]
                 output_buffer = self._buffers[node._buffer]
                 kernel = dt.compiler.compile_node(self.device, node, input_buffers, output_buffer)
-                self._kernels.append(kernel)
+                if kernel is not None:
+                    self._kernels[node] = kernel
 
     def __call__(self, data: list[np.ndarray]) -> list[np.ndarray]:
-        with timestat.record('call'):
+        with dt.timestat.record('call'):
             self._load_variables()
             self._load_inputs(data)
 
-            with timestat.record('execute_kernels'):
+            events: dict[TensorBase, cl.Event] = {}
+            with dt.timestat.record('execute_kernels'):
                 if dt.timestat.enabled():
-                    for node, kernel in zip(self._filtered_nodes, self._kernels):
+                    for node, kernel in self._kernels.items():
                         s = str([(inp.shape, inp.dtype) for inp in node.inputs()])
                         s = f'{node}: {s}'
                         with dt.timestat.record(s):
@@ -177,8 +228,23 @@ class compile:
                             self.device.queue.finish()
 
                 else:
-                    for node, kernel in zip(self._filtered_nodes, self._kernels):
-                        kernel()
-                        self.device.queue.finish()
-            
+                    for node, kernel in self._kernels.items():
+                        for inp in node.inputs():
+                            if inp in events:
+                                events.pop(inp).wait()
+                    
+                        events[node] = kernel()
+
+                for event in events.values():
+                    event.wait()
             return self._get_results()
+
+def set_node_logging_dir(path: str | os.PathLike):
+    path = pathlib.Path(path)
+    if not path.is_dir():
+        raise NotADirectoryError(f"{path} is not a valid directory.")
+    
+    compile._log_dir_path = path
+
+def disable_node_logging():
+    compile._log_dir_path = None

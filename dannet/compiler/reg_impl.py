@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Callable
+import pyopencl as cl
 import dannet as dt
 
 
@@ -15,7 +16,7 @@ def register_impl(op: type[dt.core.TensorBase]):
     return decorator
 
 
-def compile_node(device: dt.Device, node: dt.core.TensorBase, input_buffers, output_buffer):
+def compile_node(device: dt.Device, node: dt.core.TensorBase, input_buffers, output_buffer) -> Callable[[], cl.Event] | None:
     t = type(node)
     if t not in impl_ops:
         raise NotImplementedError(f'No implementation registered for {type(node)}')
