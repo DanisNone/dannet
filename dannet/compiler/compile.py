@@ -95,17 +95,23 @@ class compile:
             if isinstance(node, dt.core.Update):
                 update_dependencies[node._variable].add(node)
         
+        node_indices: dict[TensorBase, int] = {}
         nodes: list[TensorBase] = []
         not_visited: set[TensorBase] = set(self._nodes)
-        visited: set[TensorBase] = set()
         while not_visited:
-            removed = set()
+            visited = set()
             for node in not_visited:
                 if len(dependencies[node] & not_visited) == 0:
-                    removed.add(node)
                     visited.add(node)
-                    nodes.append(node)
-            not_visited -= removed
+            
+            not_visited -= visited
+
+            key = lambda node: max([node_indices[inp] for inp in node.inputs()], default=0)
+            visited_sorted = sorted(visited, key=key)
+            for i, node in enumerate(visited_sorted, len(nodes)):
+                nodes.append(node)
+                node_indices[node] = i
+            
         self._nodes = nodes
             
 
