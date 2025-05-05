@@ -161,16 +161,25 @@ class _ArgMax(_ArgReduce):
     pass
 
 
-def _make_reduce(name: str, class_: type[_Reduce] | type[_ArgReduce]):
+def _make_reduce(name: str, class_: type[_Reduce]):
     def inner(x: dt.typing.TensorLike, axis=None, keepdims=False):
         x = dt.convert_to_tensor(x)
         y = class_(x, axis=axis, keepdims=keepdims)
 
         if x.size == y.size:
-            y = x
+            y = dt.reshape(x, y.shape)
         return dt.core._node_prepare(y)   
     inner.__name__ = name
     return inner
+
+def _make_arg_reduce(name: str, class_: type[_ArgReduce]):
+    def inner(x: dt.typing.TensorLike, axis=None, keepdims=False):
+        x = dt.convert_to_tensor(x)
+        y = class_(x, axis=axis, keepdims=keepdims)
+        return dt.core._node_prepare(y)   
+    inner.__name__ = name
+    return inner
+
 
 def var(x: dt.typing.TensorLike, axis=None, keepdims=False):
     x = dt.convert_to_tensor(x)
@@ -189,8 +198,8 @@ prod = _make_reduce('prod', _Prod)
 min = _make_reduce('min', _Min)
 max = _make_reduce('max', _Max)
 
-argmin = _make_reduce('argmin', _ArgMin)
-argmax = _make_reduce('argmax', _ArgMax)
+argmin = _make_arg_reduce('argmin', _ArgMin)
+argmax = _make_arg_reduce('argmax', _ArgMax)
 
 __all__ = [
     'sum',

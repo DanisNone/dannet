@@ -350,6 +350,50 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
         z = dt.squeeze(z, -1)
     return z
 
+def tensordot(x, y, axes):
+    # TODO: it's a very bad implementaition
+
+    x = dt.convert_to_tensor(x)
+    y = dt.convert_to_tensor(y)
+
+    if isinstance(axes, int):
+        axes_x = tuple(range(x.ndim - axes, x.ndim))
+        axes_y = tuple(range(axes))
+    else:
+        axes_x, axes_y = axes
+    if len(axes_x) != len(axes_y):
+        raise ValueError('Number of axes for contraction must be equal')
+    
+    for a_axis, b_axis in zip(axes_x, axes_y):
+        if x.shape[a_axis] != y.shape[b_axis]:
+            raise ValueError(f'Incompatible axis dimensions: x.shape[{a_axis}]={x.shape[a_axis]} != y.shape[{b_axis}]={y.shape[b_axis]}')
+    
+
+    perm = []
+    for i in range(x.ndim):
+        if i not in axes_x:
+            perm.append(i)
+    perm.extend(axes_x)
+    x = dt.transpose(x, perm)
+
+    perm = []
+    for i in range(y.ndim):
+        if i not in axes_y:
+            perm.append(i)
+    perm.extend(axes_y)
+    y = dt.transpose(y, perm)
+    
+
+    x = dt.reshape(x, x.shape[:x.ndim - len(axes_x)] + (-1, ))
+    y = dt.reshape(y, y.shape[:y.ndim - len(axes_y)] + (-1, ))
+    
+    As = x.shape[:-1]
+    Bs = y.shape[:-1]
+    
+    x = dt.reshape(x, As + (1, ) * len(Bs) + (-1,))
+    y = dt.reshape(y, (1, ) * len(As) + Bs + (-1,))
+    return dt.sum(x * y, axis=-1)
+
 def outer(x1: dt.typing.TensorLike, x2: dt.typing.TensorLike):
     x1 = dt.reshape(x1, (-1, 1))
     x2 = dt.reshape(x2, (1, -1))
@@ -392,5 +436,5 @@ __all__ = [
     'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
     'add', 'subtract', 'multiply', 'divide', 'power', 'minimum', 'maximum',
     'where', 'clip',
-    'matmul', 'outer'
+    'matmul', 'tensordot', 'outer'
 ]

@@ -65,7 +65,7 @@ class compile:
         
         compile._compile_uid += 1 
         if self._log_dir_path is not None:
-            name = self._log_dir_path / f"{compile._compile_uid}.data"
+            name = self._log_dir_path / f'{compile._compile_uid}.data'
             with open(name, 'w') as file:
                 for node in self._nodes:
                     idx = self._nodes.index(node)
@@ -248,7 +248,7 @@ class compile:
 def set_node_logging_dir(path: str | os.PathLike):
     path = pathlib.Path(path)
     if not path.is_dir():
-        raise NotADirectoryError(f"{path} is not a valid directory.")
+        raise NotADirectoryError(f'{path} is not a valid directory.')
     
     compile._log_dir_path = path
 
