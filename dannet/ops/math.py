@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable
+from typing import Sequence
 import dannet as dt
-
+from dannet.core import TensorBase
 
 class _ElementWise(dt.core.TensorBase):
     pass
@@ -37,6 +37,9 @@ class _Negative(_ElementWiseUnary):
     def compute_gradients(self, grad):
         return [-grad]
 
+class _Reciprocal(_ElementWiseUnaryFloat):
+    def compute_gradients(self, grad):
+        return [-grad * dt.square(self)]
 
 class _Square(_ElementWiseUnary):
     def result_dtype(self, dtype):
@@ -71,35 +74,38 @@ class _Rsqrt(_ElementWiseUnaryFloat):
         return [grad * dt.cast(-0.5, grad.dtype) * self / self.x]
 
 class _Exp(_ElementWiseUnaryFloat):
-    def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
-
     def compute_gradients(self, grad):
         return [grad * self]
 
 
 class _Log(_ElementWiseUnaryFloat):
-    def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
-
     def compute_gradients(self, grad):
         return [grad / self.x]
 
 
 class _Sin(_ElementWiseUnaryFloat):
-    def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
-
     def compute_gradients(self, grad):
         return [grad * dt.cos(self.x)]
 
-
 class _Cos(_ElementWiseUnaryFloat):
-    def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
-
     def compute_gradients(self, grad):
         return [-grad * dt.sin(self.x)]
+
+class _Tan(_ElementWiseUnaryFloat):
+    def compute_gradients(self, grad):
+        return [grad * (1 + dt.square(self))]
+
+class _Sinh(_ElementWiseUnaryFloat):
+    def compute_gradients(self, grad):
+        return [grad * dt.cosh(self.x)]
+
+class _Cosh(_ElementWiseUnaryFloat):
+    def compute_gradients(self, grad):
+        return [grad * dt.sinh(self.x)]
+
+class _Tanh(_ElementWiseUnaryFloat):
+    def compute_gradients(self, grad):
+        return [grad * (1 - dt.square(self))]
 
 
 class _ElementWiseBinary(_ElementWise):
@@ -346,6 +352,7 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
 
 
 negative = _make_unary('negative', _Negative)
+reciprocal = _make_unary('reciprocal', _Reciprocal)
 square = _make_unary('square', _Square)
 abs = _make_unary('abs', _Abs)
 sign = _make_unary('sign', _Sign)
@@ -353,8 +360,14 @@ sqrt = _make_unary('sqrt', _Sqrt)
 rsqrt = _make_unary('rsqrt', _Rsqrt)
 exp = _make_unary('exp', _Exp)
 log = _make_unary('log', _Log)
+
 sin = _make_unary('sin', _Sin)
 cos = _make_unary('cos', _Cos)
+tan = _make_unary('tan', _Tan)
+
+sinh = _make_unary('sin', _Sinh)
+cosh = _make_unary('cos', _Cosh)
+tanh = _make_unary('tan', _Tanh)
 
 add = _make_binary('add', _Add)
 subtract = _make_binary('subtract', _Subtract)
@@ -369,7 +382,8 @@ clip = _make_ternary('clip', _Clip)
 
 
 __all__ = [
-    'negative', 'square', 'abs', 'sign', 'sqrt', 'rsqrt', 'exp', 'log', 'sin', 'cos',
+    'negative', 'reciprocal', 'square', 'abs', 'sign', 'sqrt', 'rsqrt', 'exp', 'log',
+    'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
     'add', 'subtract', 'multiply', 'divide', 'power', 'minimum', 'maximum',
     'where', 'clip',
     'matmul'

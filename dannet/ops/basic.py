@@ -137,8 +137,10 @@ class _Flip(dt.core.TensorBase):
         self.x = dt.convert_to_tensor(x)
         ndim = self.x.ndim
 
-        if hasattr(axes, '__index__'):
-            axes = (axes, )
+        if axes is None:
+            axes = list(range(ndim))
+        elif hasattr(axes, '__index__'):
+            axes = (int(axes), )
         axes = tuple(axes)
         
         norm_axes = []
@@ -454,7 +456,15 @@ def transpose(x, perm=None):
         y = x
     return dt.core._node_prepare(y)
 
-def flip(x, axis):
+def swapaxes(x, axis1, axis2):
+    x = dt.convert_to_tensor(x)
+
+    perm = list(range(x.ndim))
+    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+
+    return dt.transpose(x, perm)
+
+def flip(x, axis = None):
     x = dt.convert_to_tensor(x)
     y = _Flip(x, axis)
     return dt.core._node_prepare(y)
@@ -541,6 +551,7 @@ __all__ = [
     'reshape',
     'squeeze',
     'transpose',
+    'swapaxes',
     'copy',
     'flip',
     'pad',

@@ -1,6 +1,6 @@
 import dannet as dt
 from dannet.ops.math import _ElementWiseUnaryFloat, _ElementWiseUnary, _make_unary
-
+from dannet.ops.math import tanh
 
 
 class _Relu(_ElementWiseUnary):
@@ -24,12 +24,6 @@ class _Sigmoid(_ElementWiseUnaryFloat):
     def compute_gradients(self, grad):
         return [grad * self * (1 - self)]
 
-class _Tanh(_ElementWiseUnaryFloat):
-    # tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
-    # = 1 - 2 / (1 + exp(2 x))
-    def compute_gradients(self, grad):
-        return [grad * (1 - dt.square(self))]
-
 class _Softplus(_ElementWiseUnaryFloat):
     # log(1 + exp(x))
     def compute_gradients(self, grad):
@@ -49,14 +43,13 @@ class _HardSigmoid(_ElementWiseUnaryFloat):
 relu = _make_unary('relu', _Relu)
 relu6 = _make_unary('relu6', _Relu6)
 sigmoid = _make_unary('sigmoid', _Sigmoid)
-tanh = _make_unary('tanh', _Tanh)
 softplus = _make_unary('softplus', _Softplus)
 softsign = _make_unary('softsign', _Softsign)
 hard_sigmoid = _make_unary('hard_sigmoid', _HardSigmoid)
 
 def tanhshrink(x):
     x = dt.convert_to_tensor(x)
-    return x - tanh(x)
+    return x - dt.tanh(x)
 
 def silu(x):
     x = dt.convert_to_tensor(x)

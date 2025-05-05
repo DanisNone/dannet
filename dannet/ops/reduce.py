@@ -179,6 +179,10 @@ def var(x: dt.typing.TensorLike, axis=None, keepdims=False):
     variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims)
     return variance
 
+def std(x: dt.typing.TensorLike, axis=None, keepdims=False):
+    variance = var(x, axis=axis, keepdims=keepdims)
+    return dt.sqrt(variance)
+
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)
 prod = _make_reduce('prod', _Prod)
@@ -192,6 +196,7 @@ __all__ = [
     'sum',
     'mean',
     'var',
+    'std',
     'prod',
     'min',
     'max',

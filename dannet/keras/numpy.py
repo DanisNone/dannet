@@ -33,7 +33,10 @@ def mean(x, axis=None, keepdims=False):
     return dt.mean(x, axis, keepdims)
 
 def max(x, axis=None, keepdims=False, initial=None):
-    raise NotImplementedError('max')
+    if initial is not None:
+        raise NotImplementedError('initial must be None')
+    x = convert_to_tensor(x)
+    return dt.max(x, axis, keepdims)
 
 def zeros(shape, dtype=None):
     if dtype is None:
@@ -58,17 +61,26 @@ def ones_like(x, dtype=None):
     return dt.ones(x.shape, dtype)
 
 def absolute(x):
-    raise NotImplementedError('absolute')
+    x = convert_to_tensor(x)
+    return dt.abs(x)
+
 def abs(x):
-    raise NotImplementedError('abs')
+    x = convert_to_tensor(x)
+    return dt.abs(x)
+
 def all(x, axis=None, keepdims=False):
     raise NotImplementedError('all')
 def any(x, axis=None, keepdims=False):
     raise NotImplementedError('any')
+
 def amax(x, axis=None, keepdims=False):
-    raise NotImplementedError('amax')
+    x = convert_to_tensor(x)
+    return dt.max(x, axis, keepdims)
+
 def amin(x, axis=None, keepdims=False):
-    raise NotImplementedError('amin')
+    x = convert_to_tensor(x)
+    return dt.min(x, axis, keepdims)
+
 def append(x1, x2, axis=None):
     raise NotImplementedError('append')
 def arange(start, stop=None, step=1, dtype=None):
@@ -130,17 +142,28 @@ def broadcast_to(x, shape):
 def ceil(x):
     raise NotImplementedError('ceil')
 def clip(x, x_min, x_max):
-    raise NotImplementedError('clip')
+    x = convert_to_tensor(x)
+    x_min = convert_to_tensor(x_min)
+    x_max = convert_to_tensor(x_max)
+    return dt.clip(x, x_min, x_max)
+
 def concatenate(xs, axis=0):
     raise NotImplementedError('concatenate')
+
 def conjugate(x):
-    raise NotImplementedError('conjugate')
+    # all tensors is real only
+    return convert_to_tensor(x)
+
 def conj(x):
-    raise NotImplementedError('conj')
+    # all tensors is real only
+    return convert_to_tensor(x)
+
 def copy(x):
     raise NotImplementedError('copy')
+
 def cos(x):
-    raise NotImplementedError('cos')
+    return dt.cos(x)
+
 def cosh(x):
     raise NotImplementedError('cosh')
 def count_nonzero(x, axis=None):
@@ -161,10 +184,13 @@ def diff(a, n=1, axis=-1):
     raise NotImplementedError('diff')
 def digitize(x, bins):
     raise NotImplementedError('digitize')
+
 def dot(x, y):
     raise NotImplementedError('dot')
+
 def empty(shape, dtype=None):
-    raise NotImplementedError('empty')
+    return dt.zeros(shape, dtype)
+
 
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
@@ -172,7 +198,9 @@ def equal(x1, x2):
     return dt.equal(x1, x2)
 
 def exp(x):
-    raise NotImplementedError('exp')
+    x = convert_to_tensor(x)
+    return dt.exp(x)
+
 def exp2(x):
     raise NotImplementedError('exp2')
 
@@ -200,7 +228,9 @@ def expand_dims(x, axis):
 def expm1(x):
     raise NotImplementedError('expm1')
 def flip(x, axis=None):
-    raise NotImplementedError('flip')
+    x = convert_to_tensor(x)
+    return dt.flip(x, axis)
+
 def floor(x):
     raise NotImplementedError('floor')
 def full(shape, fill_value, dtype=None):
@@ -222,8 +252,11 @@ def hstack(xs):
     raise NotImplementedError('hstack')
 def identity(n, dtype=None):
     raise NotImplementedError('identity')
+
 def imag(x):
-    raise NotImplementedError('imag')
+    # all tensors is real only
+    return zeros_like(x)
+
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     raise NotImplementedError('isclose')
 def isfinite(x):
@@ -247,8 +280,11 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     raise NotImplementedError('linspace')
+
 def log(x):
-    raise NotImplementedError('log')
+    x = convert_to_tensor(x)
+    return dt.log(x)
+
 def log10(x):
     raise NotImplementedError('log10')
 def log1p(x):
@@ -275,8 +311,13 @@ def median(x, axis=None, keepdims=False):
     raise NotImplementedError('median')
 def meshgrid(*x, indexing='xy'):
     raise NotImplementedError('meshgrid')
+
+
 def min(x, axis=None, keepdims=False, initial=None):
-    raise NotImplementedError('min')
+    if initial is not None:
+        raise NotImplementedError('initial must be None')
+    x = convert_to_tensor(x)
+    return dt.min(x, axis, keepdims)
 
 def minimum(x1, x2):
     x1 = convert_to_tensor(x1)
@@ -289,8 +330,11 @@ def moveaxis(x, source, destination):
     raise NotImplementedError('moveaxis')
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     raise NotImplementedError('nan_to_num')
+
 def ndim(x):
-    raise NotImplementedError('ndim')
+    x = convert_to_tensor(x)
+    return x.ndim
+
 def nonzero(x):
     raise NotImplementedError('nonzero')
 
@@ -300,7 +344,11 @@ def not_equal(x1, x2):
     return dt.not_equal(x1, x2)
 
 def outer(x1, x2):
-    raise NotImplementedError('outer')
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = dt.reshape(x1, (-1, 1))
+    x2 = dt.reshape(x2, (1, -1))
+    return x1 * x2
+
 def pad(x, pad_width, mode='constant', constant_values=None):
     if mode != 'constant':
         raise NotImplementedError(mode)
@@ -320,14 +368,23 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 def quantile(x, q, axis=None, method='linear', keepdims=False):
     raise NotImplementedError('quantile')
+
 def ravel(x):
-    raise NotImplementedError('ravel')
+    x = convert_to_tensor(x)
+    return dt.reshape(x, -1)
+
 def unravel_index(x, shape):
     raise NotImplementedError('unravel_index')
+
 def real(x):
-    raise NotImplementedError('real')
+    # all tensors is real only
+    return convert_to_tensor(x)
+
 def reciprocal(x):
-    raise NotImplementedError('reciprocal')
+    x = convert_to_tensor(x)
+    return dt.reciprocal(x)
+
+
 def repeat(x, repeats, axis=None):
     raise NotImplementedError('repeat')
 
@@ -339,26 +396,39 @@ def roll(x, shift, axis=None):
     raise NotImplementedError('roll')
 def searchsorted(sorted_sequence, values, side='left'):
     raise NotImplementedError('searchsorted')
+
 def sign(x):
-    raise NotImplementedError('sign')
+    x = convert_to_tensor(x)
+    return dt.sign(x)
+
 def signbit(x):
     raise NotImplementedError('signbit')
+
 def sin(x):
-    raise NotImplementedError('sin')
+    x = convert_to_tensor(x)
+    return dt.sin(x)
+
 def sinh(x):
     raise NotImplementedError('sinh')
+
 def size(x):
-    raise NotImplementedError('size')
+    x = convert_to_tensor(x)
+    return x.size
+
 def sort(x, axis=-1):
     raise NotImplementedError('sort')
 def split(x, indices_or_sections, axis=0):
     raise NotImplementedError('split')
 def stack(x, axis=0):
     raise NotImplementedError('stack')
+
 def std(x, axis=None, keepdims=False):
-    raise NotImplementedError('std')
+    x = convert_to_tensor(x)
+    return dt.std(x, axis, keepdims)
+
 def swapaxes(x, axis1, axis2):
-    raise NotImplementedError('swapaxes')
+    x = convert_to_tensor(x)
+    return dt.swapaxes(x, axis1, axis2)
 
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)

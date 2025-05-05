@@ -29,6 +29,9 @@ dtypeB operation(dtypeA x)
 def negative(device, node, input_buffers, output_buffer):
     return unary(device, node, input_buffers, output_buffer, f'-x')
 
+@register_impl(dt.math._Reciprocal)
+def reciprocal(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, f'1 / (dtypeB)x')
 
 @register_impl(dt.math._Square)
 def square(device, node, input_buffers, output_buffer):
@@ -53,12 +56,12 @@ def sign(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Exp)
 def exp(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'exp(x)')
+    return unary(device, node, input_buffers, output_buffer, 'exp((dtypeB)x)')
 
 
 @register_impl(dt.math._Log)
 def log(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'log(x)')
+    return unary(device, node, input_buffers, output_buffer, 'log((dtypeB)x)')
 
 
 @register_impl(dt.math._Sqrt)
@@ -72,12 +75,27 @@ def rsqrt(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Sin)
 def sin(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'sin(x)')
-
+    return unary(device, node, input_buffers, output_buffer, 'sin((dtypeB)x)')
 
 @register_impl(dt.math._Cos)
 def cos(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'cos(x)')
+    return unary(device, node, input_buffers, output_buffer, 'cos((dtypeB)x)')
+
+@register_impl(dt.math._Tan)
+def tan(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'tan((dtypeB)x)')
+
+@register_impl(dt.math._Sinh)
+def sinh(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'sinh((dtypeB)x)')
+
+@register_impl(dt.math._Cosh)
+def cosh(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'cosh((dtypeB)x)')
+
+@register_impl(dt.math._Tanh)
+def tanh(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'tanh((dtypeB)x)')
 
 @register_impl(dt.nnet.activations._Relu)
 def relu(device, node, input_buffers, output_buffer):
@@ -89,17 +107,11 @@ def relu6(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.nnet.activations._Sigmoid)
 def sigmoid(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, '1.0 / (1 + exp(-x))')
-
-
-@register_impl(dt.nnet.activations._Tanh)
-def tanh(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, '1 - 2.0 / (1 + exp(2 * x))')
-
+    return unary(device, node, input_buffers, output_buffer, '1.0 / (1 + exp(-(dtypeB)x))')
 
 @register_impl(dt.nnet.activations._Softplus)
 def softplus(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'log(1 + exp(x))')
+    return unary(device, node, input_buffers, output_buffer, 'log(1 + exp((dtypeB)x))')
 
 @register_impl(dt.nnet.activations._Softsign)
 def softsign(device, node, input_buffers, output_buffer):
