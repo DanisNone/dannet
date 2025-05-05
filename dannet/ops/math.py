@@ -235,26 +235,16 @@ class _Matmul(dt.core.TensorBase):
         self.x = dt.convert_to_tensor(x)
         self.y = dt.convert_to_tensor(y)
         
-        if self.x.ndim == 1 and self.y.ndim == 1:
-            if self.x._shape[0] != self.y._shape[0]:
-                raise ValueError(f'Vector dimensions must match for dot product: {self.x._shape[0]} vs {self.y._shape[0]}')
-            self._shape = ()
-        elif self.x.ndim > 1 and self.y.ndim == 1:
-            if self.x._shape[-1] != self.y._shape[0]:
-                raise ValueError(f'Incompatible shapes for matmul: {self.x._shape} and {self.y._shape}')
-            self._shape = self.x._shape[:-1]
-        elif self.x.ndim == 1 and self.y.ndim > 1:
-            if self.x._shape[0] != self.y._shape[-2]:
-                raise ValueError(f'Incompatible shapes for matmul: {self.x._shape} and {self.y._shape}')
-            self._shape = self.y._shape[:-2] + self.y._shape[-1:]
-        else:
-            if self.x._shape[-1] != self.y._shape[-2]:
-                raise ValueError(f'Incompatible shapes for matmul: {self.x._shape} and {self.y._shape}')
-            batch_shape = dt.utils.broadcast_shapes(self.x._shape[:-2], self.y._shape[:-2])
+        assert self.x.ndim > 1 and self.y.ndim > 1
 
-            self.x = dt.broadcast_to(self.x, (*batch_shape, *self.x._shape[-2:]))
-            self.y = dt.broadcast_to(self.y, (*batch_shape, *self.y._shape[-2:]))
-            self._shape = batch_shape + (self.x._shape[-2], self.y._shape[-1])
+
+        if self.x._shape[-1] != self.y._shape[-2]:
+            raise ValueError(f'Incompatible shapes for matmul: {self.x._shape} and {self.y._shape}')
+        batch_shape = dt.utils.broadcast_shapes(self.x._shape[:-2], self.y._shape[:-2])
+
+        self.x = dt.broadcast_to(self.x, (*batch_shape, *self.x._shape[-2:]))
+        self.y = dt.broadcast_to(self.y, (*batch_shape, *self.y._shape[-2:]))
+        self._shape = batch_shape + (self.x._shape[-2], self.y._shape[-1])
                 
         self._dtype = dt.dtype.max_dtype(self.x.dtype, self.y.dtype, 'uint32')
         
@@ -315,6 +305,9 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
     x = dt.convert_to_tensor(x)
     y = dt.convert_to_tensor(y)
 
+    if x.ndim == 0 or y.ndim == 0:
+        raise ValueError('matmul: inputs must be at least 1-dimensional, got scalars')
+    
     if x.ndim >= 2 and transpose_a:
         perm = list(range(x.ndim))
         perm[-1], perm[-2] = perm[-2], perm[-1]
@@ -325,8 +318,31 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
         perm[-1], perm[-2] = perm[-2], perm[-1]
         y = dt.transpose(y, perm)
     
+    
+    x_axis = False
+    if x.ndim == 1:
+        x_axis = True
+        x = dt.reshape(x, (1, -1))
+    
+    y_axis = False
+    if y.ndim == 1:
+        y_axis = True
+        y = dt.reshape(y, (-1, 1))
+    
+    if x._shape[-1] != y._shape[-2]:
+        raise ValueError(
+            f"matmul: shapes {x._shape} and {y._shape} are incompatible: "
+            f"last dim of x ({x._shape[-1]}) must match second last dim of y ({y._shape[-2]})"
+        )
+    
     z = _Matmul(x, y)
-    return dt.core._node_prepare(z)
+    z = dt.core._node_prepare(z)
+
+    if x_axis:
+        z = dt.squeeze(z, -2)
+    if y_axis:
+        z = dt.squeeze(z, -1)
+    return z
 
 
 negative = _make_unary('negative', _Negative)
