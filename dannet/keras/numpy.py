@@ -162,10 +162,13 @@ def copy(x):
     raise NotImplementedError('copy')
 
 def cos(x):
+    x = convert_to_tensor(x)
     return dt.cos(x)
 
 def cosh(x):
-    raise NotImplementedError('cosh')
+    x = convert_to_tensor(x)
+    return dt.cosh(x)
+
 def count_nonzero(x, axis=None):
     raise NotImplementedError('count_nonzero')
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
@@ -409,7 +412,8 @@ def sin(x):
     return dt.sin(x)
 
 def sinh(x):
-    raise NotImplementedError('sinh')
+    x = convert_to_tensor(x)
+    return dt.sinh(x)
 
 def size(x):
     x = convert_to_tensor(x)
@@ -437,10 +441,15 @@ def take(x, indices, axis=None):
 
 def take_along_axis(x, indices, axis=None):
     raise NotImplementedError('take_along_axis')
+
 def tan(x):
-    raise NotImplementedError('tan')
+    x = convert_to_tensor(x)
+    return dt.tan(x)
+
 def tanh(x):
-    raise NotImplementedError('tanh')
+    x = convert_to_tensor(x)
+    return dt.tanh(x)
+
 def tensordot(x1, x2, axes=2):
     raise NotImplementedError('tensordot')
 def round(x, decimals=0):
