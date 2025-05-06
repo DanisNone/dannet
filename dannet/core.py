@@ -345,9 +345,11 @@ def is_constant(node: TensorBase) -> bool:
     return False
 
 def _node_prepare(node: TensorBase):
-    if dt.is_eager():
-        return dt.eval(node)
     # not evaluate broadcast_to, reshape, ...
+    if dt.is_eager():
+        if node._is_default_strides():
+            return dt.eval(node)
+        return node
     if is_constant(node) and node._is_default_strides():
         return dt.eval(node)
     dt.function._add_node(node)

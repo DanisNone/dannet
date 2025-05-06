@@ -9,8 +9,12 @@ py_max = max
 
 def rot90(array, k=1, axes=(0, 1)):
     raise NotImplementedError('rot90')
+
 def einsum(subscripts, *operands, **kwargs):
-    raise NotImplementedError('einsum')
+    if kwargs:
+        raise ValueError(f'einsum kwargs not implemented: {kwargs}')
+    operands = tuple(convert_to_tensor(op) for op in operands)
+    return dt.einsum(subscripts, *operands)
 
 def add(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
@@ -434,7 +438,11 @@ def tanh(x):
     return dt.tanh(x)
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError('tensordot')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.tensordot(x1, x2, axes)
+
 def round(x, decimals=0):
     raise NotImplementedError('round')
 def tile(x, repeats):

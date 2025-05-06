@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Sequence
 import dannet as dt
-from dannet.core import TensorBase
+
 
 class _ElementWise(dt.core.TensorBase):
     pass
@@ -352,7 +351,6 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
 
 def tensordot(x, y, axes):
     # TODO: it's a very bad implementaition
-
     x = dt.convert_to_tensor(x)
     y = dt.convert_to_tensor(y)
 
@@ -399,7 +397,6 @@ def outer(x1: dt.typing.TensorLike, x2: dt.typing.TensorLike):
     x2 = dt.reshape(x2, (1, -1))
 
     return x1 * x2
-
 
 negative = _make_unary('negative', _Negative)
 reciprocal = _make_unary('reciprocal', _Reciprocal)
