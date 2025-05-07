@@ -21,7 +21,7 @@ def matmul(
         A=node.x,
         B=node
     )
-    pad_left, pad_right = zip(*node.paddings)
+    pad_left, pad_right = zip(*node._paddings)
     headers.append(insert_static_array('pad_left', pad_left))
     headers.append(insert_static_array('pad_right', pad_right))
     headers.append(generate_mode('zero'))

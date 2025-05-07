@@ -23,10 +23,7 @@ SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = False
 
-class Variable(KerasVariable, dt.core.Variable): # type: ignore
-    def normalize(self):
-        return self._value
-    
+class Variable(KerasVariable, dt.core.Variable):
     def _initialize(self, value):
         if isinstance(value, dt.core.Variable):
             self._value = value
@@ -40,7 +37,7 @@ class Variable(KerasVariable, dt.core.Variable): # type: ignore
 
     def _direct_assign(self, value):
         self._value.assign(value)
-                
+              
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError('`sparse=True` is not supported with dannet backend')

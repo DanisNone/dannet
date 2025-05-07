@@ -116,7 +116,7 @@ def get_struct(obj) -> Any:
         return ('ndarray', (obj.shape, str(obj.dtype)))
     if isinstance(obj, (bool, int, float, str)):
         return (type(obj).__name__, obj)
-    return ('unknown', obj)
+    return ('unknown', id(obj))
 
 
 def to_flatten(obj, struct) -> list:
@@ -166,7 +166,7 @@ def to_flatten(obj, struct) -> list:
 
         return [obj]
     if type_ == 'unknown':
-        assert obj is args
+        assert id(obj) == args
         return [obj]
     
     raise TypeError(f'Uknown type: {type_!r}')
@@ -212,7 +212,7 @@ def to_struct(data: list, struct) -> Any:
             return value
         if type_ == 'unknown':
             value = next(iterator)
-            assert value is args
+            assert id(value) == args
             return value
     
         raise TypeError(f'Unknown type: {type_!r}')

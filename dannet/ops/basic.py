@@ -118,18 +118,18 @@ class _Transpose(dt.core.TensorBase):
         self._buffer = self.x._buffer
         self._buffer_offset = self.x._buffer_offset
 
-        self.perm = tuple(perm)
+        self._perm = tuple(perm)
 
     def inputs(self):
         return [self.x]
 
     def compute_gradients(self, grad):
-        inv = [self.perm.index(i) for i in range(self.x.ndim)]
+        inv = [self._perm.index(i) for i in range(self.x.ndim)]
         return [transpose(grad, inv)]
     
     def get_config(self):
         config = super(_Transpose, self).get_config()
-        config['axes'] = self.perm
+        config['perm'] = self._perm
         return config
 
 class _Flip(dt.core.TensorBase):
@@ -151,7 +151,7 @@ class _Flip(dt.core.TensorBase):
                 raise ValueError(f'Invalid axis {a} for Flip with tensor of ndim {ndim}')
             norm_axes.append(a)
 
-        self.axes = tuple(sorted(set(norm_axes)))
+        self._axes = tuple(sorted(set(norm_axes)))
 
         self._shape = self.x._shape
         self._dtype = self.x._dtype
@@ -159,11 +159,11 @@ class _Flip(dt.core.TensorBase):
         orig_strides = self.x._strides
 
         new_strides = list(orig_strides)
-        for ax in self.axes:
+        for ax in self._axes:
             new_strides[ax] = -orig_strides[ax]
 
         offset = self.x._buffer_offset
-        for ax in self.axes:
+        for ax in self._axes:
             offset += (self._shape[ax] - 1) * orig_strides[ax]
 
         self._strides = tuple(new_strides)
@@ -174,11 +174,11 @@ class _Flip(dt.core.TensorBase):
         return [self.x]
 
     def compute_gradients(self, grad):
-        return [flip(grad, self.axes)]
+        return [flip(grad, self._axes)]
 
     def get_config(self):
         cfg = super(_Flip, self).get_config()
-        cfg['axes'] = self.axes
+        cfg['axes'] = self._axes
         return cfg
 
 class _Copy(dt.core.TensorBase):
@@ -216,7 +216,7 @@ class _Pad(dt.core.TensorBase):
         for p in paddings:
             if not (isinstance(p[0], int) and isinstance(p[1], int) and p[0] >= 0 and p[1] >= 0):
                 raise ValueError(f'Invalid padding {p}, must be non-negative ints')
-        self.paddings = paddings
+        self._paddings = paddings
 
         new_shape = tuple(
             self.x.shape[i] + paddings[i][0] + paddings[i][1]
@@ -234,11 +234,17 @@ class _Pad(dt.core.TensorBase):
     
     def compute_gradients(self, grad):
         slices = []
-        for i, (before, _after) in enumerate(self.paddings):
+        for i, (before, _after) in enumerate(self._paddings):
             start = before
             stop = before + self.x.shape[i]
             slices.append((start, stop, None))
         return [slice(grad, tuple(slices))]
+    
+    def get_config(self):
+        config = super(_Pad, self).get_config()
+        config['paddings'] = self._paddings
+        return config
+
 
 class _Slice(dt.core.TensorBase):
     def __init__(self, x, slices):
@@ -316,6 +322,11 @@ class _Slice(dt.core.TensorBase):
         zero = zeros(self.x.shape, self.x.dtype)
         return [pad(grad, pads) + zero]
 
+    def get_config(self):
+        config = super(_Slice, self).get_config()
+        config['slices'] = self._slices
+        return config
+
 class _Gather(dt.core.TensorBase):
     def __init__(self, x, indices):
         self.x = dt.convert_to_tensor(x)
@@ -347,10 +358,10 @@ class _Gather(dt.core.TensorBase):
 class _OneHot(dt.core.TensorBase):
     def __init__(self, indices, depth, dtype):
         self.indices = dt.cast(indices, dt.dtype.int_dtype)
-        self.depth = int(depth)
+        self._depth = int(depth)
 
-        if self.depth <= 0:
-            raise ValueError(f'depth must be positivev integer, not {self.depth}')        
+        if self._depth <= 0:
+            raise ValueError(f'depth must be positivev integer, not {self._depth}')        
             
         self._shape = (*self.indices._shape, depth)
         self._dtype = dt.dtype.normalize_dtype(dtype)
@@ -365,6 +376,11 @@ class _OneHot(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return [dt.zeros_like(grad)]
     
+    def get_config(self):
+        config = super(_OneHot, self).get_config()
+        config['depth'] = self._depth
+        return config
+
 class _Range(dt.core.TensorBase):
     def __init__(self, n: int):
         assert n > 0
@@ -495,7 +511,7 @@ def transpose(x, perm=None):
     x = dt.convert_to_tensor(x)
     y = _Transpose(x, perm)
 
-    if list(y.perm) == sorted(y.perm):
+    if list(y._perm) == sorted(y._perm):
         y = x
     return dt.core._node_prepare(y)
 

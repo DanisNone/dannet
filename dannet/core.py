@@ -270,6 +270,9 @@ class Variable(TensorBase):
         return id(self)
 
     def __array__(self, dtype=None):
+        if not dt.is_eager():
+            raise RuntimeError('Variable to ndarray can be converted only in eager mode')
+
         if dtype is None:
             dtype = self._dtype
         self._used_by = None
