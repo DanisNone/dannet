@@ -29,7 +29,7 @@ def matmul(
 
     assert M == M0 and N == N0 and K == K0
 
-    tile_size = min(M, K, math.isqrt(device.max_work_group_size))
+    tile_size = min(max(M, K), math.isqrt(device.max_work_group_size))
     global_size = (
         (M + tile_size - 1) // tile_size * tile_size,
         (K + tile_size - 1) // tile_size * tile_size,

@@ -5,9 +5,32 @@ import opt_einsum.typing
 import dannet as dt
 
 
-def _einsum(einsum_str: str, operands: list):
+def _einsum_one_arg(einsum_str, operands: list):
     einsum_inputs, einsum_output = einsum_str.split('->')
     inputs = einsum_inputs.split(',')
+    if len(inputs) != len(operands) != 1:
+        raise ValueError('Expected one input subscripts and one operands')
+
+    input, = inputs
+    if len(input) != len(set(input)):
+        # TODO: implement dt.diagonal
+        raise ValueError()
+    
+    sum_axes = [i for i, c in enumerate(input) if c not in einsum_output]
+    input = ''.join(c for c in input if c in einsum_output)
+
+    assert len(input) == len(einsum_output)
+
+    perm = [input.index(c) for c in einsum_output]
+    return dt.transpose(dt.sum(operands[0], sum_axes), perm)
+
+def _einsum(einsum_str: str, operands: list):
+    einsum_inputs, einsum_output = einsum_str.split('->')
+    if ',' not in einsum_inputs:
+        return _einsum_one_arg(einsum_str, operands)
+
+    inputs = einsum_inputs.split(',')
+
     if len(inputs) != len(operands) != 2:
         raise ValueError('Expected two input subscripts and two operands')
 
@@ -62,7 +85,7 @@ def _einsum(einsum_str: str, operands: list):
 
 
 def einsum(subscripts, *operands, optimize='auto'):
-    if einsum is False:
+    if optimize is False:
         raise ValueError('dannet.einsum not support optimize=False')
     
     operands = [dt.convert_to_tensor(op) for op in operands]
