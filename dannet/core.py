@@ -45,8 +45,20 @@ class TensorBase(abc.ABC):
     def compute_gradients(self, grad: TensorBase) -> Sequence[TensorBase]:
         pass
 
+    def numpy(self) -> np.ndarray:
+        if is_constant(self):
+            return dt.eval(self)._value.copy()
+        raise ValueError('Only constant tensor may be converted to numpy')
+
+    def __array__(self, dtype = None):
+        res = self.numpy()
+        if dtype is not None:
+            res = res.astype(dtype)
+        return res
+    
+    @abc.abstractmethod
     def get_config(self) -> dict[str, Any]:
-        return {'shape': self._shape, 'dtype': self._dtype}
+        pass
     
     def __eq__(self, other):
         if self is other:
@@ -54,7 +66,9 @@ class TensorBase(abc.ABC):
         
         if type(self) != type(other):
             return False
-        
+
+        if self.shape != other.shape or self.dtype != other.dtype:
+            return False        
         if self.get_config() != other.get_config():
             return False
         return self.inputs() == other.inputs()
@@ -63,7 +77,7 @@ class TensorBase(abc.ABC):
         if not hasattr(self, '_hash'):
             config = self.get_config()
             config = tuple(config.items())
-            self._hash = hash((config, *self.inputs()))
+            self._hash = hash((config, self.shape, self.dtype, *self.inputs()))
         return self._hash
     
     @property
@@ -176,20 +190,12 @@ class Constant(TensorBase):
         self._strides = self._default_strides()        
         
 
-    def numpy(self):
-        return self._value.copy()
-    
     def inputs(self):
         return []
     
     def compute_gradients(self, grad):
         return []
     
-    def get_config(self):
-        config = super(Constant, self).get_config()
-        config['value'] = self._value.copy()
-        return config
-
     def __eq__(self, other):
         if not isinstance(other, Constant):
             return False
@@ -204,17 +210,15 @@ class Constant(TensorBase):
     def __hash__(self):
         return hash((Constant, self._shape, self._dtype))
     
-    def __array__(self, dtype=None):
-        if dtype is None:
-            dtype = self._dtype
-        return self._value.astype(dtype, copy=True)
-    
     def __repr__(self):
         v = str(self._value)
         if len(v) > 50:
             v = v[:50] + '...'
         return f'Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})'
-
+    
+    def get_config(self):
+        return {}
+    
 class Variable(TensorBase):
     def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None = None):
         if isinstance(value, Constant):
@@ -283,7 +287,10 @@ class Variable(TensorBase):
         if len(v) > 50:
             v = v[:50] + '...'
         return f'Variable(shape={self._shape}, dtype={self._dtype}, numpy={v})'
-
+    
+    def get_config(self):
+        return {}
+    
     
 class Placeholder(TensorBase):
     def __init__(self, shape: dt.typing.ShapeLike, dtype: dt.typing.DTypeLike):
@@ -305,7 +312,10 @@ class Placeholder(TensorBase):
     
     def __hash__(self):
         return id(self)
-
+    
+    def get_config(self):
+        return {}
+    
 class Update(TensorBase):
     def __init__(self, variable: Variable, value: dt.typing.TensorLike):
         if not isinstance(variable, Variable):
@@ -337,6 +347,10 @@ class Update(TensorBase):
     
     def __hash__(self):
         return id(self)
+    
+    def get_config(self):
+        return {}
+    
 
 
 def is_constant(node: TensorBase) -> bool:
@@ -348,11 +362,9 @@ def is_constant(node: TensorBase) -> bool:
     return False
 
 def _node_prepare(node: TensorBase):
-    # not evaluate broadcast_to, reshape, ...
     if dt.is_eager():
-        if node._is_default_strides():
-            return dt.eval(node)
-        return node
+        return dt.eval(node)
+    # not evaluate broadcast_to, reshape, ...
     if is_constant(node) and node._is_default_strides():
         return dt.eval(node)
     dt.function._add_node(node)

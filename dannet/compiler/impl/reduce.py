@@ -17,13 +17,13 @@ def reduce(
     assert node.x.size % node.size == 0
 
     inner_size = node.x.size // node.size
-    inner_shape = [s for i, s in enumerate(node.x._shape) if i in node.axis]
-    inner_strides = [s for i, s in enumerate(node.x._strides) if i in node.axis]
+    inner_shape = [s for i, s in enumerate(node.x._shape) if i in node._axis]
+    inner_strides = [s for i, s in enumerate(node.x._strides) if i in node._axis]
     inner_strides_norm = default_strides(inner_shape)
 
     outer_size = node.size
-    outer_shape = [s for i, s in enumerate(node.x._shape) if i not in node.axis]
-    outer_strides = [s for i, s in enumerate(node.x._strides) if i not in node.axis]
+    outer_shape = [s for i, s in enumerate(node.x._shape) if i not in node._axis]
+    outer_strides = [s for i, s in enumerate(node.x._strides) if i not in node._axis]
     outer_strides_norm = default_strides(outer_shape)
 
     headers = generate_nodes_info(A=node.x, B=node)

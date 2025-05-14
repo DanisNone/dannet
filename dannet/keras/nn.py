@@ -327,3 +327,85 @@ def moments(x, axes, keepdims=False, synchronized=False):
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == 'float16' else 3.38953e38
+    return dt.Constant(val * -0.7, dtype=dtype)
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = None
+    if mask is not None:
+        combined_mask = dt.cast(mask, bool)
+        combined_mask = dt.broadcast_to(combined_mask, logits.shape)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = dt.tril(dt.ones((T, S), dtype=bool))
+        mask = dt.expand_dims(mask, (0, 1))
+        if combined_mask is None:
+            combined_mask = mask
+        else:
+            combined_mask = combined_mask * mask
+
+    if combined_mask is None:
+        padded_logits = logits
+    else:
+        padded_logits = dt.where(
+            combined_mask, logits, _get_large_negative(logits.dtype)
+        )
+    return padded_logits
+
+def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
+    logits_dtype = dt.dtype.max_dtype(query.dtype, 'float32')
+
+    logits = dt.einsum('BTNH,BSNH->BNTS', query, key)
+    logits = dt.cast(logits, logits_dtype)
+    logits *= dt.cast(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = dt.cast(logits + bias, logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    padded_logits = dt.cast(padded_logits, 'float32')
+    probs = softmax(padded_logits, axis=-1)
+    probs = dt.cast(probs, original_dtype)
+
+    encoded = dt.einsum('BNTS,BSNH->BTNH', probs, value)
+    return encoded
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
+    if flash_attention is None:
+        flash_attention = False
+    if flash_attention:
+        raise ValueError('Flash attention is not supported in dannet backend.')
+
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            '`dot_product_attention` only supports 4D inputs. '
+            f'Received: query.shape={query.shape}, key.shape={key.shape}, '
+            f'value.shape={value.shape}.'
+        )
+    _, _, _, H = key.shape
+    scale = dt.rsqrt(H) if scale is None else scale
+    return _dot_product_attention(
+        query, key, value, bias, mask, is_causal, scale
+    )

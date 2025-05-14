@@ -41,12 +41,12 @@ def arg_reduce(
 
     assert node.x.size % node.size == 0
 
-    if node.axis is None:
+    if node._axis is None:
         return arg_reduce_full(device, node, input_buffers, output_buffer, condition)
     
     headers = generate_nodes_info(A=node.x, B=node)
     headers.append(insert_static_array('stridesAN', node.x._default_strides()))
-    headers.extend(generate_defines(skeep_axis = node.axis, sizeRight=math.prod(node.x._shape[node.axis+1:])))
+    headers.extend(generate_defines(skeep_axis = node._axis, sizeRight=math.prod(node.x._shape[node._axis+1:])))
     headers.append(generate_mode('by_axis'))
     headers.append(f'''
 bool condition(dtypeA x, dtypeA y)

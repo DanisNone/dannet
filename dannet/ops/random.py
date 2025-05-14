@@ -40,12 +40,15 @@ class _RandomInt(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    
     def __eq__(self, other):
         return self is other
 
     def __hash__(self):
         return id(self)
+    
+    
+    def get_config(self):
+        return {'rng': self.rng}
     
 class _RandomFloat(dt.core.TensorBase):
     def __init__(self, shape, dtype='float64', rng: Optional[RandomGenerator] = None):
@@ -76,6 +79,9 @@ class _RandomFloat(dt.core.TensorBase):
 
     def __hash__(self):
         return id(self)
+    
+    def get_config(self):
+        return {'rng': self.rng}
     
 
 

@@ -36,8 +36,8 @@ class _Reduce(dt.core.TensorBase):
         self._shape = tuple(map(int, shape))
         self._dtype = self.result_type(self.x.dtype)
 
-        self.axis = tuple(axis)
-        self.keepdims = bool(keepdims)
+        self._axis = tuple(axis)
+        self._keepdims = bool(keepdims)
 
         self._strides = self._default_strides()
         self._buffer = dt.core.Buffer(self)
@@ -51,10 +51,7 @@ class _Reduce(dt.core.TensorBase):
         return [self.x]
     
     def get_config(self):
-        config = super(_Reduce, self).get_config()
-        config['axis'] = self.axis
-        config['keepdims'] = self.keepdims
-        return config
+        return {'axis': self._axis, 'keepdims': self._keepdims}
     
 class _Sum(_Reduce):
     def result_type(self, dtype):
@@ -111,12 +108,12 @@ class _ArgReduce(dt.core.TensorBase):
     def __init__(self, x, axis=None, keepdims=False):
         self.x = dt.convert_to_tensor(x)
         
-        self.keepdims = bool(keepdims)
+        self._keepdims = bool(keepdims)
 
         if axis is None:
-            self.axis = None
+            self._axis = None
             self.full_reduce = True
-            self._shape = (1, ) * self.x.ndim if self.keepdims else ()
+            self._shape = (1, ) * self.x.ndim if self._keepdims else ()
         else:
             if isinstance(axis, int):
                 axis = axis
@@ -126,14 +123,14 @@ class _ArgReduce(dt.core.TensorBase):
                 axis += x.ndim
             if axis < 0 or axis >= x.ndim:
                 raise ValueError(f'axis {axis} is out of bounds for tensor of dimension {x.ndim}')
-            self.axis = axis
+            self._axis = axis
             self.full_reduce = False
 
             output_shape = list(x._shape)
-            if self.keepdims:
-                output_shape[self.axis] = 1
+            if self._keepdims:
+                output_shape[self._axis] = 1
             else:
-                del output_shape[self.axis]
+                del output_shape[self._axis]
             self._shape = tuple(output_shape)
 
         self._dtype = dt.dtype.uint_dtype
@@ -148,11 +145,10 @@ class _ArgReduce(dt.core.TensorBase):
         return [dt.zeros_like(self.x)]
 
     def get_config(self):
-        config = super(_ArgReduce, self).get_config()
-        config['axis'] = self.axis
-        config['keepdims'] = self.keepdims
-
-        return config
+        return {
+            'axis': self._axis,
+            'keepdims': self._keepdims
+        }
     
 class _ArgMin(_ArgReduce):
     pass

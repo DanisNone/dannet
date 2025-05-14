@@ -9,12 +9,19 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
         dtype = dtype.name
     elif isinstance(dtype, type) and issubclass(dtype, np.generic):
         dtype = np.dtype(dtype).name
-
-    dtype = dtype.lower()
-    if dtype == 'int':
+    elif dtype is bool or dtype == 'bool':
+        dtype = bool_dtype
+    elif dtype is int or dtype == 'int':
         dtype = int_dtype
+    elif dtype is float or dtype == 'float':
+        dtype = float_dtype
+    elif isinstance(dtype, str):
+        dtype = dtype.lower()
+    else:
+        raise TypeError(f'fail convert {dtype!r} to dtype')
+
     if dtype not in support:
-        raise TypeError(f'unknown dtype: {dtype}')
+        raise TypeError(f'unknown dtype: {dtype!r}')
     return dtype
 
 def itemsize(dtype: dt.typing.DTypeLike) -> int:

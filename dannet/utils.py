@@ -1,10 +1,13 @@
 from __future__ import annotations
+from typing import SupportsIndex
 
 import numpy as np
 import dannet as dt
 
 
-def normalize_shape(shape: dt.typing.ShapeLike) -> tuple[int, ...]:
+def normalize_shape(shape: dt.typing.ShapeLike | SupportsIndex) -> tuple[int, ...]:
+    if isinstance(shape, SupportsIndex):
+        shape = [shape]
     shape_norm = tuple(int(dim) for dim in shape)
     if min(shape_norm, default=1) <= 0:
         raise ValueError('All dims of shape must be greater than 0')

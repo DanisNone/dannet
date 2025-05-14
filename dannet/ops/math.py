@@ -5,7 +5,8 @@ import dannet as dt
 
 
 class _ElementWise(dt.core.TensorBase):
-    pass
+    def get_config(self):
+        return {}
 
 
 class _ElementWiseUnary(_ElementWise):
@@ -282,6 +283,9 @@ class _Matmul(dt.core.TensorBase):
             grad_B = dt.matmul(A, grad, transpose_a=True)
 
         return [grad_A, grad_B]
+    
+    def get_config(self):
+        return {}
     
 def _make_unary(name: str, class_: type[_ElementWiseUnary]):
     def inner(x: dt.typing.TensorLike):

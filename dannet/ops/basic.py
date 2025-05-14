@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import dannet as dt
 
 class _BroadcastTo(dt.core.TensorBase):
@@ -34,6 +36,9 @@ class _BroadcastTo(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return [dt.reduce_to(grad, self.x._shape)]
     
+    def get_config(self):
+        return {}
+    
 class _Cast(dt.core.TensorBase):
     def __init__(self, x, new_dtype):
         self.x = dt.convert_to_tensor(x)
@@ -51,6 +56,9 @@ class _Cast(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return [grad]
 
+    def get_config(self):
+        return {}
+    
 class _Reshape(dt.core.TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
@@ -98,6 +106,9 @@ class _Reshape(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [reshape(grad, self.x.shape)]
+    
+    def get_config(self):
+        return {}
 
 
 class _Transpose(dt.core.TensorBase):
@@ -112,7 +123,7 @@ class _Transpose(dt.core.TensorBase):
             raise ValueError(f'Invalid perm for transpose')
 
         self._shape = tuple(self.x._shape[a] for a in perm)
-        self._dtype = self.x.dtype
+        self._dtype = self.x._dtype
 
         self._strides = tuple(self.x._strides[a] for a in perm)
         self._buffer = self.x._buffer
@@ -128,9 +139,7 @@ class _Transpose(dt.core.TensorBase):
         return [transpose(grad, inv)]
     
     def get_config(self):
-        config = super(_Transpose, self).get_config()
-        config['perm'] = self._perm
-        return config
+        return {'perm': self._perm}
 
 class _Flip(dt.core.TensorBase):
     def __init__(self, x, axes):
@@ -177,9 +186,7 @@ class _Flip(dt.core.TensorBase):
         return [flip(grad, self._axes)]
 
     def get_config(self):
-        cfg = super(_Flip, self).get_config()
-        cfg['axes'] = self._axes
-        return cfg
+        return {'axes': self._axes}
 
 class _Copy(dt.core.TensorBase):
     def __init__(self, x):
@@ -197,6 +204,9 @@ class _Copy(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [grad]
+    
+    def get_config(self):
+        return {}
 
 class _Pad(dt.core.TensorBase):
     def __init__(self, x, paddings):
@@ -241,9 +251,7 @@ class _Pad(dt.core.TensorBase):
         return [slice(grad, tuple(slices))]
     
     def get_config(self):
-        config = super(_Pad, self).get_config()
-        config['paddings'] = self._paddings
-        return config
+        return {'paddings': self._paddings}
 
 
 class _Slice(dt.core.TensorBase):
@@ -323,9 +331,7 @@ class _Slice(dt.core.TensorBase):
         return [pad(grad, pads) + zero]
 
     def get_config(self):
-        config = super(_Slice, self).get_config()
-        config['slices'] = self._slices
-        return config
+        return {'slices': self._slices}
 
 class _Gather(dt.core.TensorBase):
     def __init__(self, x, indices):
@@ -355,6 +361,9 @@ class _Gather(dt.core.TensorBase):
         grad_x = dt.reshape(grad_x_flat, self.x.shape)
         return [grad_x, dt.zeros_like(self.indices)]
 
+    def get_config(self):
+        return {}
+    
 class _OneHot(dt.core.TensorBase):
     def __init__(self, indices, depth, dtype):
         self.indices = dt.cast(indices, dt.dtype.int_dtype)
@@ -377,40 +386,25 @@ class _OneHot(dt.core.TensorBase):
         return [dt.zeros_like(grad)]
     
     def get_config(self):
-        config = super(_OneHot, self).get_config()
-        config['depth'] = self._depth
-        return config
-
-class _Range(dt.core.TensorBase):
-    def __init__(self, n: int):
-        assert n > 0
-
-        self._shape = (n,)
-        self._dtype = dt.dtype.uint_dtype
-
-        self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
-        self._buffer_offset = 0
-
-    def inputs(self):
-        return []
-
-    def compute_gradients(self, grad):
-        return []
-
-def zeros(shape, dtype):
+        return {'depth': self._depth}
+    
+def zeros(shape, dtype = None):
+    if dtype is None:
+        dtype = dt.dtype.float_dtype
     return broadcast_to(cast(0, dtype), shape)
 
-def ones(shape, dtype):
+def ones(shape, dtype = None):
+    if dtype is None:
+        dtype = dt.dtype.float_dtype
     return broadcast_to(cast(1, dtype), shape)
 
-def zeros_like(x, dtype=None):
+def zeros_like(x, dtype: dt.typing.DTypeLike | None = None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
     return broadcast_to(cast(0, dtype), x.shape)
 
-def ones_like(x, dtype=None):
+def ones_like(x, dtype: dt.typing.DTypeLike | None = None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
@@ -600,34 +594,36 @@ def one_hot(x, depth, axis=-1, dtype=None):
     return transpose(res, perm)
 
 def arange(start: int | float, stop: int | float | None = None, step: int | float = 1, dtype = None):
-    if step == 0:
-        raise ValueError('arange() step cannot be zero')
-    if stop is None:
-        start, stop = 0, start
-    if any(not hasattr(el, '__index__') for el in (start, stop, step)):
-        start = float(start)
-        stop = float(stop)
-        step = float(step)
-    else:
-        start = int(start)
-        stop = int(stop)
-        step = int(step)
-
-    length = math.ceil((stop - start) / step)
-    if length <= 0:
-        raise ValueError(f'arange() invalid length ({length}) for range '
+    res = np.arange(start, stop, step)
+    if res.shape[0] <= 0:
+        raise ValueError(f'arange() invalid length ({res.shape[0]}) for range '
                            f'[{start}, {stop}) with step {step}')
-    
-    res = _Range(length)
-    res = dt.core._node_prepare(res)
-
-    if dtype is not None and isinstance(step, float):
-        res *= dt.Constant(step, dt.dtype.max_dtype(dtype, dt.dtype.float_dtype))
-        res += dt.Constant(start, dt.dtype.max_dtype(dtype, dt.dtype.float_dtype))
-    else:
-        res *= step
-        res += step
     return dt.cast(res, dtype)
+
+def tri(N, M=None, k=0, dtype=None):
+    if dtype is None:
+        dtype = dt.dtype.float_dtype
+    
+    if M is None:
+        M = N
+
+    a = arange(N, dtype='int64')
+    b = arange(-k, M-k, dtype='int64')
+    m = (dt.expand_dims(a, 0) > dt.expand_dims(b, 1))
+
+    return dt.cast(m, dtype)
+
+def tril(m, k=0):
+    m = dt.convert_to_tensor(m)
+    mask = tri(*m.shape[-2:], k=k, dtype=bool)
+
+    return dt.where(mask, m, zeros(1, m.dtype))
+
+def triu(m, k=0):
+    m = dt.convert_to_tensor(m)
+    mask = tri(*m.shape[-2:], k=k-1, dtype=bool)
+
+    return dt.where(mask, zeros(1, m.dtype), m)
 
 __all__ = [
     'zeros',
@@ -649,4 +645,7 @@ __all__ = [
     'take',
     'one_hot',
     'arange',
+    'tri',
+    'tril',
+    'triu'
 ]

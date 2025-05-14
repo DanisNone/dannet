@@ -48,29 +48,19 @@ class compile:
         self._constants_loaded: bool = False
         self._kernels: OrderedDict[TensorBase, Callable[[], cl.Event | None]] = OrderedDict()
 
-
-        if not is_eager_mode:
+        self._is_eager_mode = bool(is_eager_mode)
+        if not self._is_eager_mode:
             self._remove_dead_code()
             self._sort_nodes()
 
         self._filter_nodes()
 
+        if not self._is_eager_mode:
+            self._write_nodes_info()
         self._allocate_buffers()
         self._compile_kernels()
 
         self._load_constants()
-
-        if is_eager_mode:
-            return
-        
-        compile._compile_uid += 1 
-        if self._log_dir_path is not None:
-            name = self._log_dir_path / f'{compile._compile_uid}.data'
-            with open(name, 'w') as file:
-                for node in self._nodes:
-                    idx = self._nodes.index(node)
-                    idxinp = [self._nodes.index(inp) for inp in node.inputs()]
-                    print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
 
     def _remove_dead_code(self):
         target_tensors = [
@@ -129,6 +119,17 @@ class compile:
                     raise ValueError('graph have unknown input')
             else:
                 self._compute_nodes.append(node)
+
+    
+    def _write_nodes_info(self):
+        compile._compile_uid += 1 
+        if self._log_dir_path is not None:
+            name = self._log_dir_path / f'{compile._compile_uid}.data'
+            with open(name, 'w') as file:
+                for node in self._nodes:
+                    idx = self._nodes.index(node)
+                    idxinp = [self._nodes.index(inp) for inp in node.inputs()]
+                    print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
 
     def _allocate_buffers(self):
         if self._buffers:

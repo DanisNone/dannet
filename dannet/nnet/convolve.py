@@ -136,10 +136,7 @@ class _UpSampleZeros(dt.core.TensorBase):
         return [dt.slice(grad, slices)]
     
     def get_config(self):
-        config = super(_UpSampleZeros, self).get_config()
-        config['factors'] = self._upsample_size
-        config['shape'] = self._shape
-        return config
+        return {'factors': self._upsample_size}
 
 
 def normalize_strides(rank: int, strides: int | tuple[int, ...]) -> tuple[int, ...]:
