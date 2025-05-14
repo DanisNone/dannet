@@ -16,15 +16,16 @@ def normalize_shape(shape: dt.typing.ShapeLike | SupportsIndex) -> tuple[int, ..
 def convert_to_tensor(x: dt.typing.TensorLike) -> dt.core.TensorBase:
     if isinstance(x, dt.core.TensorBase):
         return x
-    if isinstance(x, int):
-        return dt.core.Constant(x, dt.dtype.int_dtype)
-    if isinstance(x, float):
-        return dt.core.Constant(x, dt.dtype.float_dtype)
     
+    if isinstance(x, (np.generic, list, tuple)):
+        return dt.constant(x)
+    if isinstance(x, int):
+        return dt.constant(x, dt.dtype.int_dtype)
+    if isinstance(x, float):
+        return dt.constant(x, dt.dtype.float_dtype)    
     if hasattr(x, '__array__'):
         x = np.asarray(x)
-    if isinstance(x, (np.ndarray, list, tuple)):
-        return dt.core.Constant(x)
+        return dt.constant(x)
     
 
     raise TypeError(f'Fail convert to Tensor: {x!r}')

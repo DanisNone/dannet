@@ -1,5 +1,6 @@
 from . import core
-from .core import Constant, Variable
+from .core import constant, variable
+
 from . import typing
 
 from .ops import*

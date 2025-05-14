@@ -11,6 +11,10 @@ from dannet.topsort import topological_sort
 
 from dannet.core import TensorBase
 
+
+class NotSupportDtypeError(BaseException):
+    pass
+
 class compile:
     _compile_uid: int = 0
     _log_dir_path: pathlib.Path | None = None
@@ -108,7 +112,7 @@ class compile:
     def _filter_nodes(self):
         for node in self._nodes:
             if not self.device.is_support(node._dtype):
-                raise TypeError(f'dtype {node.dtype} not supported on device {self.device}')
+                raise NotSupportDtypeError(f'dtype {node.dtype} not supported on device {self.device}')
             
             if isinstance(node, dt.core.Constant):
                 self._constant_nodes.append(node)

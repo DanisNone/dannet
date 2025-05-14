@@ -50,6 +50,9 @@ class TensorBase(abc.ABC):
             return dt.eval(self)._value.copy()
         raise ValueError('Only constant tensor may be converted to numpy')
 
+    def tolist(self):
+        return self.numpy().tolist()
+    
     def __array__(self, dtype = None):
         res = self.numpy()
         if dtype is not None:
@@ -162,23 +165,59 @@ class TensorBase(abc.ABC):
     def __bool__(self):
         if not dt.is_eager():
             raise NotImplementedError('Boolean evaluation is only supported in eager mode.')
-        if self.size != 1:
+        if self.shape != ():
             raise ValueError('Only scalar tensors can be used as a boolean.')
-        
-        self = dt.reshape(self, ())
-        self = dt.eval(self)
-        return bool(self._value)
-        
+        return bool(dt.eval(self)._value)
+    
+    def argmax(self, axis=None):
+        return dt.argmax(self, axis=axis)
+
+    def argmin(self, axis=None):
+        return dt.argmin(self, axis=axis)
+
+    def clip(self, min_val, max_val):
+        return dt.clip(self, min_val, max_val)
+
+    def copy(self):
+        return dt.copy(self)
+
+    def max(self, axis=None):
+        return dt.max(self, axis=axis)
+
+    def mean(self, axis=None):
+        return dt.mean(self, axis=axis)
+
+    def min(self, axis=None):
+        return dt.min(self, axis=axis)
+
+    def prod(self, axis=None):
+        return dt.prod(self, axis=axis)
+
+    def reshape(self, shape: dt.typing.ShapeLike):
+        return dt.reshape(self, shape)
+
+    def std(self, axis=None):
+        return dt.std(self, axis=axis)
+
+    def sum(self, axis=None):
+        return dt.sum(self, axis=axis)
+
+    def transpose(self, axes=None):
+        return dt.transpose(self, axes=axes)
+
+    def var(self, axis=None):
+        return dt.var(self, axis=axis)
 
 class Constant(TensorBase):
     def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None  = None):
         if isinstance(value, TensorBase):
             raise NotImplementedError()
         
-        if isinstance(value, int) and dtype is None:
-            dtype = dt.dtype.int_dtype
-        if isinstance(value, float) and dtype is None:
-            dtype = dt.dtype.float_dtype
+        if not isinstance(value, np.generic) and dtype is None:
+            if isinstance(value, int):
+                dtype = dt.dtype.int_dtype
+            if isinstance(value, float):
+                dtype = dt.dtype.float_dtype
         self._value = np.array(value, dtype=dtype)
         dtype = self._value.dtype
         
@@ -369,3 +408,7 @@ def _node_prepare(node: TensorBase):
         return dt.eval(node)
     dt.function._add_node(node)
     return node
+
+
+variable = Variable
+constant = Constant

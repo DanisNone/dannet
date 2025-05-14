@@ -103,7 +103,7 @@ def eval(x):
     
     nodes = topsort.topological_sort([x])
     res = dt.compiler.compile([], [x], nodes[::-1], is_eager_mode=True)([])[0]
-    return dt.Constant(res)
+    return dt.constant(res)
 
 def get_struct(obj) -> Any:
     if isinstance(obj, tuple):

@@ -332,7 +332,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
 def _get_large_negative(dtype):
     dtype = backend.standardize_dtype(dtype)
     val = 65500.0 if dtype == 'float16' else 3.38953e38
-    return dt.Constant(val * -0.7, dtype=dtype)
+    return dt.constant(val * -0.7, dtype=dtype)
 
 def _apply_masks(logits, mask, is_causal):
     if mask is None and not is_causal:

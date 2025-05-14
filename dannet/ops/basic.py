@@ -112,34 +112,34 @@ class _Reshape(dt.core.TensorBase):
 
 
 class _Transpose(dt.core.TensorBase):
-    def __init__(self, x, perm=None):
+    def __init__(self, x, axes=None):
         self.x = dt.convert_to_tensor(x)
 
-        if perm is None:
-            perm = range(self.x.ndim)[::-1]
-        perm = [a if a >= 0 else a + self.x.ndim for a in perm]
+        if axes is None:
+            axes = range(self.x.ndim)[::-1]
+        axes = [a if a >= 0 else a + self.x.ndim for a in axes]
 
-        if sorted(perm) != list(range(self.x.ndim)):
+        if sorted(axes) != list(range(self.x.ndim)):
             raise ValueError(f'Invalid perm for transpose')
 
-        self._shape = tuple(self.x._shape[a] for a in perm)
+        self._shape = tuple(self.x._shape[a] for a in axes)
         self._dtype = self.x._dtype
 
-        self._strides = tuple(self.x._strides[a] for a in perm)
+        self._strides = tuple(self.x._strides[a] for a in axes)
         self._buffer = self.x._buffer
         self._buffer_offset = self.x._buffer_offset
 
-        self._perm = tuple(perm)
+        self._axes = tuple(axes)
 
     def inputs(self):
         return [self.x]
 
     def compute_gradients(self, grad):
-        inv = [self._perm.index(i) for i in range(self.x.ndim)]
+        inv = [self._axes.index(i) for i in range(self.x.ndim)]
         return [transpose(grad, inv)]
     
     def get_config(self):
-        return {'perm': self._perm}
+        return {'axes': self._axes}
 
 class _Flip(dt.core.TensorBase):
     def __init__(self, x, axes):
@@ -501,21 +501,21 @@ def expand_dims(x, axis):
     
     return reshape(x, shape)
 
-def transpose(x, perm=None):
+def transpose(x, axes=None):
     x = dt.convert_to_tensor(x)
-    y = _Transpose(x, perm)
+    y = _Transpose(x, axes)
 
-    if list(y._perm) == sorted(y._perm):
+    if list(y._axes) == sorted(y._axes):
         y = x
     return dt.core._node_prepare(y)
 
 def swapaxes(x, axis1, axis2):
     x = dt.convert_to_tensor(x)
 
-    perm = list(range(x.ndim))
-    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+    axes = list(range(x.ndim))
+    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
 
-    return dt.transpose(x, perm)
+    return dt.transpose(x, axes)
 
 def flip(x, axis = None):
     x = dt.convert_to_tensor(x)
@@ -553,8 +553,8 @@ def take(x, indices, axis=None):
         raise ValueError(f'axis {axis} out of range for tensor of ndim {ndim}')
 
     if norm_axis != 0:
-        perm = [norm_axis] + [i for i in range(ndim) if i != norm_axis]
-        x = dt.transpose(x, perm)
+        axes = [norm_axis] + [i for i in range(ndim) if i != norm_axis]
+        x = dt.transpose(x, axes)
 
     head = x.shape[0]
     tail = math.prod(x.shape[1:])

@@ -37,7 +37,10 @@ class _Negative(_ElementWiseUnary):
     def compute_gradients(self, grad):
         return [-grad]
 
-class _Reciprocal(_ElementWiseUnaryFloat):
+class _Reciprocal(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        return dtype
+    
     def compute_gradients(self, grad):
         return [-grad * dt.square(self)]
 
@@ -163,8 +166,14 @@ class _Divide(_ElementWiseBinary):
 
 class _Power(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2, 'uint32')
-
+        result = dt.dtype.max_dtype(dtype1, dtype2)
+        if dt.dtype.is_float_dtype(dtype1) or dt.dtype.is_float_dtype(dtype2):
+            return result
+        
+        if dt.dtype.is_unsigned_dtype(dtype1):
+            result = dt.dtype.to_unsigned_dtype(result)
+        return result
+    
     def compute_gradients(self, grad):
         grad_x = grad * self.y * dt.power(self.x, self.y - 1)
         grad_y = grad * dt.log(self.x) * self

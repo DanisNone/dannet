@@ -38,6 +38,38 @@ def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     raise TypeError('No common dtype found')
 
 
+
+def is_bool_dtype(dtype):
+    return normalize_dtype(dtype) == 'bool'
+
+def is_integer_dtype(dtype):
+    return normalize_dtype(dtype) in [
+        'int8',
+        'int16',
+        'int32',
+        'int64',
+        'uint8',
+        'uint16',
+        'uint32',
+        'uint64',
+    ]
+
+def signed_dtype(dtype):
+    return normalize_dtype(dtype) in [
+        'int8',
+        'int16'
+        'int32'
+        'int64'
+    ]
+
+def is_unsigned_dtype(dtype):
+    return normalize_dtype(dtype) in [
+        'uint8',
+        'uint16'
+        'uint32'
+        'uint64'
+    ]
+
 def is_float_dtype(dtype):
     return normalize_dtype(dtype) in [
         'float16',
@@ -45,9 +77,28 @@ def is_float_dtype(dtype):
         'float64',
     ]
 
-def is_bool_dtype(dtype):
-    return normalize_dtype(dtype) == 'bool'
 
+def to_signed_dtype(dtype):
+    dtype = normalize_dtype(dtype)
+    if not is_integer_dtype(dtype):
+        raise TypeError(f'fail convert to signed: {dtype!r}')
+    return {
+        'uint8': 'int8',
+        'uint16': 'int16',
+        'uint32': 'int32',
+        'uint64': 'int64',
+    }[dtype]
+
+def to_unsigned_dtype(dtype):
+    dtype = normalize_dtype(dtype)
+    if not is_integer_dtype(dtype):
+        raise TypeError(f'fail convert to unsigned: {dtype!r}')
+    return {
+        'int8': 'uint8',
+        'int16': 'uint16',
+        'int32': 'uint32',
+        'int64': 'uint64',
+    }[dtype]
 
 def _reachable_from(dtype: str) -> set[str]:
     reached = {dtype}
@@ -86,7 +137,7 @@ graph = {
     'uint64': ['int64'],
     'int8': ['int16'],
     'int16': ['int32', 'float16'],
-    'int32': ['float64', 'float32'],
+    'int32': ['int64', 'float32'],
     'int64': ['float64'],
     'float16': ['float32'],
     'float32': ['float64'],

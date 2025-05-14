@@ -31,7 +31,7 @@ def negative(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Reciprocal)
 def reciprocal(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, f'1 / (dtypeB)x')
+    return unary(device, node, input_buffers, output_buffer, f'1 / x')
 
 @register_impl(dt.math._Square)
 def square(device, node, input_buffers, output_buffer):

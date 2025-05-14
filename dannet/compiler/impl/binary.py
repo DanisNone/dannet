@@ -2,14 +2,16 @@ from .utils import *
 
 
 def binary(
-    device, node: dt.math._ElementWiseBinary, input_buffers, output_buffer, op: str
+    device, node: dt.math._ElementWiseBinary, input_buffers, output_buffer, op: str, headers: list[str] | None = None
 ):
     assert node._is_default_strides()
 
     A, B = input_buffers
     C = output_buffer
 
-    headers = generate_nodes_info(A=node.x, B=node.y, C=node)
+    
+    headers = [] if headers is None else headers
+    headers = generate_nodes_info(A=node.x, B=node.y, C=node) + headers
     headers.append(
         f'''
 dtypeC operation(dtypeA x, dtypeB y)
@@ -23,7 +25,7 @@ dtypeC operation(dtypeA x, dtypeB y)
         headers.append(generate_mode('full'))
     else:
         headers.append(generate_mode('strided'))
-        
+    
     global_size = (node.size,)
     local_size = None
 
@@ -51,6 +53,19 @@ def divide(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Power)
 def power(device, node, input_buffers, output_buffer):
+    if not dt.dtype.is_float_dtype(node.dtype):
+        headers = ['''
+dtypeC int_pow(dtypeC base, dtypeC exp) {
+    dtypeC result = 1;
+    while (exp > 0) {
+        if (exp & 1) result *= base;
+        base *= base;
+        exp >>= 1;
+    }
+    return result;
+}
+''']
+        return binary(device, node, input_buffers, output_buffer, f'int_pow(x, y)', headers)
     return binary(device, node, input_buffers, output_buffer, f'pow((dtypeC)x, (dtypeC)y)')
 
 
