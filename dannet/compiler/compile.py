@@ -1,6 +1,6 @@
 import os
 import pathlib
-from typing import Callable
+from typing import Callable, Sequence
 from collections import OrderedDict
 
 import pyopencl as cl
@@ -14,6 +14,7 @@ from dannet.core import TensorBase
 
 class NotSupportDtypeError(BaseException):
     pass
+
 
 class compile:
     _compile_uid: int = 0
@@ -126,28 +127,94 @@ class compile:
 
     
     def _write_nodes_info(self):
-        compile._compile_uid += 1 
-        if self._log_dir_path is not None:
-            name = self._log_dir_path / f'{compile._compile_uid}.data'
-            with open(name, 'w') as file:
-                for node in self._nodes:
-                    idx = self._nodes.index(node)
-                    idxinp = [self._nodes.index(inp) for inp in node.inputs()]
-                    print(f'{idx}: {idxinp}, {node}, {node.dtype}, {[inp.dtype for inp in node.inputs()]}', file=file)
-
-    def _allocate_buffers(self):
-        if self._buffers:
+        import csv
+        compile._compile_uid += 1
+        if self._log_dir_path is None:
             return
-        
+        file_path = self._log_dir_path / f'{compile._compile_uid}.csv'
+
+        # Вычисляем последний индекс использования каждого буфера
+        last_usage: dict[dt.core.Buffer, int] = {}
+        for idx, node in enumerate(self._nodes):
+            buf = node._buffer
+            last_usage[buf] = idx
+
+        # Нумеруем буферы для идентификации
+        unique_bufs = list({node._buffer for node in self._nodes})
+        buf_id_map = {buf: i for i, buf in enumerate(unique_bufs)}
+
+        with open(file_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([
+                'node_id', 'op_type', 'category', 'shape', 'dtype',
+                'inputs', 'buffer_id', 'buffer_bytes', 'last_used',
+            ])
+
+            for idx, node in enumerate(self._nodes):
+                op_type = type(node).__name__
+                if isinstance(node, dt.core.Placeholder):
+                    category = 'Input'
+                elif isinstance(node, dt.core.Constant):
+                    category = 'Constant'
+                elif isinstance(node, dt.core.Variable):
+                    category = 'Variable'
+                elif isinstance(node, dt.core.Update):
+                    category = 'Update'
+                else:
+                    category = 'Compute'
+
+                shape = node.shape
+                dtype = node.dtype
+
+                input_ids = [self._nodes.index(inp) for inp in node.inputs()]
+
+                buf = node._buffer
+                buf_id = buf_id_map[buf]
+                buf_bytes = buf.nbytes
+                last_idx = last_usage[buf]
+
+                writer.writerow([
+                    idx, op_type, category, shape, dtype,
+                    input_ids, buf_id, buf_bytes, last_idx
+                ])
+
+    def _get_free_buffer(self, allocated_cl_buffers: list[cl.Buffer], buffer: dt.core.Buffer) -> tuple[cl.Buffer, bool]:
+        for cl_buffer in allocated_cl_buffers:
+            if cl_buffer.size == buffer.nbytes:
+                return (cl_buffer, True)
+        return (cl.Buffer(self.device.context, cl.mem_flags.READ_WRITE, buffer.nbytes), False)
+    
+    def _allocate_buffers(self):
         need_buffers: list[dt.core.Buffer] = []
         for node in self._nodes:
             if node._buffer not in need_buffers:
                 need_buffers.append(node._buffer)
-        
+
+        buffer_usage: dict[dt.core.Buffer, int] = {}
         for buffer in need_buffers:
-            nbytes = buffer.nbytes
-            cl_buffer = cl.Buffer(self.device.context, cl.mem_flags.READ_WRITE, nbytes)
+            if buffer not in buffer_usage:
+                buffer_usage[buffer] = 0
+            
+            for inp in buffer.inputs():
+                buffer_usage[inp] += 1
+        
+        for node in self._variable_nodes + self._constant_nodes:
+            buffer_usage[node._buffer] = -1
+        
+        free_cl_buffer: list[cl.Buffer] = []
+
+        for buffer in need_buffers:
+            cl_buffer, is_reused = self._get_free_buffer(free_cl_buffer, buffer)
+            if is_reused:
+                free_cl_buffer.remove(cl_buffer)
+
             self._buffers[buffer] = cl_buffer
+
+            for inp in buffer.inputs():
+                buffer_usage[inp] -= 1
+                if buffer_usage[inp] == 0:
+                    free_cl_buffer.append(self._buffers[inp])
+
 
     def _load_constants(self):
         if self._constants_loaded:
@@ -177,7 +244,7 @@ class compile:
                 cl.enqueue_copy(self.device.queue, buffer, value)
             self.device.queue.finish()
 
-    def _load_inputs(self, data: list[np.ndarray]):
+    def _load_inputs(self, data: Sequence[np.ndarray | dt.core.Constant]):
         if len(self._inputs) != len(data):
             raise ValueError(f'Expected {len(self._inputs)} input(s), but got {len(data)}.')
         
@@ -185,19 +252,22 @@ class compile:
             for inp, array in zip(self._inputs, data):
                 if inp.shape != array.shape:
                     raise ValueError(f'Shape mismatch for input {inp}: expected {inp.shape}, got {array.shape}')
+                if isinstance(array, dt.core.Constant):
+                    array = array._value
+                
                 array = array.astype(inp.dtype).copy()
                 buffer = self._buffers[inp._buffer]
                 cl.enqueue_copy(self.device.queue, buffer, array)
             self.device.queue.finish()
             
-    def _get_results(self) -> list[np.ndarray]:
+    def _get_results(self) -> list[dt.core.Constant]:
         result = []
         with dt.timestat.record('get_results'):
             for out in self._outputs:
                 res = np.empty(out.shape, dtype=out.dtype)
                 buffer = self._buffers[out._buffer]
                 cl.enqueue_copy(self.device.queue, res, buffer)
-                result.append(res)
+                result.append(dt.constant(res))
             self.device.queue.finish()
             
         return result
@@ -223,7 +293,7 @@ class compile:
                 if kernel is not None:
                     self._kernels[node] = kernel
 
-    def __call__(self, data: list[np.ndarray]) -> list[np.ndarray]:
+    def __call__(self, data: Sequence[np.ndarray | dt.core.Constant]) -> list[dt.core.Constant]:
         with dt.timestat.record('call'):
             self._load_variables()
             self._load_inputs(data)
