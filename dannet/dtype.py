@@ -39,10 +39,10 @@ def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
 
 
 
-def is_bool_dtype(dtype):
+def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) == 'bool'
 
-def is_integer_dtype(dtype):
+def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'int8',
         'int16',
@@ -54,7 +54,7 @@ def is_integer_dtype(dtype):
         'uint64',
     ]
 
-def signed_dtype(dtype):
+def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'int8',
         'int16'
@@ -62,7 +62,7 @@ def signed_dtype(dtype):
         'int64'
     ]
 
-def is_unsigned_dtype(dtype):
+def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'uint8',
         'uint16'
@@ -70,7 +70,7 @@ def is_unsigned_dtype(dtype):
         'uint64'
     ]
 
-def is_float_dtype(dtype):
+def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'float16',
         'float32',
@@ -78,7 +78,7 @@ def is_float_dtype(dtype):
     ]
 
 
-def to_signed_dtype(dtype):
+def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = normalize_dtype(dtype)
     if not is_integer_dtype(dtype):
         raise TypeError(f'fail convert to signed: {dtype!r}')
@@ -89,7 +89,7 @@ def to_signed_dtype(dtype):
         'uint64': 'int64',
     }[dtype]
 
-def to_unsigned_dtype(dtype):
+def to_unsigned_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = normalize_dtype(dtype)
     if not is_integer_dtype(dtype):
         raise TypeError(f'fail convert to unsigned: {dtype!r}')
