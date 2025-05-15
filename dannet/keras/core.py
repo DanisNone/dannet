@@ -89,7 +89,7 @@ def compute_output_spec(fn, *args, **kwargs):
             return None in x.shape
         return False
 
-    def convert_keras_tensor_to_torch(x, fill_value=None):
+    def convert_keras_tensor_to_dannet(x, fill_value=None):
         if isinstance(x, KerasTensor):
             shape = list(x.shape)
             if fill_value:
@@ -99,24 +99,24 @@ def compute_output_spec(fn, *args, **kwargs):
             return dt.ones(shape, x.dtype)
         return x
 
-    def convert_torch_to_keras_tensor(x):
-        if is_tensor(x):
+    def convert_dannet_to_keras_tensor(x):
+        if is_tensor(x) or isinstance(x, dt.compiler.OutputTensor):
             return KerasTensor(x.shape, standardize_dtype(x.dtype))
         return x
 
     def symbolic_call(fn, args, kwargs, fill_value):
         try:
             meta_args, meta_kwargs = tree.map_structure(
-                lambda x: convert_keras_tensor_to_torch(x, fill_value),
+                lambda x: convert_keras_tensor_to_dannet(x, fill_value),
                 (args, kwargs),
             )
-            return fn(*meta_args, **meta_kwargs)
+            return dt.function(fn).compute_output_spec(*meta_args, **meta_kwargs)
         except:
             eager_args, eager_kwargs = tree.map_structure(
-                lambda x: convert_keras_tensor_to_torch(x, fill_value),
+                lambda x: convert_keras_tensor_to_dannet(x, fill_value),
                 (args, kwargs),
             )
-            return fn(*eager_args, **eager_kwargs)
+            return dt.function(fn).compute_output_spec(*eager_args, **eager_kwargs)
 
     with StatelessScope(), SymbolicScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
@@ -140,7 +140,8 @@ def compute_output_spec(fn, *args, **kwargs):
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
             outputs = tree.pack_sequence_as(outputs_1, flat_out)
 
-        output_spec = tree.map_structure(convert_torch_to_keras_tensor, outputs)
+        output_spec = tree.map_structure(convert_dannet_to_keras_tensor, outputs)
+        
     return output_spec
 
 def cond(pred, true_fn, false_fn):
