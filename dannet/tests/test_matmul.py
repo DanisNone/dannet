@@ -5,8 +5,8 @@ import dannet as dt
 from .utils import*
 
 
-@pytest.mark.parametrize("dtype", dtypes)
-@pytest.mark.parametrize("shape_a,shape_b", [
+@pytest.mark.parametrize('dtype', dtypes)
+@pytest.mark.parametrize('shape_a,shape_b', [
     ((2,), (2,)),                 # dot
     ((3, 4), (4,)),               # matrix-vector
     ((3, 4), (4, 5)),             # matrix-matrix

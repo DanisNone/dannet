@@ -16,16 +16,16 @@ def ensure_supported(func):
     return test
 
 def random_array(shape, dtype):
-    if dtype == "bool":
+    if dtype == 'bool':
         return np.astype(np.random.randint(2, size=shape), dtype)
-    if "uint" in dtype:
+    if 'uint' in dtype:
         return np.astype(np.random.randint(0, 200, size=shape), dtype)
-    if "int" in dtype:
+    if 'int' in dtype:
         return np.astype(np.random.randint(-100, 100, size=shape), dtype)
     
-    if "float" in dtype:
+    if 'float' in dtype:
         return np.astype(np.random.uniform(-5, 5, size=shape), dtype)
-    raise ValueError(f"unknown dtype: {dtype!r}")
+    raise ValueError(f'unknown dtype: {dtype!r}')
 
 def equal_output(x, y):
     assert x.shape == y.shape

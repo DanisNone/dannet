@@ -17,8 +17,8 @@ einsum_cases = [
     'ijk,ijl->kl'
 ]
 
-@pytest.mark.parametrize("einsum_eq", einsum_cases)
-@pytest.mark.parametrize("dtype", dtypes_without_f16)
+@pytest.mark.parametrize('einsum_eq', einsum_cases)
+@pytest.mark.parametrize('dtype', dtypes_without_f16)
 @ensure_supported
 def test_einsum(device, einsum_eq, dtype):
     # Generate input shapes based on the equation
