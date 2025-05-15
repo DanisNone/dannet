@@ -84,11 +84,11 @@ def _einsum(einsum_str: str, operands: list):
     return out
 
 
-def einsum(subscripts, *operands, optimize='auto'):
+def einsum(subscripts: str, *operands: dt.typing.TensorLike, optimize='auto'):
     if optimize is False:
         raise ValueError('dannet.einsum not support optimize=False')
     
-    operands = [dt.convert_to_tensor(op) for op in operands]
+    operands = tuple(dt.convert_to_tensor(op) for op in operands)
     contraction_list: opt_einsum.typing.ContractionListType
     operands_list: list
     operands_list, contraction_list = opt_einsum.contract_path(subscripts, *operands, optimize=optimize, einsum_call=True) # type: ignore
