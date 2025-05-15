@@ -8,6 +8,7 @@ import numpy as np
 
 import dannet as dt
 from dannet.topsort import topological_sort
+from dannet.device import DeviceBuffer, mem_flags
 
 from dannet.core import TensorBase
 
@@ -49,7 +50,7 @@ class compile:
         self._variable_nodes: list[dt.core.Variable] = []
         self._compute_nodes: list[TensorBase] = []
 
-        self._buffers: dict[dt.core.TensorBuffer, cl.Buffer] = {}
+        self._buffers: dict[dt.core.TensorBuffer, DeviceBuffer] = {}
         self._constants_loaded: bool = False
         self._kernels: OrderedDict[TensorBase, Callable[[], cl.Event | None]] = OrderedDict()
 
@@ -176,11 +177,11 @@ class compile:
                     input_ids, buf_id, buf_bytes, last_idx
                 ])
 
-    def _get_free_buffer(self, allocated_cl_buffers: list[cl.Buffer], buffer: dt.core.TensorBuffer) -> tuple[cl.Buffer, bool]:
-        for cl_buffer in allocated_cl_buffers:
-            if cl_buffer.size == buffer.nbytes:
-                return (cl_buffer, True)
-        return (cl.Buffer(self.device.context, cl.mem_flags.READ_WRITE, buffer.nbytes), False)
+    def _get_free_buffer(self, allocated_buffers: list[DeviceBuffer], buffer: dt.core.TensorBuffer) -> tuple[DeviceBuffer, bool]:
+        for device_buffer in allocated_buffers:
+            if device_buffer.nbytes == buffer.nbytes:
+                return (device_buffer, True)
+        return (self.device.allocate_buffer(mem_flags.READ_WRITE, buffer.nbytes), False)
     
     def _allocate_buffers(self):
         need_buffers: list[dt.core.TensorBuffer] = []
@@ -199,19 +200,19 @@ class compile:
         for node in self._variable_nodes + self._constant_nodes:
             buffer_usage[node._buffer] = -1
         
-        free_cl_buffer: list[cl.Buffer] = []
+        free_buffer: list[DeviceBuffer] = []
 
         for buffer in need_buffers:
-            cl_buffer, is_reused = self._get_free_buffer(free_cl_buffer, buffer)
+            device_buffer, is_reused = self._get_free_buffer(free_buffer, buffer)
             if is_reused:
-                free_cl_buffer.remove(cl_buffer)
-                
-            self._buffers[buffer] = cl_buffer
+                free_buffer.remove(device_buffer)
+
+            self._buffers[buffer] = device_buffer
 
             for inp in buffer.inputs():
                 buffer_usage[inp] -= 1
                 if buffer_usage[inp] == 0:
-                    free_cl_buffer.append(self._buffers[inp])
+                    free_buffer.append(self._buffers[inp])
 
 
     def _load_constants(self):
@@ -223,8 +224,8 @@ class compile:
                 value = const.numpy()
                 buffer = self._buffers[const._buffer]
                 
-                assert value.nbytes == buffer.size
-                cl.enqueue_copy(self.device.queue, buffer, value)
+                assert value.nbytes == buffer.nbytes
+                self.device.enqueue_copy(buffer, value)
             self._constants_loaded = True
             self.device.queue.finish()
 
@@ -238,8 +239,8 @@ class compile:
                 var._used_by = self
 
                 buffer = self._buffers[var._buffer]
-                assert value.nbytes == buffer.size
-                cl.enqueue_copy(self.device.queue, buffer, value)
+                assert value.nbytes == buffer.nbytes
+                self.device.enqueue_copy(buffer, value)
             self.device.queue.finish()
 
     def _load_inputs(self, data: Sequence[np.ndarray | dt.core.Constant]):
@@ -255,7 +256,7 @@ class compile:
                 
                 array = array.astype(inp.dtype).copy()
                 buffer = self._buffers[inp._buffer]
-                cl.enqueue_copy(self.device.queue, buffer, array)
+                self.device.enqueue_copy(buffer, array)
             self.device.queue.finish()
             
     def _get_results(self) -> list[dt.core.Constant]:
@@ -264,7 +265,7 @@ class compile:
             for out in self._outputs:
                 res = np.empty(out.shape, dtype=out.dtype)
                 buffer = self._buffers[out._buffer]
-                cl.enqueue_copy(self.device.queue, res, buffer)
+                self.device.enqueue_copy(res, buffer)
                 result.append(dt.constant(res))
             self.device.queue.finish()
             
@@ -277,7 +278,7 @@ class compile:
         value = np.empty(var.shape, dtype=var.dtype)
         buffer = self._buffers[var._buffer]
         
-        cl.enqueue_copy(self.device.queue, value, buffer)
+        self.device.enqueue_copy(value, buffer)
         return value
 
     def _compile_kernels(self):

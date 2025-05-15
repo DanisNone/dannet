@@ -1,9 +1,22 @@
+# TODO: Implement DeviceEvent class
+from __future__ import annotations
+
+import enum
 import os
+from typing import overload
+import weakref
+import numpy as np
 import pyopencl as cl
 
 import dannet as dt
 
 
+class mem_flags(enum.IntFlag):
+    READ_ONLY = cl.mem_flags.READ_ONLY
+    WRITE_ONLY = cl.mem_flags.WRITE_ONLY
+    READ_WRITE = cl.mem_flags.READ_WRITE
+    
+    
 class Device:
     _instances = {}
     _stack = []
@@ -19,28 +32,30 @@ class Device:
         if getattr(self, '_initialized', False):
             return
 
-        self.platform_id = platform_id
-        self.device_id = device_id
+        self.platform_id: int = platform_id
+        self.device_id: int = device_id
 
         platforms = cl.get_platforms()
         if platform_id < 0 or platform_id >= len(platforms):
             raise IndexError(
                 f'Platform ID {platform_id} out of range; available: 0..{len(platforms)-1}'
             )
-        self.platform = platforms[platform_id]
+        self.platform: cl.Platform = platforms[platform_id]
 
         devices = self.platform.get_devices()
         if device_id < 0 or device_id >= len(devices):
             raise IndexError(
                 f'Device ID {device_id} out of range for platform {platform_id}; available: 0..{len(devices)-1}'
             )
-        self.device = devices[device_id]
+        self.device: cl.Device = devices[device_id]
 
-        self.context = cl.Context(devices=[self.device])
-        self.queue = cl.CommandQueue(self.context, self.device)
+        self.context: cl.Context = cl.Context(devices=[self.device])
+        self.queue: cl.CommandQueue = cl.CommandQueue(self.context, self.device)
 
-        self.max_work_group_size = self.device.max_work_group_size
-        self._initialized = True
+        self.max_work_group_size: int = self.device.max_work_group_size
+        self.allocated_buffers: set[DeviceBuffer] = set()
+        self.memory_usage: int = 0
+        self._initialized: bool = True
 
     def __enter__(self):
         self.__class__._stack.append(self)
@@ -73,13 +88,135 @@ class Device:
             f'type={type_str}>'
         )
 
-    def is_support(self, dtype):
+    def is_support(self, dtype: dt.typing.DTypeLike) -> bool:
         dtype = dt.dtype.normalize_dtype(dtype)
         if dtype == 'float64':
             return 'cl_khr_fp64' in self.device.extensions
         if dtype == 'float16':
             return 'cl_khr_fp16' in self.device.extensions
         return True
+    
+    def allocate_buffer(self, flag: mem_flags, nbytes: int) -> DeviceBuffer:
+        def format_bytes(size: float | int) -> str:
+            units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+            unit_index = 0
+            while size >= 1000 and unit_index < len(units)-1:
+                unit_index += 1
+                size /= 1000.0
+            return f'{size:.2f} {units[unit_index]}'
+
+        nbytes = int(nbytes)
+        if self.memory_usage + nbytes >= self.device.global_mem_size:
+            raise MemoryError(
+                f'Not enough device memory:\n'
+                f'  Current usage: {format_bytes(self.memory_usage)}\n'
+                f'  Requested allocation: {format_bytes(nbytes)}\n'
+                f'  Total after allocation: {format_bytes(self.memory_usage + nbytes)}\n'
+                f'  Device limit: {format_bytes(self.device.global_mem_size)}'
+            )        
+        buffer = DeviceBuffer(self, flag, nbytes)
+        self.memory_usage += nbytes
+        self.allocated_buffers.add(buffer)
+
+        return buffer
+
+    def free_buffer(self, buffer: DeviceBuffer):
+        if not isinstance(buffer, DeviceBuffer):
+            raise TypeError(
+                f'Argument must be DeviceBuffer, got {type(buffer).__name__}'
+            )
+        
+        if buffer.released:
+            raise RuntimeError(
+                f'Buffer {buffer} has already been released'
+            )
+        
+        if buffer not in self.allocated_buffers:
+            raise ValueError(
+                f'Buffer {buffer} is not allocated by this device '
+                f'(platform={self.platform_id}, device={self.device_id})'
+            )        
+    
+        self.memory_usage -= buffer.nbytes
+        self.allocated_buffers.remove(buffer)
+        buffer._released = True
+    
+
+    @overload
+    def enqueue_copy(self, dest: DeviceBuffer, src: np.ndarray | dt.core.Constant) -> cl.Event:...
+    @overload
+    def enqueue_copy(self, dest: np.ndarray, src: DeviceBuffer) -> cl.Event:...
+    
+    def enqueue_copy(self, dest, src) -> cl.Event:
+        dest_is_buf = isinstance(dest, DeviceBuffer)
+        dest_is_host = isinstance(dest, np.ndarray)
+        
+        src_is_buf = isinstance(src, DeviceBuffer)
+        src_is_host = isinstance(src, (np.ndarray, dt.core.Constant))
+
+        
+        if not (dest_is_buf or dest_is_host):
+            raise TypeError(f'Invalid destination type: {type(dest).__name__}')
+        if not (src_is_buf or src_is_host):
+            raise TypeError(f'Invalid source type: {type(src).__name__}')
+            
+        if not ((dest_is_buf and src_is_host) or (dest_is_host and src_is_buf)):
+            raise TypeError(
+                f'Invalid copy direction. Expected either:\n'
+                f'- (DeviceBuffer, host_array) or\n'
+                f'- (host_array, DeviceBuffer)\n'
+                f'Got: dest={type(dest).__name__}, src={type(src).__name__}'
+            )
+            
+        if src_is_buf:
+            src_norm = src.cl_buffer
+        else:
+            src_norm = src._value if isinstance(src, dt.core.Constant) else src.copy()
+            
+        if dest_is_buf:
+            dest_norm = dest.cl_buffer
+        else:
+            dest_norm = dest
+                
+        if dest_is_buf and (dest.nbytes != src.nbytes):
+            raise ValueError(
+                f'Buffer size mismatch. DeviceBuffer: {dest.nbytes} bytes, '
+                f'Host array: {src.nbytes} bytes'
+            )
+            
+        if src_is_buf and (dest.nbytes != src.nbytes):
+            raise ValueError(
+                f'Buffer size mismatch. Host array: {dest.nbytes} bytes, '
+                f'DeviceBuffer: {src.nbytes} bytes'
+            )
+
+        return cl.enqueue_copy(
+            queue=self.queue,
+            dest=dest_norm,
+            src=src_norm
+        )
+
+class DeviceBuffer:
+    def __init__(self, device: Device, mem_flags: mem_flags, nbytes: int):
+        self._cl_buffer = cl.Buffer(device.context, int(mem_flags), nbytes)
+        self._released = False
+        self._finalize = weakref.finalize(self, device.free_buffer, self)
+    
+    @property
+    def nbytes(self) -> int:
+        return self._cl_buffer.size
+    
+    @property
+    def cl_buffer(self) -> cl.Buffer:
+        return self._cl_buffer
+
+    def release(self):
+        if self._finalize.alive:
+            self._finalize()
+    
+    @property
+    def released(self):
+        return self._released
 
 
 def default_device() -> Device:
