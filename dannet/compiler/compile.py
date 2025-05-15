@@ -49,7 +49,7 @@ class compile:
         self._variable_nodes: list[dt.core.Variable] = []
         self._compute_nodes: list[TensorBase] = []
 
-        self._buffers: dict[dt.core.Buffer, cl.Buffer] = {}
+        self._buffers: dict[dt.core.TensorBuffer, cl.Buffer] = {}
         self._constants_loaded: bool = False
         self._kernels: OrderedDict[TensorBase, Callable[[], cl.Event | None]] = OrderedDict()
 
@@ -133,7 +133,7 @@ class compile:
             return
         file_path = self._log_dir_path / f'{compile._compile_uid}.csv'
 
-        last_usage: dict[dt.core.Buffer, int] = {}
+        last_usage: dict[dt.core.TensorBuffer, int] = {}
         for idx, node in enumerate(self._nodes):
             buf = node._buffer
             last_usage[buf] = idx
@@ -176,19 +176,19 @@ class compile:
                     input_ids, buf_id, buf_bytes, last_idx
                 ])
 
-    def _get_free_buffer(self, allocated_cl_buffers: list[cl.Buffer], buffer: dt.core.Buffer) -> tuple[cl.Buffer, bool]:
+    def _get_free_buffer(self, allocated_cl_buffers: list[cl.Buffer], buffer: dt.core.TensorBuffer) -> tuple[cl.Buffer, bool]:
         for cl_buffer in allocated_cl_buffers:
             if cl_buffer.size == buffer.nbytes:
                 return (cl_buffer, True)
         return (cl.Buffer(self.device.context, cl.mem_flags.READ_WRITE, buffer.nbytes), False)
     
     def _allocate_buffers(self):
-        need_buffers: list[dt.core.Buffer] = []
+        need_buffers: list[dt.core.TensorBuffer] = []
         for node in self._nodes:
             if node._buffer not in need_buffers:
                 need_buffers.append(node._buffer)
 
-        buffer_usage: dict[dt.core.Buffer, int] = {}
+        buffer_usage: dict[dt.core.TensorBuffer, int] = {}
         for buffer in need_buffers:
             if buffer not in buffer_usage:
                 buffer_usage[buffer] = 0
@@ -205,7 +205,7 @@ class compile:
             cl_buffer, is_reused = self._get_free_buffer(free_cl_buffer, buffer)
             if is_reused:
                 free_cl_buffer.remove(cl_buffer)
-
+                
             self._buffers[buffer] = cl_buffer
 
             for inp in buffer.inputs():

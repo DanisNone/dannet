@@ -30,7 +30,7 @@ class _ConvND(dt.core.TensorBase):
         self._shape = conv_output_shape(self.input._shape, self.kernel._shape, self.conv_strides)
         self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, 'uint32')
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -91,7 +91,7 @@ class _DepthwiseConv2D(dt.core.TensorBase):
 
         self._dtype = dt.dtype.max_dtype(self.input._dtype, self.kernel._dtype, 'uint32')
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -125,7 +125,7 @@ class _UpSampleZeros(dt.core.TensorBase):
         self._dtype = self.x.dtype
 
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):

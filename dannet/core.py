@@ -8,7 +8,7 @@ import numpy as np
 import dannet as dt
 
 
-class Buffer:
+class TensorBuffer:
     def __init__(self, parent: TensorBase):
         self.nbytes = parent.nbytes
         self.parent = parent
@@ -22,14 +22,14 @@ class Buffer:
     def __eq__(self, other):
         if self is other:
             return True
-        if not isinstance(other, Buffer):
+        if not isinstance(other, TensorBuffer):
             return False
         return self.nbytes == other.nbytes and self.parent == other.parent
 
     def __hash__(self):
         return hash((self.nbytes, self.parent))
     
-    def inputs(self) -> list[Buffer]:
+    def inputs(self) -> list[TensorBuffer]:
         return [inp._buffer for inp in self.parent.inputs()]
 
 
@@ -37,7 +37,7 @@ class TensorBase(abc.ABC):
     _dtype: str
     _shape: tuple[int, ...]
     _strides: tuple[int, ...]
-    _buffer: Buffer
+    _buffer: TensorBuffer
     _buffer_offset: int
 
     @abc.abstractmethod
@@ -227,7 +227,7 @@ class Constant(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
-        self._buffer = Buffer(self)
+        self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
         self._strides = self._default_strides()        
         
@@ -275,7 +275,7 @@ class Variable(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
-        self._buffer = Buffer(self)
+        self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
         self._strides = self._default_strides()     
 
@@ -341,7 +341,7 @@ class Placeholder(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(dtype)
         self._shape = dt.utils.normalize_shape(shape)
 
-        self._buffer = Buffer(self)
+        self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
         self._strides = self._default_strides()        
         

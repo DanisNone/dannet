@@ -47,7 +47,7 @@ class _Cast(dt.core.TensorBase):
         self._dtype = dt.dtype.normalize_dtype(new_dtype)
 
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -98,7 +98,7 @@ class _Reshape(dt.core.TensorBase):
             self._buffer_offset = self.x._buffer_offset
         else:
             self._strides = self._default_strides()
-            self._buffer = dt.core.Buffer(self)
+            self._buffer = dt.core.TensorBuffer(self)
             self._buffer_offset = 0
 
     def inputs(self):
@@ -196,7 +196,7 @@ class _Copy(dt.core.TensorBase):
         self._dtype = self.x._dtype
 
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -236,7 +236,7 @@ class _Pad(dt.core.TensorBase):
         self._dtype = self.x.dtype
 
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -342,7 +342,7 @@ class _Gather(dt.core.TensorBase):
         self._dtype = self.x.dtype
 
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
@@ -376,7 +376,7 @@ class _OneHot(dt.core.TensorBase):
         self._dtype = dt.dtype.normalize_dtype(dtype)
         
         self._strides = self._default_strides()
-        self._buffer = dt.core.Buffer(self)
+        self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
 
     def inputs(self):
