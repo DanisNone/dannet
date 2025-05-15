@@ -133,13 +133,11 @@ class compile:
             return
         file_path = self._log_dir_path / f'{compile._compile_uid}.csv'
 
-        # Вычисляем последний индекс использования каждого буфера
         last_usage: dict[dt.core.Buffer, int] = {}
         for idx, node in enumerate(self._nodes):
             buf = node._buffer
             last_usage[buf] = idx
 
-        # Нумеруем буферы для идентификации
         unique_bufs = list({node._buffer for node in self._nodes})
         buf_id_map = {buf: i for i, buf in enumerate(unique_bufs)}
 
