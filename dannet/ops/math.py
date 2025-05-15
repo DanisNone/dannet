@@ -238,7 +238,7 @@ class _Clip(_ElementWiseTernary):
         return dt.dtype.max_dtype(dtype1, dtype2, dtype3)
 
     def compute_gradients(self, grad):
-        condition = dt.greater_equal(self.x, self.y) * dt.less_equal(self.x, self.z)
+        condition = (self.x >= self.y) * (self.x <= self.z)
         return [
             grad * condition,
             dt.zeros_like(grad),

@@ -9,7 +9,7 @@ class _Relu(_ElementWiseUnary):
         return dtype
     
     def compute_gradients(self, grad):
-        return [grad * dt.greater(self.x, 0)]
+        return [grad * (self.x > 0)]
 
 class _Relu6(_ElementWiseUnary):
     # clip(x, 0, 6)
@@ -17,8 +17,8 @@ class _Relu6(_ElementWiseUnary):
         return dtype
     
     def compute_gradients(self, grad):
-        return [grad * dt.greater(self.x, 0) * dt.less(self.x, 6)]
-    
+        return [grad * (self.x > 0) * (self.x < 6)]
+
 class _Sigmoid(_ElementWiseUnaryFloat):
     # 1 / (1 + exp(-x))
     def compute_gradients(self, grad):
@@ -38,7 +38,7 @@ class _HardSigmoid(_ElementWiseUnaryFloat):
     # clip(x / 6 + 0.5, 0, 1)
     def compute_gradients(self, grad):
         res = grad * (1 / 6)
-        return [dt.where(dt.greater_equal(self.x, -3) * dt.less_equal(self.x, 3), res, dt.zeros_like(res))]
+        return [dt.where((-3 <= self.x) * (self.x <= 3), res, dt.zeros_like(res))]
     
 relu = _make_unary('relu', _Relu)
 relu6 = _make_unary('relu6', _Relu6)
@@ -57,7 +57,7 @@ def silu(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = dt.convert_to_tensor(x)
-    return dt.where(dt.less(x, 0), x * negative_slope, x)
+    return dt.where(x < 0, x * negative_slope, x)
 
 def hard_swish(x):
     x = dt.convert_to_tensor(x)
@@ -67,7 +67,7 @@ def elu(x, alpha=1.0):
     x = dt.convert_to_tensor(x)
     alpha = dt.convert_to_tensor(alpha)
     y = alpha * (dt.exp(x) - 1)
-    return dt.where(dt.greater(x, 0), x, y)
+    return dt.where(x > 0, x, y)
 
 def logsigmoid(x):
     x = dt.convert_to_tensor(x)

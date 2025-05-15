@@ -114,32 +114,13 @@ def binomial(
     shape, p=0.5, dtype='float64', rng: Optional[RandomGenerator] = None
 ):
     u = random(shape, dtype=dtype, rng=rng)
-    return dt.less(u, p)
+    return u < p
 
 def truncated_normal(
     shape, mean=0.0, std=1.0, dtype='float64', rng: Optional[RandomGenerator] = None
 ):
-    def sample():
-        return normal(shape, mean, std, dtype, rng)
-
-
     lower = mean - 2 * std
     upper = mean + 2 * std
-    z = sample()
+    z = normal(shape, mean, std, dtype, rng)
 
     return dt.clip(z, lower, upper)
-
-    # TODO
-    if dt.is_eager():
-        while True:
-            mask = dt.greater_equal(z, lower) * dt.less_equal(z, upper)
-            if dt.equal(dt.min(mask), 1):
-                break
-            new_z = sample()
-            z = dt.where(mask, z, new_z)
-    else:
-        for _ in range(4):
-            mask = dt.greater_equal(z, lower) * dt.less_equal(z, upper)
-            new_z = sample()
-            z = dt.where(mask, z, new_z)
-    return z
