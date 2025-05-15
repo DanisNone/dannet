@@ -143,11 +143,11 @@ class Device:
     
 
     @overload
-    def enqueue_copy(self, dest: DeviceBuffer, src: np.ndarray | dt.core.Constant) -> cl.Event:...
+    def enqueue_copy(self, dest: DeviceBuffer, src: np.ndarray | dt.core.Constant, *, is_blocking: bool = True) -> cl.Event:...
     @overload
-    def enqueue_copy(self, dest: np.ndarray, src: DeviceBuffer) -> cl.Event:...
+    def enqueue_copy(self, dest: np.ndarray, src: DeviceBuffer, *, is_blocking: bool = True) -> cl.Event:...
     
-    def enqueue_copy(self, dest, src) -> cl.Event:
+    def enqueue_copy(self, dest, src, *, is_blocking = True) -> cl.Event:
         dest_is_buf = isinstance(dest, DeviceBuffer)
         dest_is_host = isinstance(dest, np.ndarray)
         
@@ -193,7 +193,8 @@ class Device:
         return cl.enqueue_copy(
             queue=self.queue,
             dest=dest_norm,
-            src=src_norm
+            src=src_norm,
+            is_blocking=is_blocking
         )
 
 class DeviceBuffer:
