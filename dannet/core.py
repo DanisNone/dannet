@@ -28,6 +28,9 @@ class Buffer:
 
     def __hash__(self):
         return hash((self.nbytes, self.parent))
+    
+    def inputs(self) -> list[Buffer]:
+        return [inp._buffer for inp in self.parent.inputs()]
 
 
 class TensorBase(abc.ABC):
@@ -253,7 +256,8 @@ class Constant(TensorBase):
         v = str(self._value)
         if len(v) > 50:
             v = v[:50] + '...'
-        return f'Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})'
+        v = v.replace('\n', ' ')
+        return f'<Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})>'
     
     def get_config(self):
         return {}
@@ -325,7 +329,8 @@ class Variable(TensorBase):
         v = str(self.numpy())
         if len(v) > 50:
             v = v[:50] + '...'
-        return f'Variable(shape={self._shape}, dtype={self._dtype}, numpy={v})'
+        v = v.replace('\n', ' ')
+        return f'<Variable(shape={self._shape}, dtype={self._dtype}, numpy={v})>'
     
     def get_config(self):
         return {}
@@ -404,7 +409,7 @@ def _node_prepare(node: TensorBase):
     if dt.is_eager():
         return dt.eval(node)
     # not evaluate broadcast_to, reshape, ...
-    if is_constant(node) and node._is_default_strides():
+    if node._buffer.parent == node and is_constant(node):
         return dt.eval(node)
     dt.function._add_node(node)
     return node
