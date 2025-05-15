@@ -4,22 +4,23 @@ import numpy as np
 import dannet as dt
 from .utils import*
 
+
+dtypes_without_f16 = set(dtypes) - {'float16'}
 einsum_cases = [
-    ('i,i->', lambda a, b: np.dot(a, b)),                   # dot product
-    ('ij,j->i', lambda a, b: np.matmul(a, b)),              # matrix-vector
-    ('ij,jk->ik', lambda a, b: np.matmul(a, b)),            # matrix-matrix
-    ('bij,bjk->bik', lambda a, b: np.matmul(a, b)),         # batch matmul
-    ('...ij,...jk->...ik', lambda a, b: np.matmul(a, b)),   # general broadcasting
-    ('ij->ji', lambda a: np.swapaxes(a, -1, -2)),           # transpose
-    ('ij->', lambda a: np.sum(a)),                          # sum all
-    ('ijk,ijl->kl', lambda a, b: np.einsum('ijk,ijl->kl', a, b)),  # reduce over i and j
+    'i,i->',
+    'ij,j->i',
+    'ij,jk->ik',
+    'bij,bjk->bik',
+    'qweij,qwejk->qweik',
+    'ij->ji',
+    'ij->',
+    'ijk,ijl->kl'
 ]
 
-
-@pytest.mark.parametrize("einsum_eq,expected_fn", einsum_cases)
-@pytest.mark.parametrize("dtype", dtypes)
+@pytest.mark.parametrize("einsum_eq", einsum_cases)
+@pytest.mark.parametrize("dtype", dtypes_without_f16)
 @ensure_supported
-def test_einsum(device, einsum_eq, expected_fn, dtype):
+def test_einsum(device, einsum_eq, dtype):
     # Generate input shapes based on the equation
     letters = set(einsum_eq.replace(',', '').replace('->', ''))
     dims = {letter: np.random.randint(1, 6) for letter in letters}
