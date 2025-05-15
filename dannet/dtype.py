@@ -57,17 +57,17 @@ def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
 def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'int8',
-        'int16'
-        'int32'
-        'int64'
+        'int16',
+        'int32',
+        'int64',
     ]
 
 def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'uint8',
-        'uint16'
-        'uint32'
-        'uint64'
+        'uint16',
+        'uint32',
+        'uint64',
     ]
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
