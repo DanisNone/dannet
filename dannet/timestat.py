@@ -7,6 +7,7 @@ ENABLED = False
 _lock = threading.Lock()
 _stats = {}
 
+
 class Timer:
     def __init__(self, name: str):
         self.name = name
@@ -27,12 +28,15 @@ class Timer:
                 _stats[self.name] = []
             _stats[self.name].append(duration)
 
+
 def record(name: str) -> Timer:
     return Timer(name)
+
 
 def get_stats() -> dict:
     with _lock:
         return dict(_stats)
+
 
 def print_stats(out=None):
     if out is None:
@@ -40,21 +44,34 @@ def print_stats(out=None):
 
     with _lock:
         print('Time statistics:', file=out)
-        for name, times in sorted(_stats.items(), key=lambda nt:sum(nt[1])/len(nt[1])):
+        stats = sorted(
+            _stats.items(),
+            key=lambda nt: sum(nt[1])/len(nt[1])
+        )
+        for name, times in stats:
             total = sum(times) / len(times)
-            print(f'{total * 1000:8.3f} ms; {len(times)} calls; {name:20}', file=out)
+            print(
+                f'{total * 1000:8.3f} ms; '
+                f'{len(times)} calls; '
+                f'{name:20}',
+                file=out
+            )
+
 
 def reset():
     with _lock:
         _stats.clear()
 
+
 def enable():
     global ENABLED
     ENABLED = True
 
+
 def disable():
     global ENABLED
     ENABLED = False
+
 
 def enabled():
     return ENABLED

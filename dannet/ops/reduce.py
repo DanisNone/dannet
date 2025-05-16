@@ -37,10 +37,11 @@ class _Reduce(dt.core.TensorBase):
 
     def inputs(self):
         return [self.x]
-    
+
     def get_config(self):
         return {'axis': self._axis, 'keepdims': self._keepdims}
-    
+
+
 class _Sum(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.max_dtype(dtype, 'uint32')
@@ -95,7 +96,7 @@ class _Max(_Reduce):
 class _ArgReduce(dt.core.TensorBase):
     def __init__(self, x, axis=None, keepdims=False):
         self.x = dt.convert_to_tensor(x)
-        
+
         self._keepdims = bool(keepdims)
 
         if axis is None:
@@ -107,7 +108,10 @@ class _ArgReduce(dt.core.TensorBase):
             if axis < 0:
                 axis += x.ndim
             if axis < 0 or axis >= x.ndim:
-                raise ValueError(f'axis {axis} is out of bounds for tensor of dimension {x.ndim}')
+                raise ValueError(
+                    f'axis {axis} is out of bounds '
+                    f'for tensor of dimension {x.ndim}'
+                )
             self._axis = axis
             self.full_reduce = False
 
@@ -134,9 +138,11 @@ class _ArgReduce(dt.core.TensorBase):
             'axis': self._axis,
             'keepdims': self._keepdims
         }
-    
+
+
 class _ArgMin(_ArgReduce):
     pass
+
 
 class _ArgMax(_ArgReduce):
     pass
@@ -149,15 +155,16 @@ def _make_reduce(name: str, class_: type[_Reduce]):
 
         if x.size == y.size:
             y = dt.reshape(x, y.shape)
-        return dt.core._node_prepare(y)   
+        return dt.core._node_prepare(y)
     inner.__name__ = name
     return inner
+
 
 def _make_arg_reduce(name: str, class_: type[_ArgReduce]):
     def inner(x: dt.typing.TensorLike, axis=None, keepdims=False):
         x = dt.convert_to_tensor(x)
         y = class_(x, axis=axis, keepdims=keepdims)
-        return dt.core._node_prepare(y)   
+        return dt.core._node_prepare(y)
     inner.__name__ = name
     return inner
 
@@ -169,9 +176,11 @@ def var(x: dt.typing.TensorLike, axis=None, keepdims=False):
     variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims)
     return variance
 
+
 def std(x: dt.typing.TensorLike, axis=None, keepdims=False):
     variance = var(x, axis=axis, keepdims=keepdims)
     return dt.sqrt(variance)
+
 
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)

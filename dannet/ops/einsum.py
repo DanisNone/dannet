@@ -15,7 +15,7 @@ def _einsum_one_arg(einsum_str, operands: list):
     if len(input) != len(set(input)):
         # TODO: implement dt.diagonal
         raise ValueError()
-    
+
     sum_axes = [i for i, c in enumerate(input) if c not in einsum_output]
     input = ''.join(c for c in input if c in einsum_output)
 
@@ -23,6 +23,7 @@ def _einsum_one_arg(einsum_str, operands: list):
 
     perm = [input.index(c) for c in einsum_output]
     return dt.transpose(dt.sum(operands[0], sum_axes), perm)
+
 
 def _einsum(einsum_str: str, operands: list):
     einsum_inputs, einsum_output = einsum_str.split('->')
@@ -75,7 +76,11 @@ def _einsum(einsum_str: str, operands: list):
 
     O_rs = dt.matmul(A_rs, B_rs)
 
-    out_shape = batch_shape + [dims[i] for i in left] + [dims[i] for i in right] 
+    out_shape = [
+        *batch_shape,
+        *[dims[i] for i in left],
+        *[dims[i] for i in right]
+    ]
     out = dt.reshape(O_rs, out_shape)
 
     current_order = batch + left + right
@@ -84,14 +89,20 @@ def _einsum(einsum_str: str, operands: list):
     return out
 
 
-def einsum(subscripts: str, *operands: dt.typing.TensorLike, optimize='auto'):
+def einsum(
+    subscripts: str,
+    *operands: dt.typing.TensorLike,
+    optimize: opt_einsum.typing.OptimizeKind = 'auto'
+):
     if optimize is False:
         raise ValueError('dannet.einsum not support optimize=False')
-    
+
     operands = tuple(dt.convert_to_tensor(op) for op in operands)
     contraction_list: opt_einsum.typing.ContractionListType
     operands_list: list
-    operands_list, contraction_list = opt_einsum.contract_path(subscripts, *operands, optimize=optimize, einsum_call=True) # type: ignore
+    operands_list, contraction_list = opt_einsum.contract_path(
+        subscripts, *operands, optimize=optimize, einsum_call=True
+    )  # type: ignore
 
     for contraction in contraction_list:
         inds, idx_rm, einsum_str, remaining, tensordot = contraction
@@ -122,7 +133,10 @@ def einsum(subscripts: str, *operands: dt.typing.TensorLike, optimize='auto'):
             try:
                 result = _einsum(einsum_str, tmp_operands)
             except ValueError:
-                raise NotImplementedError(f'einsum args: {einsum_str}, {[op.shape for op in tmp_operands]}')
+                raise NotImplementedError(
+                    f'einsum args: {einsum_str}, '
+                    f'{[op.shape for op in tmp_operands]}'
+                )
 
         operands_list.append(result)
         del tmp_operands, result

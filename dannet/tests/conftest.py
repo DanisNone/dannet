@@ -1,6 +1,7 @@
 import pytest
 import dannet as dt
 
+
 def pytest_addoption(parser):
     parser.addoption(
         '--device',
@@ -8,6 +9,7 @@ def pytest_addoption(parser):
         default='0,0',
         help='platform_id,device_id'
     )
+
 
 @pytest.fixture(scope='session')
 def device(request):

@@ -1,5 +1,15 @@
-import math
-from .utils import *
+import dannet as dt
+
+from .utils import (
+    generate_nodes_info,
+    generate_mode,
+    default_strides,
+    generate_static_array,
+    generate_defines,
+    register_impl,
+    build_kernel
+)
+
 
 def reduce(
     device,
@@ -18,23 +28,26 @@ def reduce(
 
     inner_size = node.x.size // node.size
     inner_shape = [s for i, s in enumerate(node.x._shape) if i in node._axis]
-    inner_strides = [s for i, s in enumerate(node.x._strides) if i in node._axis]
+    inner_strides = [s for i, s in enumerate(
+        node.x._strides) if i in node._axis]
     inner_strides_norm = default_strides(inner_shape)
 
     outer_size = node.size
-    outer_shape = [s for i, s in enumerate(node.x._shape) if i not in node._axis]
-    outer_strides = [s for i, s in enumerate(node.x._strides) if i not in node._axis]
+    outer_shape = [s for i, s in enumerate(
+        node.x._shape) if i not in node._axis]
+    outer_strides = [s for i, s in enumerate(
+        node.x._strides) if i not in node._axis]
     outer_strides_norm = default_strides(outer_shape)
 
     headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(insert_static_array('shapeI', inner_shape))
-    headers.append(insert_static_array('stridesI', inner_strides))
-    headers.append(insert_static_array('stridesIN', inner_strides_norm))
+    headers.append(generate_static_array('shapeI', inner_shape))
+    headers.append(generate_static_array('stridesI', inner_strides))
+    headers.append(generate_static_array('stridesIN', inner_strides_norm))
     headers.extend(generate_defines(ndimI=len(inner_shape), sizeI=inner_size))
 
-    headers.append(insert_static_array('shapeO', outer_shape))
-    headers.append(insert_static_array('stridesO', outer_strides))
-    headers.append(insert_static_array('stridesON', outer_strides_norm))
+    headers.append(generate_static_array('shapeO', outer_shape))
+    headers.append(generate_static_array('stridesO', outer_strides))
+    headers.append(generate_static_array('stridesON', outer_strides_norm))
     headers.extend(generate_defines(ndimO=len(outer_shape), sizeO=outer_size))
 
     headers.append(
@@ -62,7 +75,10 @@ dtypeB final_operation(dtypeB res, size_t inner_size)
 
 @register_impl(dt.reduce._Sum)
 def sum(device, node, input_buffers, output_buffer):
-    return reduce(device, node, input_buffers, output_buffer, '0', 'acc + x', 'res')
+    return reduce(
+        device, node, input_buffers, output_buffer,
+        '0', 'acc + x', 'res'
+    )
 
 
 @register_impl(dt.reduce._Mean)
@@ -80,7 +96,10 @@ def mean(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.reduce._Prod)
 def prod(device, node, input_buffers, output_buffer):
-    return reduce(device, node, input_buffers, output_buffer, '1', 'acc * (dtypeB)x', 'res')
+    return reduce(
+        device, node, input_buffers, output_buffer,
+        '1', 'acc * (dtypeB)x', 'res'
+    )
 
 
 @register_impl(dt.reduce._Min)
@@ -107,6 +126,7 @@ def max(device, node, input_buffers, output_buffer):
         'acc > x ? acc : x',
         'res',
     )
+
 
 @register_impl(dt.nnet.activations._LogSumExp)
 def logsumexp(device, node, input_buffers, output_buffer):

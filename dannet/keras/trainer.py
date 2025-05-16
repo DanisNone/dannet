@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import dannet as dt
-from packaging.version import parse
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
@@ -41,7 +40,8 @@ class DannetTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         if self.trainable_weights:
-            trainable_weights = [convert_to_tensor(w) for w in self.trainable_weights]
+            trainable_weights = [convert_to_tensor(
+                w) for w in self.trainable_weights]
             gradients = dt.gradients(loss, trainable_weights)
             self.optimizer.apply(gradients, self.trainable_weights)
         else:
@@ -60,7 +60,9 @@ class DannetTrainer(base_trainer.Trainer):
         else:
             y_pred = self(x)
         loss = self._compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
+            x=x, y=y, y_pred=y_pred,
+            sample_weight=sample_weight,
+            training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -124,7 +126,7 @@ class DannetTrainer(base_trainer.Trainer):
             return self.predict_step(data)
 
         self.predict_function = dt.function(one_step_on_data)
-        
+
     @traceback_utils.filter_traceback
     def fit(
         self,
@@ -153,8 +155,8 @@ class DannetTrainer(base_trainer.Trainer):
         # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
-            # Create the validation data using the training data. Only supported
-            # for TF/numpy/jax arrays.
+            # Create the validation data using the training data.
+            # Only supported for TF/numpy/jax arrays.
             (
                 (x, y, sample_weight),
                 validation_data,
@@ -204,7 +206,6 @@ class DannetTrainer(base_trainer.Trainer):
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
-
 
             logs = {}
             for step, data in epoch_iterator:
@@ -313,7 +314,6 @@ class DannetTrainer(base_trainer.Trainer):
                 steps=epoch_iterator.num_batches,
                 model=self,
             )
-
 
         self.make_test_function()
         self.stop_evaluating = False

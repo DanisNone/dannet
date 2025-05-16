@@ -28,7 +28,7 @@ class TensorBuffer:
 
     def __hash__(self):
         return hash((self.nbytes, self.parent))
-    
+
     def inputs(self) -> list[TensorBuffer]:
         return [inp._buffer for inp in self.parent.inputs()]
 
@@ -55,71 +55,73 @@ class TensorBase(abc.ABC):
 
     def tolist(self):
         return self.numpy().tolist()
-    
-    def __array__(self, dtype = None):
+
+    def __array__(self, dtype=None):
         res = self.numpy()
         if dtype is not None:
             res = res.astype(dtype)
         return res
-    
+
     @abc.abstractmethod
     def get_config(self) -> dict[str, Any]:
         pass
-    
+
     def __eq__(self, other):
         if self is other:
             return True
-        
-        if type(self) != type(other):
+
+        if type(self) != type(other):  # noqa: E721
             return False
 
         if self.shape != other.shape or self.dtype != other.dtype:
-            return False        
+            return False
         if self.get_config() != other.get_config():
             return False
         return self.inputs() == other.inputs()
-    
+
     def __hash__(self):
         if not hasattr(self, '_hash'):
             config = self.get_config()
             config = tuple(config.items())
             self._hash = hash((config, self.shape, self.dtype, *self.inputs()))
         return self._hash
-    
+
     @property
     def dtype(self) -> str:
         return self._dtype
-    
+
     @property
     def shape(self) -> tuple[int, ...]:
         return self._shape
-    
+
     @property
     def strides(self) -> tuple[int, ...]:
         return self._strides
-    
+
     @property
     def ndim(self) -> int:
         return len(self._shape)
-    
+
     @property
     def itemsize(self) -> int:
         return dt.dtype.itemsize(self._dtype)
-    
+
     @property
     def size(self) -> int:
         return math.prod(self._shape)
-    
+
     @property
     def nbytes(self) -> int:
         return self.size * self.itemsize
-    
+
     def _default_strides(self):
-        return tuple(math.prod(self._shape[i+1:]) for i in range(len(self._shape)))
+        return tuple(
+            math.prod(self._shape[i+1:]) for i in range(len(self._shape))
+        )
 
     def _is_default_strides(self):
         return self._strides == self._default_strides()
-    
+
     def __add__(self, other):
         return dt.add(self, other)
 
@@ -146,19 +148,19 @@ class TensorBase(abc.ABC):
 
     def __neg__(self):
         return dt.negative(self)
-    
+
     def __lt__(self, other):
         return dt.less(self, other)
-    
+
     def __le__(self, other):
         return dt.less_equal(self, other)
-    
+
     def __gt__(self, other):
         return dt.greater(self, other)
-    
+
     def __ge__(self, other):
         return dt.greater_equal(self, other)
-    
+
     def __repr__(self):
         name = type(self).__name__
         name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name)
@@ -167,14 +169,15 @@ class TensorBase(abc.ABC):
         shape = getattr(self, "_shape", "UNKNOWN")
         dtype = getattr(self, "_dtype", "UNKNOWN")
         return f'<{name} shape={shape} dtype={dtype}>'
-    
+
     def __bool__(self):
         if not dt.is_eager():
-            raise NotImplementedError('Boolean evaluation is only supported in eager mode.')
+            raise NotImplementedError(
+                'Boolean evaluation is only supported in eager mode.')
         if self.shape != ():
             raise ValueError('Only scalar tensors can be used as a boolean.')
         return bool(dt.eval(self)._value)
-    
+
     def argmax(self, axis=None):
         return dt.argmax(self, axis=axis)
 
@@ -214,30 +217,37 @@ class TensorBase(abc.ABC):
     def var(self, axis=None):
         return dt.var(self, axis=axis)
 
+
 class Constant(TensorBase):
-    def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None  = None):
-        if not isinstance(value, np.generic) and dtype is None:
+    def __init__(
+        self,
+        value: dt.typing.TensorLike,
+        dtype: dt.typing.DTypeLike | None = None
+    ):
+        if (
+            not isinstance(value, np.generic) and
+            dtype is None
+        ):
             if isinstance(value, int):
                 dtype = dt.dtype.int_dtype
             if isinstance(value, float):
                 dtype = dt.dtype.float_dtype
         self._value = np.array(value, dtype=dtype)
         dtype = self._value.dtype
-        
+
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
         self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
-        self._strides = self._default_strides()        
-        
+        self._strides = self._default_strides()
 
     def inputs(self):
         return []
-    
+
     def compute_gradients(self, grad):
         return []
-    
+
     def __eq__(self, other):
         if not isinstance(other, Constant):
             return False
@@ -248,39 +258,46 @@ class Constant(TensorBase):
         if not np.all(self._value == other._value):
             return False
         return True
-    
+
     def __hash__(self):
         return hash((Constant, self._shape, self._dtype))
-    
+
     def __repr__(self):
+        shape = getattr(self, '_shape', 'UNKNOWN')
+        dtype = getattr(self, '_dtype', 'UNKNOWN')
         v = str(self._value)
         if len(v) > 50:
             v = v[:50] + '...'
         v = v.replace('\n', ' ')
-        return f'<Constant(shape={self._shape}, dtype={self._dtype}, numpy={v})>'
-    
+        return f'<Constant(shape={shape}, dtype={dtype}, numpy={v})>'
+
     def get_config(self):
         return {}
-    
+
+
 class Variable(TensorBase):
-    def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None = None):
+    def __init__(
+        self,
+        value: dt.typing.TensorLike,
+        dtype: dt.typing.DTypeLike | None = None
+    ):
         if isinstance(value, Constant):
             value = value.numpy()
         elif isinstance(value, TensorBase):
             raise NotImplementedError()
-        
+
         self._value = np.array(value, dtype=dtype)
         dtype = self._value.dtype
-        
+
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
         self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
-        self._strides = self._default_strides()     
+        self._strides = self._default_strides()
 
         self._used_by: dt.compiler.compile | None = None
-    
+
     def numpy(self):
         if self._used_by is None:
             return self._value.copy()
@@ -292,8 +309,8 @@ class Variable(TensorBase):
         np.copyto(self._value, value)
         self._used_by = None
 
-        return self._value.copy()   
-    
+        return self._value.copy()
+
     def assign(self, value):
         if dt.function._run_instance is None:
             value = np.asarray(value, self.dtype)
@@ -306,36 +323,39 @@ class Variable(TensorBase):
 
     def inputs(self):
         return []
-    
+
     def compute_gradients(self, grad):
         return []
 
     def __eq__(self, other):
         return self is other
-    
+
     def __hash__(self):
         return id(self)
 
     def __array__(self, dtype=None):
         if not dt.is_eager():
-            raise RuntimeError('Variable to ndarray can be converted only in eager mode')
+            raise RuntimeError(
+                'Variable to ndarray can be converted only in eager mode')
 
         if dtype is None:
             dtype = self._dtype
         self._used_by = None
         return self._value.astype(dtype, copy=True)
-    
+
     def __repr__(self):
+        shape = getattr(self, '_shape', 'UNKNOWN')
+        dtype = getattr(self, '_dtype', 'UNKNOWN')
         v = str(self.numpy())
         if len(v) > 50:
             v = v[:50] + '...'
         v = v.replace('\n', ' ')
-        return f'<Variable(shape={self._shape}, dtype={self._dtype}, numpy={v})>'
-    
+        return f'<Variable(shape={shape}, dtype={dtype}, numpy={v})>'
+
     def get_config(self):
         return {}
-    
-    
+
+
 class Placeholder(TensorBase):
     def __init__(self, shape: dt.typing.ShapeLike, dtype: dt.typing.DTypeLike):
         self._dtype = dt.dtype.normalize_dtype(dtype)
@@ -343,58 +363,62 @@ class Placeholder(TensorBase):
 
         self._buffer = TensorBuffer(self)
         self._buffer_offset = 0
-        self._strides = self._default_strides()        
-        
+        self._strides = self._default_strides()
+
     def inputs(self):
         return []
-    
+
     def compute_gradients(self, grad):
         return []
 
     def __eq__(self, other):
         return self is other
-    
+
     def __hash__(self):
         return id(self)
-    
+
     def get_config(self):
         return {}
-    
+
+
 class Update(TensorBase):
     def __init__(self, variable: Variable, value: dt.typing.TensorLike):
         if not isinstance(variable, Variable):
             raise TypeError('Only Variable must be updated')
-        
+
         self._variable = variable
         self._value = dt.convert_to_tensor(value)
 
         if self._variable._shape != self._value._shape:
-            raise ValueError(f'Shape mismatch: variable shape {self._variable._shape} != value shape {self._value._shape}')
+            raise ValueError(
+                f'Shape mismatch: '
+                f'variable shape {self._variable._shape}'
+                f'!= value shape {self._value._shape}'
+            )
 
         self._value = dt.cast(self._value, self._variable._dtype)
 
         self._shape = self._variable._shape
         self._dtype = self._variable._dtype
-        
+
         self._buffer = self._variable._buffer
         self._buffer_offset = self._variable._buffer_offset
         self._strides = self._variable._strides
-        
+
     def inputs(self):
         return [self._variable, self._value]
-    
+
     def compute_gradients(self, grad):
         raise TypeError('Update operation not have gradient')
 
     def __eq__(self, other):
         return self is other
-    
+
     def __hash__(self):
         return id(self)
-    
+
     def get_config(self):
         return {}
-    
 
 
 def is_constant(node: TensorBase) -> bool:
@@ -404,6 +428,7 @@ def is_constant(node: TensorBase) -> bool:
     if inputs:
         return all(is_constant(inp) for inp in inputs)
     return False
+
 
 def _node_prepare(node: TensorBase):
     if dt.is_eager():

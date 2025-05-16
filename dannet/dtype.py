@@ -24,8 +24,10 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
         raise TypeError(f'unknown dtype: {dtype!r}')
     return dtype
 
+
 def itemsize(dtype: dt.typing.DTypeLike) -> int:
     return _size_table[normalize_dtype(dtype)]
+
 
 def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     dtypes = tuple(normalize_dtype(dtype) for dtype in dtypes)
@@ -38,9 +40,9 @@ def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     raise TypeError('No common dtype found')
 
 
-
 def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) == 'bool'
+
 
 def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
@@ -54,6 +56,7 @@ def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
         'uint64',
     ]
 
+
 def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'int8',
@@ -62,6 +65,7 @@ def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
         'int64',
     ]
 
+
 def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
         'uint8',
@@ -69,6 +73,7 @@ def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
         'uint32',
         'uint64',
     ]
+
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return normalize_dtype(dtype) in [
@@ -89,6 +94,7 @@ def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
         'uint64': 'int64',
     }[dtype]
 
+
 def to_unsigned_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = normalize_dtype(dtype)
     if not is_integer_dtype(dtype):
@@ -99,6 +105,7 @@ def to_unsigned_dtype(dtype: dt.typing.DTypeLike) -> str:
         'int32': 'uint32',
         'int64': 'uint64',
     }[dtype]
+
 
 def _reachable_from(dtype: str) -> set[str]:
     reached = {dtype}

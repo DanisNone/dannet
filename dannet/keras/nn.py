@@ -5,6 +5,7 @@ from keras.src import backend
 from dannet.keras.core import cast
 from dannet.keras.core import convert_to_tensor
 
+
 def relu(x):
     x = convert_to_tensor(x)
     return dt.nnet.relu(x)
@@ -100,6 +101,7 @@ def log_softmax(x, axis=-1):
         output = dt.nnet.log_softmax(x, axis=axis)
     return cast(output, dtype)
 
+
 def one_hot(x, num_classes, axis=-1, dtype='float32', sparse=False):
     if sparse:
         raise ValueError('Unsupported value `sparse=True` with Dannet backend')
@@ -107,6 +109,7 @@ def one_hot(x, num_classes, axis=-1, dtype='float32', sparse=False):
     x = convert_to_tensor(x, dtype=dt.dtype.int_dtype)
     output = dt.one_hot(x, num_classes, axis, dtype)
     return output
+
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
@@ -133,7 +136,11 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = dt.log(output)
     return -dt.sum(target * log_prob, axis=axis)
 
-def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+
+def sparse_categorical_crossentropy(
+    target, output,
+    from_logits=False, axis=-1
+):
     target = convert_to_tensor(target, dtype=dt.dtype.int_dtype)
     output = convert_to_tensor(output)
 
@@ -161,6 +168,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = one_hot(target, output.shape[axis], axis=axis)
     return -dt.sum(target * log_prob, axis=axis)
 
+
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
@@ -179,6 +187,7 @@ def binary_crossentropy(target, output, from_logits=False):
     bce = target * dt.log(output) + (1.0 - target) * dt.log(1.0 - output)
     return -bce
 
+
 def conv(
     inputs,
     kernel,
@@ -193,7 +202,11 @@ def conv(
     rank = inputs.ndim - 2
 
     if rank == 2:
-        return conv2d(inputs, kernel, strides, padding, data_format, dilation_rate)
+        return conv2d(
+            inputs, kernel,
+            strides, padding,
+            data_format, dilation_rate
+        )
     raise NotImplementedError(rank)
 
 
@@ -213,7 +226,11 @@ def depthwise_conv(
     rank = inputs.ndim - 2
 
     if rank == 2:
-        return depthwise_conv2d(inputs, kernel, strides, padding, data_format, dilation_rate)
+        return depthwise_conv2d(
+            inputs, kernel,
+            strides, padding,
+            data_format, dilation_rate
+        )
     raise NotImplementedError(rank)
 
 
@@ -229,16 +246,17 @@ def conv2d(
         strides = (strides, strides)
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate, dilation_rate)
-    
+
     dilation_rate = tuple(dilation_rate)
     if dilation_rate != (1, 1):
         raise NotImplementedError(dilation_rate)
-    
+
     data_format = backend.standardize_data_format(data_format)
     if data_format != 'channels_last':
         raise NotImplementedError(data_format)
-    
+
     return dt.nnet.conv2d(inputs, kernel, strides, padding)
+
 
 def depthwise_conv2d(
     inputs,
@@ -252,16 +270,17 @@ def depthwise_conv2d(
         strides = (strides, strides)
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate, dilation_rate)
-    
+
     dilation_rate = tuple(dilation_rate)
     if dilation_rate != (1, 1):
         raise NotImplementedError(dilation_rate)
-    
+
     data_format = backend.standardize_data_format(data_format)
     if data_format != 'channels_last':
         raise NotImplementedError(data_format)
-    
+
     return dt.nnet.depthwise_conv2d(inputs, kernel, strides, padding)
+
 
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
@@ -269,7 +288,7 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
-    
+
     shape = [1] * x.ndim
     shape[axis] = mean.shape[0]
     mean = dt.reshape(mean, shape)
@@ -279,12 +298,13 @@ def batch_normalization(
     if scale is not None:
         scale = convert_to_tensor(scale)
         inv *= dt.reshape(scale, shape)
-    
+
     res = (x - mean) * inv
     if offset is not None:
         offset = convert_to_tensor(offset)
         res += dt.reshape(offset, shape)
     return res
+
 
 def moments(x, axes, keepdims=False, synchronized=False):
     if synchronized:
@@ -334,6 +354,7 @@ def _get_large_negative(dtype):
     val = 65500.0 if dtype == 'float16' else 3.38953e38
     return dt.constant(val * -0.7, dtype=dtype)
 
+
 def _apply_masks(logits, mask, is_causal):
     if mask is None and not is_causal:
         return logits
@@ -360,6 +381,7 @@ def _apply_masks(logits, mask, is_causal):
         )
     return padded_logits
 
+
 def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
     original_dtype = key.dtype
     logits_dtype = dt.dtype.max_dtype(query.dtype, 'float32')
@@ -379,6 +401,7 @@ def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
 
     encoded = dt.einsum('BNTS,BSNH->BTNH', probs, value)
     return encoded
+
 
 def dot_product_attention(
     query,

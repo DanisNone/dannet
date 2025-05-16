@@ -2,8 +2,12 @@ import pytest
 
 import numpy as np
 import dannet as dt
-from .utils import*
-
+from .utils import (
+    ensure_supported,
+    random_array,
+    equal_output,
+    dtypes
+)
 
 dtypes_without_f16 = set(dtypes) - {'float16'}
 einsum_cases = [
@@ -16,6 +20,7 @@ einsum_cases = [
     'ij->',
     'ijk,ijl->kl'
 ]
+
 
 @pytest.mark.parametrize('einsum_eq', einsum_cases)
 @pytest.mark.parametrize('dtype', dtypes_without_f16)

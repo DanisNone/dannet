@@ -15,8 +15,8 @@ class mem_flags(enum.IntFlag):
     READ_ONLY = cl.mem_flags.READ_ONLY
     WRITE_ONLY = cl.mem_flags.WRITE_ONLY
     READ_WRITE = cl.mem_flags.READ_WRITE
-    
-    
+
+
 class Device:
     _instances = {}
     _stack = []
@@ -38,19 +38,23 @@ class Device:
         platforms = cl.get_platforms()
         if platform_id < 0 or platform_id >= len(platforms):
             raise IndexError(
-                f'Platform ID {platform_id} out of range; available: 0..{len(platforms)-1}'
+                f'Platform ID {platform_id} out of range; '
+                f'available: 0..{len(platforms)-1}'
             )
         self.platform: cl.Platform = platforms[platform_id]
 
         devices = self.platform.get_devices()
         if device_id < 0 or device_id >= len(devices):
             raise IndexError(
-                f'Device ID {device_id} out of range for platform {platform_id}; available: 0..{len(devices)-1}'
+                f'Device ID {device_id} out of range '
+                f'for platform {platform_id}; '
+                f'available: 0..{len(devices)-1}'
             )
         self.device: cl.Device = devices[device_id]
 
         self.context: cl.Context = cl.Context(devices=[self.device])
-        self.queue: cl.CommandQueue = cl.CommandQueue(self.context, self.device)
+        self.queue: cl.CommandQueue = cl.CommandQueue(
+            self.context, self.device)
 
         self.max_work_group_size: int = self.device.max_work_group_size
         self.allocated_buffers: set[DeviceBuffer] = set()
@@ -80,7 +84,8 @@ class Device:
             cl.device_type.CUSTOM: 'CUSTOM',
         }
 
-        types = [name for flag, name in type_flags.items() if self.device.type & flag]
+        types = [name for flag, name in type_flags.items()
+                 if self.device.type & flag]
         type_str = '|'.join(types) if types else str(self.device.type)
         return (
             f'<Device platform={self.platform.name} '
@@ -95,25 +100,32 @@ class Device:
         if dtype == 'float16':
             return 'cl_khr_fp16' in self.device.extensions
         return True
-    
-    def allocate_buffer(self, flag: mem_flags, nbytes: int) -> DeviceBuffer:
-        def format_bytes(size: float | int) -> str:
-            units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-            unit_index = 0
-            while size >= 1000 and unit_index < len(units)-1:
-                unit_index += 1
-                size /= 1000.0
-            return f'{size:.2f} {units[unit_index]}'
 
+    @staticmethod
+    def _format_bytes(size: float | int) -> str:
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        unit_index = 0
+        while size >= 1000 and unit_index < len(units)-1:
+            unit_index += 1
+            size /= 1000.0
+        return f'{size:.2f} {units[unit_index]}'
+
+    def _format_memory_error(self, memory_usage, nbytes):
+        format_bytes = self._format_bytes
+        return (
+            f'Not enough device memory:\n'
+            f'  Current usage: {format_bytes(memory_usage)}\n'
+            f'  Requested allocation: {format_bytes(nbytes)}\n'
+            f'  Total after allocation: '
+            f'{format_bytes(memory_usage + nbytes)}\n'
+            f'  Device limit: {format_bytes(self.device.global_mem_size)}'
+        )
+
+    def allocate_buffer(self, flag: mem_flags, nbytes: int) -> DeviceBuffer:
         nbytes = int(nbytes)
         if self.memory_usage + nbytes >= self.device.global_mem_size:
-            raise MemoryError(
-                f'Not enough device memory:\n'
-                f'  Current usage: {format_bytes(self.memory_usage)}\n'
-                f'  Requested allocation: {format_bytes(nbytes)}\n'
-                f'  Total after allocation: {format_bytes(self.memory_usage + nbytes)}\n'
-                f'  Device limit: {format_bytes(self.device.global_mem_size)}'
-            )        
+            msg = self._format_memory_error(self.memory_usage, nbytes)
+            raise MemoryError(msg)
         buffer = DeviceBuffer(self, flag, nbytes)
         self.memory_usage += nbytes
         self.allocated_buffers.add(buffer)
@@ -125,65 +137,78 @@ class Device:
             raise TypeError(
                 f'Argument must be DeviceBuffer, got {type(buffer).__name__}'
             )
-        
+
         if buffer.released:
             raise RuntimeError(
                 f'Buffer {buffer} has already been released'
             )
-        
+
         if buffer not in self.allocated_buffers:
             raise ValueError(
                 f'Buffer {buffer} is not allocated by this device '
                 f'(platform={self.platform_id}, device={self.device_id})'
-            )        
-    
+            )
+
         self.memory_usage -= buffer.nbytes
         self.allocated_buffers.remove(buffer)
         buffer._released = True
-    
 
     @overload
-    def enqueue_copy(self, dest: DeviceBuffer, src: np.ndarray | dt.core.Constant, *, is_blocking: bool = True) -> cl.Event:...
+    def enqueue_copy(
+        self,
+        dest: DeviceBuffer,
+        src: np.ndarray | dt.core.Constant,
+        *, is_blocking: bool = True
+    ) -> cl.Event: ...
+
     @overload
-    def enqueue_copy(self, dest: np.ndarray, src: DeviceBuffer, *, is_blocking: bool = True) -> cl.Event:...
-    
-    def enqueue_copy(self, dest, src, *, is_blocking = True) -> cl.Event:
+    def enqueue_copy(
+        self,
+        dest: np.ndarray,
+        src: DeviceBuffer,
+        *, is_blocking: bool = True
+    ) -> cl.Event: ...
+
+    def enqueue_copy(self, dest, src, *, is_blocking=True) -> cl.Event:
         dest_is_buf = isinstance(dest, DeviceBuffer)
         dest_is_host = isinstance(dest, np.ndarray)
-        
+
         src_is_buf = isinstance(src, DeviceBuffer)
         src_is_host = isinstance(src, (np.ndarray, dt.core.Constant))
 
-        
         if not (dest_is_buf or dest_is_host):
             raise TypeError(f'Invalid destination type: {type(dest).__name__}')
         if not (src_is_buf or src_is_host):
             raise TypeError(f'Invalid source type: {type(src).__name__}')
-            
-        if not ((dest_is_buf and src_is_host) or (dest_is_host and src_is_buf)):
+
+        if not (
+            (dest_is_buf and src_is_host) or
+            (dest_is_host and src_is_buf)
+        ):
             raise TypeError(
                 f'Invalid copy direction. Expected either:\n'
                 f'- (DeviceBuffer, host_array) or\n'
                 f'- (host_array, DeviceBuffer)\n'
                 f'Got: dest={type(dest).__name__}, src={type(src).__name__}'
             )
-            
+
         if src_is_buf:
             src_norm = src.cl_buffer
         else:
-            src_norm = src._value if isinstance(src, dt.core.Constant) else src.copy()
-            
+            src_norm = src._value if isinstance(
+                src, dt.core.Constant) else src.copy()
+
         if dest_is_buf:
             dest_norm = dest.cl_buffer
         else:
             dest_norm = dest
-                
+
         if dest_is_buf and (dest.nbytes != src.nbytes):
             raise ValueError(
                 f'Buffer size mismatch. DeviceBuffer: {dest.nbytes} bytes, '
                 f'Host array: {src.nbytes} bytes'
             )
-            
+
         if src_is_buf and (dest.nbytes != src.nbytes):
             raise ValueError(
                 f'Buffer size mismatch. Host array: {dest.nbytes} bytes, '
@@ -197,16 +222,17 @@ class Device:
             is_blocking=is_blocking
         )
 
+
 class DeviceBuffer:
     def __init__(self, device: Device, mem_flags: mem_flags, nbytes: int):
         self._cl_buffer = cl.Buffer(device.context, int(mem_flags), nbytes)
         self._released = False
         self._finalize = weakref.finalize(self, device.free_buffer, self)
-    
+
     @property
     def nbytes(self) -> int:
         return self._cl_buffer.size
-    
+
     @property
     def cl_buffer(self) -> cl.Buffer:
         return self._cl_buffer
@@ -214,7 +240,7 @@ class DeviceBuffer:
     def release(self):
         if self._finalize.alive:
             self._finalize()
-    
+
     @property
     def released(self):
         return self._released

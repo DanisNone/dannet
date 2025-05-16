@@ -5,7 +5,9 @@ import numpy as np
 import dannet as dt
 
 
-def normalize_shape(shape: dt.typing.ShapeLike | SupportsIndex) -> tuple[int, ...]:
+def normalize_shape(
+    shape: dt.typing.ShapeLike | SupportsIndex
+) -> tuple[int, ...]:
     if isinstance(shape, SupportsIndex):
         shape = [shape]
     shape_norm = tuple(int(dim) for dim in shape)
@@ -13,22 +15,23 @@ def normalize_shape(shape: dt.typing.ShapeLike | SupportsIndex) -> tuple[int, ..
         raise ValueError('All dims of shape must be greater than 0')
     return shape_norm
 
+
 def convert_to_tensor(x: dt.typing.TensorLike) -> dt.core.TensorBase:
     if isinstance(x, dt.core.TensorBase):
         return x
-    
+
     if isinstance(x, (np.generic, list, tuple)):
         return dt.constant(x)
     if isinstance(x, int):
         return dt.constant(x, dt.dtype.int_dtype)
     if isinstance(x, float):
-        return dt.constant(x, dt.dtype.float_dtype)    
+        return dt.constant(x, dt.dtype.float_dtype)
     if hasattr(x, '__array__'):
         x = np.asarray(x)
         return dt.constant(x)
-    
 
     raise TypeError(f'Fail convert to Tensor: {x!r}')
+
 
 def broadcast_shapes(*shapes: dt.typing.ShapeLike) -> tuple[int, ...]:
     shapes = tuple(normalize_shape(shape) for shape in shapes)
@@ -46,24 +49,33 @@ def broadcast_shapes(*shapes: dt.typing.ShapeLike) -> tuple[int, ...]:
                 raise ValueError(f'Cannot broadcast shapes: {shapes}')
     return tuple(result)
 
-def broadcast_shape_to(shape1: dt.typing.ShapeLike, shape2: dt.typing.ShapeLike) -> tuple[int, ...]:
+
+def broadcast_shape_to(
+    shape1: dt.typing.ShapeLike,
+    shape2: dt.typing.ShapeLike
+) -> tuple[int, ...]:
     shape = broadcast_shapes(shape1, shape2)
     if shape != shape2:
         raise ValueError(f'Fail broadcast {shape1} to {shape2}')
     return shape
 
-def normalize_axis_tuple(x: dt.typing.TensorLike, axis: None | SupportsIndex | Sequence[SupportsIndex]) -> tuple[int, ...]:
+
+def normalize_axis_tuple(
+    x: dt.typing.TensorLike,
+    axis: None | SupportsIndex | Sequence[SupportsIndex]
+) -> tuple[int, ...]:
     ndim = dt.convert_to_tensor(x).ndim
-    
+
     if axis is None:
         axis = range(ndim)
     if isinstance(axis, SupportsIndex):
         axis = [axis]
     axis = [int(a) for a in axis]
     axis = [a if a >= 0 else a + ndim for a in axis]
-    
+
     for a in axis:
         if a < 0 or a >= ndim:
-            raise ValueError(f"axis {axis} is out of bounds for tensor of dimension {ndim}")
-    
+            raise ValueError(
+                f"axis {axis} is out of bounds for tensor of dimension {ndim}")
+
     return tuple(axis)

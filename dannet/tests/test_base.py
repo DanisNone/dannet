@@ -2,7 +2,13 @@ import pytest
 import numpy as np
 import dannet as dt
 
-from .utils import *
+from .utils import (
+    ensure_supported,
+    random_array,
+    equal_output,
+    dtypes
+)
+
 
 shapes = [(), (1,), (2, 3), (13, 34, 66)]
 
@@ -51,12 +57,12 @@ def test_unary_ops(device, func, shape, dtype):
         x = dt.constant(x_np)
         y = op(x)
         y_np = y.numpy()
-    
+
     try:
         expected = unary_np[func](x_np)
     except ValueError:
         return
-    
+
     equal_output(expected, y_np)
 
 
@@ -66,7 +72,7 @@ def test_unary_ops(device, func, shape, dtype):
 @ensure_supported
 def test_binary_ops(device, func, shape, dtype):
     op = getattr(dt, func)
-    
+
     a_np = random_array(shape, dtype)
     b_np = random_array(shape, dtype)
     with device:
@@ -74,14 +80,14 @@ def test_binary_ops(device, func, shape, dtype):
         b = dt.constant(b_np)
         c = op(a, b)
         c_np = c.numpy()
-    
+
     try:
         expected = binary_np[func](a_np, b_np)
     except ValueError:
         return
     equal_output(expected, c_np)
 
-    
+
 @pytest.mark.parametrize('shape', shapes)
 @pytest.mark.parametrize('dtype', dtypes)
 @ensure_supported
@@ -91,7 +97,7 @@ def test_reshape(device, shape, dtype):
         a = dt.constant(data_np)
         b = dt.reshape(a, shape)
         b_np = b.numpy()
-    
+
     expected = np.reshape(data_np, shape)
     equal_output(expected, b_np)
 
@@ -106,6 +112,7 @@ def test_arange(device, dtype):
 
     equal_output(expected, r_np)
 
+
 @pytest.mark.parametrize('shape', shapes)
 @pytest.mark.parametrize('dtype', dtypes)
 @ensure_supported
@@ -116,6 +123,6 @@ def test_constant_and_variable(device, shape, dtype):
         v = dt.variable(data_np)
         c_np = c.numpy()
         v_np = v.numpy()
-    
+
     equal_output(data_np, c_np)
     equal_output(data_np, v_np)

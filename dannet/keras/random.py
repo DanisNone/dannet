@@ -2,9 +2,7 @@ import dannet as dt
 
 
 from keras.src.backend.config import floatx
-from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
-from keras.src.random.seed_generator import make_default_seed
 
 
 def dt_draw_seed(seed):
@@ -30,11 +28,13 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     rng = dt.random.RandomGenerator(seed)
     return dt.random.uniform(shape, minval, maxval, dtype, rng)
 
+
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     seed = dt_draw_seed(seed)
     dtype = dtype or floatx()
     rng = dt.random.RandomGenerator(seed)
     return dt.random.truncated_normal(shape, mean, stddev, dtype, rng)
+
 
 def _get_concrete_noise_shape(inputs, noise_shape):
     if noise_shape is None:
@@ -58,6 +58,6 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     mask = dt.random.uniform(shape=noise_shape, rng=rng, dtype='float32')
     mask = mask < keep_prob
-    
+
     res = inputs / keep_prob
     return res * mask

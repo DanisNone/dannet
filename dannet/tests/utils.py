@@ -6,6 +6,7 @@ import dannet as dt
 
 np.seterr(all='ignore')
 
+
 def ensure_supported(func):
     @functools.wraps(func)
     def test(*args, **kwargs):
@@ -14,6 +15,7 @@ def ensure_supported(func):
         except dt.compiler.NotSupportDtypeError as e:
             pytest.skip(str(e))
     return test
+
 
 def random_array(shape, dtype):
     if dt.dtype.is_bool_dtype(dtype):
@@ -26,9 +28,10 @@ def random_array(shape, dtype):
         return np.astype(np.random.uniform(-5, 5, size=shape), dtype)
     raise ValueError(f'unknown dtype: {dtype!r}')
 
+
 def equal_output(x, y):
     assert x.shape == y.shape
-    
+
     if np.promote_types(x.dtype, y.dtype) == x.dtype:
         x = x.astype(y.dtype)
     else:
@@ -47,4 +50,14 @@ def equal_output(x, y):
     else:
         np.testing.assert_array_equal(x, y)
 
-dtypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float16', 'float32', 'float64']
+
+dtypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32',
+          'int64', 'uint64', 'float16', 'float32', 'float64']
+
+
+__all__ = [
+    'ensure_supported',
+    'random_array',
+    'equal_output',
+    'dtypes',
+]

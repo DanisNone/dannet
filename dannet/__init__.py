@@ -1,9 +1,10 @@
+from . import timestat
 from . import core
 from .core import constant, variable
 
 from . import typing
 
-from .ops import*
+from .ops import *
 from . import nnet
 from .gradient import gradients
 
@@ -15,5 +16,3 @@ from .compiler import function, is_eager, eval
 
 from .device import Device, default_device
 current_device = Device.current_device
-
-from . import timestat

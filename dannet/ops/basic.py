@@ -3,6 +3,7 @@ import math
 import numpy as np
 import dannet as dt
 
+
 class _BroadcastTo(dt.core.TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
@@ -35,10 +36,11 @@ class _BroadcastTo(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [dt.reduce_to(grad, self.x._shape)]
-    
+
     def get_config(self):
         return {}
-    
+
+
 class _Cast(dt.core.TensorBase):
     def __init__(self, x, new_dtype):
         self.x = dt.convert_to_tensor(x)
@@ -58,7 +60,8 @@ class _Cast(dt.core.TensorBase):
 
     def get_config(self):
         return {}
-    
+
+
 class _Reshape(dt.core.TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
@@ -72,20 +75,22 @@ class _Reshape(dt.core.TensorBase):
         if new_shape.count(-1) == 1:
             i = new_shape.index(-1)
             s1 = self.x.size
-            s2 = math.prod(new_shape[:i] + new_shape[i + 1 :])
+            s2 = math.prod(new_shape[:i] + new_shape[i + 1:])
             if s2 == 0:
                 raise ValueError(
                     'Reshape target shape contains zero-length dimensions.'
                 )
             if s1 % s2 != 0:
                 raise ValueError(
-                    f'Cannot infer dimension size for -1: {s1} is not divisible by {s2}.'
+                    f'Cannot infer dimension size for -1: '
+                    f'{s1} is not divisible by {s2}.'
                 )
             new_shape[i] = s1 // s2
 
         if self.x.size != math.prod(new_shape):
             raise ValueError(
-                f'Total size of new shape {new_shape} must be unchanged from input shape {self.x.shape}.'
+                f'Total size of new shape {new_shape} '
+                f'must be unchanged from input shape {self.x.shape}.'
             )
 
         self._shape = tuple(new_shape)
@@ -106,7 +111,7 @@ class _Reshape(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [reshape(grad, self.x.shape)]
-    
+
     def get_config(self):
         return {}
 
@@ -120,7 +125,7 @@ class _Transpose(dt.core.TensorBase):
         axes = [a if a >= 0 else a + self.x.ndim for a in axes]
 
         if sorted(axes) != list(range(self.x.ndim)):
-            raise ValueError(f'Invalid perm for transpose')
+            raise ValueError(f'Invalid axes for transpose: {axes}')
 
         self._shape = tuple(self.x._shape[a] for a in axes)
         self._dtype = self.x._dtype
@@ -137,9 +142,10 @@ class _Transpose(dt.core.TensorBase):
     def compute_gradients(self, grad):
         inv = [self._axes.index(i) for i in range(self.x.ndim)]
         return [transpose(grad, inv)]
-    
+
     def get_config(self):
         return {'axes': self._axes}
+
 
 class _Flip(dt.core.TensorBase):
     def __init__(self, x, axes):
@@ -151,13 +157,14 @@ class _Flip(dt.core.TensorBase):
         elif hasattr(axes, '__index__'):
             axes = (int(axes), )
         axes = tuple(axes)
-        
+
         norm_axes = []
         for a in axes:
             if a < 0:
                 a += ndim
             if not (0 <= a < ndim):
-                raise ValueError(f'Invalid axis {a} for Flip with tensor of ndim {ndim}')
+                raise ValueError(
+                    f'Invalid axis {a} for Flip with tensor of ndim {ndim}')
             norm_axes.append(a)
 
         self._axes = tuple(sorted(set(norm_axes)))
@@ -188,6 +195,7 @@ class _Flip(dt.core.TensorBase):
     def get_config(self):
         return {'axes': self._axes}
 
+
 class _Copy(dt.core.TensorBase):
     def __init__(self, x):
         self.x = dt.convert_to_tensor(x)
@@ -204,35 +212,51 @@ class _Copy(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [grad]
-    
+
     def get_config(self):
         return {}
+
 
 class _Pad(dt.core.TensorBase):
     def __init__(self, x, paddings):
         self.x = dt.convert_to_tensor(x)
-        norm_paddings = []
+        norm_paddings: list[tuple[int, int]] = []
         for p in paddings:
             if hasattr(p, '__index__'):
-                norm_paddings.append((int(p), int(p)))
+                p1, p2 = p, p
             else:
-                norm_paddings.append(tuple(p))
-        paddings += ((0, 0), ) * (self.x.ndim - len(paddings))
-        paddings = norm_paddings
-        if len(paddings) != self.x.ndim:
-            raise ValueError(
-                f'Paddings length {len(paddings)} must match tensor ndim {self.x.ndim}'
-            )
-        for p in paddings:
-            if not (isinstance(p[0], int) and isinstance(p[1], int) and p[0] >= 0 and p[1] >= 0):
-                raise ValueError(f'Invalid padding {p}, must be non-negative ints')
-        self._paddings = paddings
+                p1, p2 = p
 
-        new_shape = tuple(
+            p1, p2 = int(p1), int(p2)
+            if p1 < 0 or p2 < 0:
+                raise ValueError(
+                    f'Invalid padding {(p1, p2)}, must be non-negative ints'
+                )
+
+            norm_paddings.append((p1, p2))
+
+        norm_paddings += ((0, 0), ) * (self.x.ndim - len(norm_paddings))
+        self._paddings = norm_paddings
+
+        if len(self._paddings) != self.x.ndim:
+            raise ValueError(
+                f'Paddings length {len(paddings)} '
+                f'must match tensor ndim {self.x.ndim}'
+            )
+
+        for p in self._paddings:
+            if len(p) != 2:
+                raise ValueError(f'Invalid padding: {p}')
+            p1, p2 = map(int, p)
+            if p1 >= 0 and p2 >= 0:
+                raise ValueError(
+                    f'Invalid padding {p}, must be non-negative ints')
+
+        self._shape = tuple(
             self.x.shape[i] + paddings[i][0] + paddings[i][1]
             for i in range(self.x.ndim)
         )
-        self._shape = new_shape
+
         self._dtype = self.x.dtype
 
         self._strides = self._default_strides()
@@ -241,7 +265,7 @@ class _Pad(dt.core.TensorBase):
 
     def inputs(self):
         return [self.x]
-    
+
     def compute_gradients(self, grad):
         slices = []
         for i, (before, _after) in enumerate(self._paddings):
@@ -249,7 +273,7 @@ class _Pad(dt.core.TensorBase):
             stop = before + self.x.shape[i]
             slices.append((start, stop, None))
         return [slice(grad, tuple(slices))]
-    
+
     def get_config(self):
         return {'paddings': self._paddings}
 
@@ -262,7 +286,10 @@ class _Slice(dt.core.TensorBase):
         if not isinstance(slices, (list, tuple)):
             raise TypeError('slices must be a sequence of tuples')
         if len(slices) > ndim:
-            raise ValueError(f'Too many slice tuples ({len(slices)}) for tensor of ndim {ndim}')
+            raise ValueError(
+                f'Too many slice tuples ({len(slices)}) '
+                f'for tensor of ndim {ndim}'
+            )
         slices = list(slices) + [(None, None, None)] * (ndim - len(slices))
 
         orig_shape = self.x.shape
@@ -295,17 +322,22 @@ class _Slice(dt.core.TensorBase):
             elif stop < 0:
                 stop += dim
 
-            start = max(0, min(start, dim - 1)) if step < 0 else max(0, min(start, dim))
-            stop  = max(-1, min(stop, dim - 1)) if step < 0 else max(0, min(stop, dim))
-
-            length = max(0, math.ceil((stop - start) / step)) if step > 0 else max(0, math.ceil((start - stop) / (-step)))
+            if step < 0:
+                start = max(0, min(start, dim - 1))
+                stop = max(-1, min(stop, dim - 1))
+                length = max(0, math.ceil((stop - start) / step))
+            else:
+                start = max(0, min(start, dim))
+                stop = max(0, min(stop, dim))
+                length = max(0, math.ceil((start - stop) / (-step)))
             new_shape.append(length)
             new_strides.append(stride * step)
 
             offset += stride * start
 
         if 0 in new_shape:
-            raise NotImplementedError('TensorBase not support slice with zero size')
+            raise NotImplementedError(
+                'TensorBase not support slice with zero size')
 
         self._shape = tuple(new_shape)
         self._dtype = self.x.dtype
@@ -322,16 +354,19 @@ class _Slice(dt.core.TensorBase):
         pads = []
         for (start, stop, step), out_dim in zip(self._slices, grad.shape):
             if step not in (None, 1):
-                raise NotImplementedError('Gradient for step != 1 slicing is not yet supported')
+                raise NotImplementedError(
+                    'Gradient for step != 1 slicing is not yet supported')
 
             dim = self.x.shape[len(pads)]
-            start = 0 if start is None else (start + dim if start < 0 else start)
+            start = 0 if start is None else (
+                start + dim if start < 0 else start)
             pads.append((start, dim - start - out_dim))
         zero = zeros(self.x.shape, self.x.dtype)
         return [pad(grad, pads) + zero]
 
     def get_config(self):
         return {'slices': self._slices}
+
 
 class _Gather(dt.core.TensorBase):
     def __init__(self, x, indices):
@@ -352,7 +387,7 @@ class _Gather(dt.core.TensorBase):
         flat_dim = math.prod(self.x.shape[1:])
 
         one_hot = dt.one_hot(self.indices, self.x.shape[0], dtype=grad.dtype)
-        
+
         grad_2d = dt.reshape(grad, (-1, flat_dim))
         one_hot_2d = dt.reshape(one_hot, (-1, self.x.shape[0]))
 
@@ -363,18 +398,20 @@ class _Gather(dt.core.TensorBase):
 
     def get_config(self):
         return {}
-    
+
+
 class _OneHot(dt.core.TensorBase):
     def __init__(self, indices, depth, dtype):
         self.indices = dt.cast(indices, dt.dtype.int_dtype)
         self._depth = int(depth)
 
         if self._depth <= 0:
-            raise ValueError(f'depth must be positivev integer, not {self._depth}')        
-            
+            raise ValueError(
+                f'depth must be positivev integer, not {self._depth}')
+
         self._shape = (*self.indices._shape, depth)
         self._dtype = dt.dtype.normalize_dtype(dtype)
-        
+
         self._strides = self._default_strides()
         self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
@@ -384,19 +421,22 @@ class _OneHot(dt.core.TensorBase):
 
     def compute_gradients(self, grad):
         return [dt.zeros_like(grad)]
-    
+
     def get_config(self):
         return {'depth': self._depth}
-    
-def zeros(shape, dtype = None):
+
+
+def zeros(shape, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float_dtype
     return broadcast_to(cast(0, dtype), shape)
 
-def ones(shape, dtype = None):
+
+def ones(shape, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float_dtype
     return broadcast_to(cast(1, dtype), shape)
+
 
 def zeros_like(x, dtype: dt.typing.DTypeLike | None = None):
     x = dt.convert_to_tensor(x)
@@ -404,11 +444,13 @@ def zeros_like(x, dtype: dt.typing.DTypeLike | None = None):
         dtype = x.dtype
     return broadcast_to(cast(0, dtype), x.shape)
 
+
 def ones_like(x, dtype: dt.typing.DTypeLike | None = None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
     return broadcast_to(cast(1, dtype), x.shape)
+
 
 def broadcast_to(x, shape):
     x = dt.convert_to_tensor(x)
@@ -418,13 +460,14 @@ def broadcast_to(x, shape):
         y = x
     return dt.core._node_prepare(y)
 
+
 def reduce_to(x, shape):
     x = dt.convert_to_tensor(x)
     shape = dt.utils.normalize_shape(shape)
 
     if x.ndim < len(shape):
         raise ValueError(f'Fail reduce {x} to {shape}')
-    
+
     pad_shape = (1, ) * (x.ndim - len(shape)) + shape
     sum_axis = []
 
@@ -437,6 +480,7 @@ def reduce_to(x, shape):
             raise ValueError(f'Fail reduce {x} to {shape}')
     return dt.reshape(dt.sum(x, axis=sum_axis), shape)
 
+
 def cast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None):
     x = dt.convert_to_tensor(x)
     if dtype is None:
@@ -446,6 +490,7 @@ def cast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None):
         y = x
     return dt.core._node_prepare(y)
 
+
 def reshape(x, shape):
     x = dt.convert_to_tensor(x)
     y = _Reshape(x, shape)
@@ -453,6 +498,7 @@ def reshape(x, shape):
     if x.shape == y.shape:
         y = x
     return dt.core._node_prepare(y)
+
 
 def squeeze(x, axis=None):
     x = dt.convert_to_tensor(x)
@@ -470,36 +516,44 @@ def squeeze(x, axis=None):
 
     for a in axes:
         if a < 0 or a >= ndim:
-            raise ValueError(f'axis {a} is out of bounds for tensor of dimension {ndim}')
+            raise ValueError(
+                f'axis {a} is out of bounds for tensor of dimension {ndim}')
         if shape[a] != 1:
-            raise ValueError(f'cannot select an axis to squeeze out which has size not equal to one, axis {a} has size {shape[a]}')
+            raise ValueError(
+                f'cannot select an axis to squeeze '
+                f'out which has size not equal to one, '
+                f'axis {a} has size {shape[a]}'
+            )
 
     new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
     return reshape(x, new_shape)
 
+
 def expand_dims(x, axis):
     x = dt.convert_to_tensor(x)
-    
+
     if hasattr(axis, '__index__'):
         axis = (int(axis), )
     axis = tuple(axis)
 
     if len(set(axis)) != len(axis):
         raise ValueError(f'Duplicate axes: {axis}')
-    
+
     normalized_axes = []
     for ax in axis:
         if ax < 0:
             ax = x.ndim + 1 + ax
         if ax < 0 or ax > x.ndim:
-            raise ValueError(f'Axis {ax} out of bounds for tensor of dimension {x.ndim}')
+            raise ValueError(
+                f'Axis {ax} out of bounds for tensor of dimension {x.ndim}')
         normalized_axes.append(ax)
-    
+
     shape = list(x.shape)
     for ax in sorted(normalized_axes, reverse=True):
         shape.insert(ax, 1)
-    
+
     return reshape(x, shape)
+
 
 def transpose(x, axes=None):
     x = dt.convert_to_tensor(x)
@@ -509,6 +563,7 @@ def transpose(x, axes=None):
         y = x
     return dt.core._node_prepare(y)
 
+
 def swapaxes(x, axis1, axis2):
     x = dt.convert_to_tensor(x)
 
@@ -517,12 +572,14 @@ def swapaxes(x, axis1, axis2):
 
     return dt.transpose(x, axes)
 
+
 def moveaxis(a, source, destination):
     source = dt.utils.normalize_axis_tuple(source, a.ndim)
     destination = dt.utils.normalize_axis_tuple(destination, a.ndim)
 
     if len(source) != len(destination):
-        raise ValueError('`source` and `destination` must have the same number of elements')
+        raise ValueError(
+            '`source` and `destination` must have the same number of elements')
 
     order = list(range(a.ndim))
     for s, d in sorted(zip(source, destination), key=lambda x: x[1]):
@@ -530,10 +587,12 @@ def moveaxis(a, source, destination):
         order.insert(d, s)
     return dt.transpose(a, order)
 
-def flip(x, axis = None):
+
+def flip(x, axis=None):
     x = dt.convert_to_tensor(x)
     y = _Flip(x, axis)
     return dt.core._node_prepare(y)
+
 
 def pad(x, paddings):
     x = dt.convert_to_tensor(x)
@@ -542,14 +601,17 @@ def pad(x, paddings):
         y = x
     return dt.core._node_prepare(y)
 
+
 def copy(x):
     x = dt.convert_to_tensor(x)
     y = _Copy(x)
     return dt.core._node_prepare(y)
 
+
 def slice(x, slices):
     y = _Slice(x, slices)
     return dt.core._node_prepare(y)
+
 
 def take(x, indices, axis=None):
     x = dt.convert_to_tensor(x)
@@ -559,7 +621,7 @@ def take(x, indices, axis=None):
         flat = dt.reshape(x, (-1,))
         res = _Gather(flat, indices)
         return dt.core._node_prepare(res)
-    
+
     ndim = x.ndim
     norm_axis = axis if axis >= 0 else axis + ndim
     if not (0 <= norm_axis < ndim):
@@ -606,17 +668,24 @@ def one_hot(x, depth, axis=-1, dtype=None):
     perm[axis], perm[-1] = perm[-1], perm[axis]
     return transpose(res, perm)
 
-def arange(start: int | float, stop: int | float | None = None, step: int | float = 1, dtype = None):
+
+def arange(
+    start: int | float,
+    stop: int | float | None = None,
+    step: int | float = 1,
+    dtype=None
+):
     res = np.arange(start, stop, step)
     if res.shape[0] <= 0:
         raise ValueError(f'arange() invalid length ({res.shape[0]}) for range '
-                           f'[{start}, {stop}) with step {step}')
+                         f'[{start}, {stop}) with step {step}')
     return dt.cast(res, dtype)
+
 
 def tri(N, M=None, k=0, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float_dtype
-    
+
     if M is None:
         M = N
 
@@ -626,17 +695,20 @@ def tri(N, M=None, k=0, dtype=None):
 
     return dt.cast(m, dtype)
 
+
 def tril(m, k=0):
     m = dt.convert_to_tensor(m)
     mask = tri(*m.shape[-2:], k=k, dtype=bool)
 
     return dt.where(mask, m, zeros(1, m.dtype))
 
+
 def triu(m, k=0):
     m = dt.convert_to_tensor(m)
     mask = tri(*m.shape[-2:], k=k-1, dtype=bool)
 
     return dt.where(mask, zeros(1, m.dtype), m)
+
 
 __all__ = [
     'zeros',

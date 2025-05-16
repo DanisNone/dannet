@@ -10,23 +10,30 @@ class _Logical(_ElementWiseBinary):
     def compute_gradients(self, grad):
         return [dt.zeros_like(self.x), dt.zeros_like(self.y)]
 
+
 class _Equal(_Logical):
     pass
+
 
 class _NotEqual(_Logical):
     pass
 
+
 class _Greater(_Logical):
     pass
+
 
 class _GreaterEqual(_Logical):
     pass
 
+
 class _Less(_Logical):
     pass
 
+
 class _LessEqual(_Logical):
     pass
+
 
 equal = _make_binary('equal', _Equal)
 not_equal = _make_binary('not_equal', _NotEqual)

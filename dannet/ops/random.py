@@ -1,7 +1,6 @@
-from typing import Optional, Sequence, Tuple
+from typing import Optional
 import numpy as np
 import dannet as dt
-from dannet.core import TensorBase
 
 
 class RandomGenerator:
@@ -12,7 +11,8 @@ class RandomGenerator:
 
     def get_seed(self, n: int):
         GOLDEN_RATIO = 0x9E3779B97F4A7C15
-        self.seed = np.uint64((int(self.seed) + n * GOLDEN_RATIO) & 0xFFFFFFFFFFFFFFFF)
+        self.seed = np.uint64(
+            (int(self.seed) + n * GOLDEN_RATIO) & 0xFFFFFFFFFFFFFFFF)
         return self.seed
 
 
@@ -20,14 +20,17 @@ default_rng = RandomGenerator()
 
 
 class _RandomInt(dt.core.TensorBase):
-    def __init__(self, shape, rng: Optional[RandomGenerator] = None):
+    def __init__(self,
+                 shape: dt.typing.ShapeLike,
+                 rng: Optional[RandomGenerator] = None
+                 ):
         self._shape = dt.utils.normalize_shape(shape)
         self._dtype = 'uint64'
 
         self._buffer = dt.core.TensorBuffer(self)
         self._buffer_offset = 0
         self._strides = self._default_strides()
-        
+
         if rng is None:
             rng = default_rng
         self.rng = rng
@@ -45,13 +48,18 @@ class _RandomInt(dt.core.TensorBase):
 
     def __hash__(self):
         return id(self)
-    
-    
+
     def get_config(self):
         return {'rng': self.rng}
-    
+
+
 class _RandomFloat(dt.core.TensorBase):
-    def __init__(self, shape, dtype='float64', rng: Optional[RandomGenerator] = None):
+    def __init__(
+        self,
+        shape: dt.typing.ShapeLike,
+        dtype: dt.typing.DTypeLike = 'float64',
+        rng: Optional[RandomGenerator] = None
+    ):
         self._shape = dt.utils.normalize_shape(shape)
         self._dtype = dt.dtype.normalize_dtype(dtype)
 
@@ -79,29 +87,44 @@ class _RandomFloat(dt.core.TensorBase):
 
     def __hash__(self):
         return id(self)
-    
+
     def get_config(self):
         return {'rng': self.rng}
-    
 
 
-
-def randint(shape, rng=None):
+def randint(
+    shape: dt.typing.ShapeLike,
+    rng: Optional[RandomGenerator] = None
+):
     t = _RandomInt(shape, rng)
     return dt.core._node_prepare(t)
 
-def random(shape, dtype='float64', rng=None):
+
+def random(
+    shape: dt.typing.ShapeLike,
+    dtype: dt.typing.DTypeLike = 'float64',
+    rng: Optional[RandomGenerator] = None
+):
     t = _RandomFloat(shape, dtype, rng)
     return dt.core._node_prepare(t)
 
+
 def uniform(
-    shape, low=0.0, high=1.0, dtype='float64', rng: Optional[RandomGenerator] = None
+    shape: dt.typing.ShapeLike,
+    low: float = 0.0,
+    high: float = 1.0,
+    dtype: dt.typing.DTypeLike = 'float64',
+    rng: Optional[RandomGenerator] = None
 ):
     return random(shape, dtype=dtype, rng=rng) * (high - low) + low
 
 
 def normal(
-    shape, mean=0.0, std=1.0, dtype='float64', rng: Optional[RandomGenerator] = None
+    shape: dt.typing.ShapeLike,
+    mean: float = 0.0,
+    std: float = 1.0,
+    dtype: dt.typing.DTypeLike = 'float64',
+    rng: Optional[RandomGenerator] = None
 ):
     # Box-Muller transform (approximate normal distribution)
     u1 = random(shape, dtype=dtype, rng=rng)
@@ -111,13 +134,21 @@ def normal(
 
 
 def binomial(
-    shape, p=0.5, dtype='float64', rng: Optional[RandomGenerator] = None
+    shape: dt.typing.ShapeLike,
+    p: float = 0.5,
+    dtype: dt.typing.DTypeLike = 'float64',
+    rng: Optional[RandomGenerator] = None
 ):
     u = random(shape, dtype=dtype, rng=rng)
     return u < p
 
+
 def truncated_normal(
-    shape, mean=0.0, std=1.0, dtype='float64', rng: Optional[RandomGenerator] = None
+    shape: dt.typing.ShapeLike,
+    mean: float = 0.0,
+    std: float = 1.0,
+    dtype: dt.typing.DTypeLike = 'float64',
+    rng: Optional[RandomGenerator] = None
 ):
     lower = mean - 2 * std
     upper = mean + 2 * std

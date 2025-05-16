@@ -7,7 +7,7 @@ from typing import Sequence
 import pyopencl as cl
 
 import dannet as dt
-from dannet.compiler.reg_impl import register_impl
+from dannet.compiler.reg_impl import register_impl  # noqa: F401
 
 dtype_map = {
     'bool': 'bool',
@@ -31,7 +31,7 @@ def to_cl_dtype(dtype: str) -> str:
     return dtype_map[dtype]
 
 
-def insert_static_array(name: str, values: Sequence[int]) -> str:
+def generate_static_array(name: str, values: Sequence[int]) -> str:
     values = list(values)
     values.append(0)
 
@@ -43,8 +43,8 @@ def generate_nodes_info(**kwargs: dt.core.TensorBase) -> list[str]:
     result = []
     for name, node in kwargs.items():
         result.append(f'#define dtype{name} {to_cl_dtype(node._dtype)}')
-        result.append(insert_static_array(f'shape{name}', node._shape))
-        result.append(insert_static_array(f'strides{name}', node._strides))
+        result.append(generate_static_array(f'shape{name}', node._shape))
+        result.append(generate_static_array(f'strides{name}', node._strides))
         result.append(f'#define offset{name} {node._buffer_offset}')
         result.append(f'#define ndim{name} {node.ndim}')
         result.append(f'#define size{name} {node.size}')
@@ -63,8 +63,9 @@ def generate_mode(mode: str):
     return f'#define {mode}'
 
 
-
 _build_cache = {}
+
+
 def build_kernel(device: dt.Device, name: str, headers: list[str] = []):
     key = (device, name, *headers)
     if key in _build_cache:
@@ -78,5 +79,6 @@ def build_kernel(device: dt.Device, name: str, headers: list[str] = []):
     _build_cache[key] = cl.Program(device.context, code).build()
     return _build_cache[key]
 
+
 def default_strides(shape):
-    return [math.prod(shape[i + 1 :]) for i in range(len(shape))]
+    return [math.prod(shape[i + 1:]) for i in range(len(shape))]
