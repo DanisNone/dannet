@@ -517,6 +517,19 @@ def swapaxes(x, axis1, axis2):
 
     return dt.transpose(x, axes)
 
+def moveaxis(a, source, destination):
+    source = dt.utils.normalize_axis_tuple(source, a.ndim)
+    destination = dt.utils.normalize_axis_tuple(destination, a.ndim)
+
+    if len(source) != len(destination):
+        raise ValueError('`source` and `destination` must have the same number of elements')
+
+    order = list(range(a.ndim))
+    for s, d in sorted(zip(source, destination), key=lambda x: x[1]):
+        order.pop(s)
+        order.insert(d, s)
+    return dt.transpose(a, order)
+
 def flip(x, axis = None):
     x = dt.convert_to_tensor(x)
     y = _Flip(x, axis)
@@ -638,6 +651,7 @@ __all__ = [
     'expand_dims',
     'transpose',
     'swapaxes',
+    'moveaxis',
     'copy',
     'flip',
     'pad',

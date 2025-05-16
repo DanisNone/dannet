@@ -7,19 +7,7 @@ import dannet as dt
 class _Reduce(dt.core.TensorBase):
     def __init__(self, x, axis=None, keepdims=False):
         self.x = dt.convert_to_tensor(x)
-
-        if axis is None:
-            axis = list(range(x.ndim))
-        elif isinstance(axis, int):
-            axis = [axis]
-        else:
-            axis = list(axis)
-
-        axis = [int(a) if a >= 0 else int(a + self.x.ndim) for a in axis]
-
-        for a in axis:
-            if not 0 <= a < self.x.ndim:
-                raise ValueError(f'Invalid axis: {a}')
+        axis = dt.utils.normalize_axis_tuple(self.x, axis)
 
         shape = []
         keepdims_shape = []
@@ -115,10 +103,7 @@ class _ArgReduce(dt.core.TensorBase):
             self.full_reduce = True
             self._shape = (1, ) * self.x.ndim if self._keepdims else ()
         else:
-            if isinstance(axis, int):
-                axis = axis
-            else:
-                raise ValueError('axis must be an integer')
+            axis = int(axis)
             if axis < 0:
                 axis += x.ndim
             if axis < 0 or axis >= x.ndim:

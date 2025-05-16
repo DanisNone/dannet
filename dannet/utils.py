@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import SupportsIndex
+from typing import Sequence, SupportsIndex
 
 import numpy as np
 import dannet as dt
@@ -51,3 +51,19 @@ def broadcast_shape_to(shape1: dt.typing.ShapeLike, shape2: dt.typing.ShapeLike)
     if shape != shape2:
         raise ValueError(f'Fail broadcast {shape1} to {shape2}')
     return shape
+
+def normalize_axis_tuple(x: dt.typing.TensorLike, axis: None | SupportsIndex | Sequence[SupportsIndex]) -> tuple[int, ...]:
+    ndim = dt.convert_to_tensor(x).ndim
+    
+    if axis is None:
+        axis = range(ndim)
+    if isinstance(axis, SupportsIndex):
+        axis = [axis]
+    axis = [int(a) for a in axis]
+    axis = [a if a >= 0 else a + ndim for a in axis]
+    
+    for a in axis:
+        if a < 0 or a >= ndim:
+            raise ValueError(f"axis {axis} is out of bounds for tensor of dimension {ndim}")
+    
+    return tuple(axis)

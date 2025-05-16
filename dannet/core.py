@@ -163,7 +163,10 @@ class TensorBase(abc.ABC):
         name = type(self).__name__
         name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name)
         name = name.lstrip('_')
-        return f'<{name} shape={self._shape} dtype={self._dtype}>'
+
+        shape = getattr(self, "_shape", "UNKNOWN")
+        dtype = getattr(self, "_dtype", "UNKNOWN")
+        return f'<{name} shape={shape} dtype={dtype}>'
     
     def __bool__(self):
         if not dt.is_eager():
@@ -213,9 +216,6 @@ class TensorBase(abc.ABC):
 
 class Constant(TensorBase):
     def __init__(self, value: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None  = None):
-        if isinstance(value, TensorBase):
-            raise NotImplementedError()
-        
         if not isinstance(value, np.generic) and dtype is None:
             if isinstance(value, int):
                 dtype = dt.dtype.int_dtype
