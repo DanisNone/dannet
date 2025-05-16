@@ -2,6 +2,8 @@ import dannet as dt
 
 
 from keras.src.backend.config import floatx
+from keras.src.random.seed_generator import SeedGenerator  # noqa: F401
+from keras.src.random.seed_generator import make_default_seed  # noqa: F401
 from keras.src.random.seed_generator import draw_seed
 
 

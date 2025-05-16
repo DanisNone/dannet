@@ -98,7 +98,7 @@ def compute_output_spec(fn, *args, **kwargs):
         return x
 
     def symbolic_call(fn, args, kwargs, fill_value):
-        fn = dt.function*fn
+        fn = dt.function(fn)
         try:
             meta_args, meta_kwargs = tree.map_structure(
                 lambda x: convert_keras_tensor_to_dannet(x, fill_value),
