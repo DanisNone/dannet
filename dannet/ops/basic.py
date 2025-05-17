@@ -236,7 +236,7 @@ class _Pad(dt.core.TensorBase):
             norm_paddings.append((p1, p2))
 
         norm_paddings += ((0, 0), ) * (self.x.ndim - len(norm_paddings))
-        self._paddings = norm_paddings
+        self._paddings = tuple(norm_paddings)
 
         if len(self._paddings) != self.x.ndim:
             raise ValueError(
@@ -244,16 +244,8 @@ class _Pad(dt.core.TensorBase):
                 f'must match tensor ndim {self.x.ndim}'
             )
 
-        for p in self._paddings:
-            if len(p) != 2:
-                raise ValueError(f'Invalid padding: {p}')
-            p1, p2 = map(int, p)
-            if p1 >= 0 and p2 >= 0:
-                raise ValueError(
-                    f'Invalid padding {p}, must be non-negative ints')
-
         self._shape = tuple(
-            self.x.shape[i] + paddings[i][0] + paddings[i][1]
+            self.x.shape[i] + self._paddings[i][0] + self._paddings[i][1]
             for i in range(self.x.ndim)
         )
 
@@ -420,7 +412,7 @@ class _OneHot(dt.core.TensorBase):
         return [self.indices]
 
     def compute_gradients(self, grad):
-        return [dt.zeros_like(grad)]
+        return [dt.zeros_like(self.indices)]
 
     def get_config(self):
         return {'depth': self._depth}
