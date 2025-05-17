@@ -7,8 +7,15 @@ def gradients(
     params: list[dt.core.TensorBase]
 ) -> list[dt.core.TensorBase]:
     if dt.is_eager():
-        raise RuntimeError('gradient not work in eager mode')
+        raise RuntimeError('gradients not work in eager mode')
 
+    if not isinstance(loss, dt.core.TensorBase):
+        raise TypeError('loss must be TensorBase instances.')
+    
+    for param in params:
+        if not isinstance(param, dt.core.TensorBase):
+            raise TypeError('All params must be TensorBase instances.')
+    
     gradients: dict[dt.core.TensorBase, dt.core.TensorBase] = {
         loss: dt.ones_like(loss)}
 

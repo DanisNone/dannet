@@ -15,7 +15,7 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = False
 
 
-class Variable(KerasVariable, dt.core.Variable):
+class Variable(KerasVariable):
     def _initialize(self, value):
         if isinstance(value, dt.core.Variable):
             self._value = value
