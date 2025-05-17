@@ -195,6 +195,11 @@ class TensorBase(abc.ABC):
     def clip(self, min_val, max_val):
         return dt.clip(self, min_val, max_val)
 
+    def cast(self, dtype: dt.typing.DTypeLike):
+        return dt.cast(self, dtype)
+
+    astype = cast
+
     def max(self, axis=None, keepdims=False):
         return dt.max(self, axis=axis, keepdims=keepdims)
 
