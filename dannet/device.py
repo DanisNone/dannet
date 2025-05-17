@@ -58,7 +58,7 @@ class Device:
         )
 
         self.max_work_group_size: int = self.device.max_work_group_size
-        self.allocated_buffers: set[DeviceBuffer] = set()
+        self.allocated_buffers: weakref.WeakSet[DeviceBuffer] = weakref.WeakSet()
         self.memory_usage: int = 0
         self._initialized: bool = True
 
@@ -225,10 +225,10 @@ class Device:
 
 
 class DeviceBuffer:
-    def __init__(self, device: Device, mem_flags: mem_flags, nbytes: int):
-        self._cl_buffer = cl.Buffer(device.context, int(mem_flags), nbytes)
+    def __init__(self, device: Device, flags: mem_flags, nbytes: int):
+        self._device = device
+        self._cl_buffer = cl.Buffer(device.context, int(flags), nbytes)
         self._released = False
-        self._finalize = weakref.finalize(self, device.free_buffer, self)
 
     @property
     def nbytes(self) -> int:
@@ -238,13 +238,20 @@ class DeviceBuffer:
     def cl_buffer(self) -> cl.Buffer:
         return self._cl_buffer
 
-    def release(self):
-        if self._finalize.alive:
-            self._finalize()
-
     @property
-    def released(self):
+    def released(self) -> bool:
         return self._released
+
+    def release(self):
+        if not self._released:
+            self._device.free_buffer(self)
+
+    def __del__(self):
+        # automatically free on garbage collection
+        try:
+            self.release()
+        except Exception:
+            pass
 
 
 def default_device() -> Device:
