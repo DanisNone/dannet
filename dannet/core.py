@@ -180,6 +180,12 @@ class TensorBase(abc.ABC):
             )
         return bool(dt.eval(self)._value)
 
+    def any(self, axis=None, keepdims=False):
+        return dt.any(self, axis=axis, keepdims=keepdims)
+
+    def all(self, axis=None, keepdims=False):
+        return dt.all(self, axis=axis, keepdims=keepdims)
+
     def argmax(self, axis=None):
         return dt.argmax(self, axis=axis)
 
@@ -189,35 +195,32 @@ class TensorBase(abc.ABC):
     def clip(self, min_val, max_val):
         return dt.clip(self, min_val, max_val)
 
-    def copy(self):
-        return dt.copy(self)
+    def max(self, axis=None, keepdims=False):
+        return dt.max(self, axis=axis, keepdims=keepdims)
 
-    def max(self, axis=None):
-        return dt.max(self, axis=axis)
+    def mean(self, axis=None, keepdims=False):
+        return dt.mean(self, axis=axis, keepdims=keepdims)
 
-    def mean(self, axis=None):
-        return dt.mean(self, axis=axis)
+    def min(self, axis=None, keepdims=False):
+        return dt.min(self, axis=axis, keepdims=keepdims)
 
-    def min(self, axis=None):
-        return dt.min(self, axis=axis)
-
-    def prod(self, axis=None):
-        return dt.prod(self, axis=axis)
+    def prod(self, axis=None, keepdims=False):
+        return dt.prod(self, axis=axis, keepdims=keepdims)
 
     def reshape(self, shape: dt.typing.ShapeLike):
         return dt.reshape(self, shape)
 
-    def std(self, axis=None):
-        return dt.std(self, axis=axis)
+    def std(self, axis=None, keepdims=False):
+        return dt.std(self, axis=axis, keepdims=keepdims)
 
-    def sum(self, axis=None):
-        return dt.sum(self, axis=axis)
+    def sum(self, axis=None, keepdims=False):
+        return dt.sum(self, axis=axis, keepdims=keepdims)
 
     def transpose(self, axes=None):
         return dt.transpose(self, axes=axes)
 
-    def var(self, axis=None):
-        return dt.var(self, axis=axis)
+    def var(self, axis=None, keepdims=False):
+        return dt.var(self, axis=axis, keepdims=keepdims)
 
 
 class Constant(TensorBase):

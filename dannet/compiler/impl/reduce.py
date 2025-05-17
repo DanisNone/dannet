@@ -128,6 +128,32 @@ def max(device, node, input_buffers, output_buffer):
     )
 
 
+@register_impl(dt.reduce._Any)
+def any(device, node, input_buffers, output_buffer):
+    return reduce(
+        device,
+        node,
+        input_buffers,
+        output_buffer,
+        'false',
+        'acc || (bool)x',
+        'res',
+    )
+
+
+@register_impl(dt.reduce._All)
+def all(device, node, input_buffers, output_buffer):
+    return reduce(
+        device,
+        node,
+        input_buffers,
+        output_buffer,
+        'true',
+        'acc && (bool)x',
+        'res',
+    )
+
+
 @register_impl(dt.nnet.activations._LogSumExp)
 def logsumexp(device, node, input_buffers, output_buffer):
     return reduce(

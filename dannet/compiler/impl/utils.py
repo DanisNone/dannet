@@ -83,6 +83,5 @@ def build_kernel(device: dt.Device, name: str, headers: list[str] = []):
 def default_strides(obj):
     if hasattr(obj, 'shape'):
         obj = obj.shape
-    
     obj = dt.utils.normalize_shape(obj)
     return [math.prod(obj[i + 1:]) for i in range(len(obj))]

@@ -136,8 +136,9 @@ class function:
             return tree.unflatten_as(output, output_flatten)
 
         flatten_input, placeholders = self._create_placeholders(
-            flatten_input, idx)
-        
+            flatten_input, idx
+        )
+
         args_t: tuple
         kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(

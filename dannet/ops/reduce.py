@@ -93,6 +93,22 @@ class _Max(_Reduce):
         return [dt.broadcast_to(grad, self.x.shape) * mask]
 
 
+class _Any(_Reduce):
+    def result_type(self, dtype):
+        return dt.dtype.bool_dtype
+
+    def compute_gradients(self, grad):
+        return [dt.zeros_like(self.x)]
+
+
+class _All(_Reduce):
+    def result_type(self, dtype):
+        return dt.dtype.bool_dtype
+
+    def compute_gradients(self, grad):
+        return [dt.zeros_like(self.x)]
+
+
 class _ArgReduce(dt.core.TensorBase):
     def __init__(self, x, axis=None, keepdims=False):
         self.x = dt.convert_to_tensor(x)
@@ -185,8 +201,12 @@ def std(x: dt.typing.TensorLike, axis=None, keepdims=False):
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)
 prod = _make_reduce('prod', _Prod)
+
 min = _make_reduce('min', _Min)
 max = _make_reduce('max', _Max)
+
+any = _make_reduce('any', _Any)
+all = _make_reduce('all', _All)
 
 argmin = _make_arg_reduce('argmin', _ArgMin)
 argmax = _make_arg_reduce('argmax', _ArgMax)
@@ -199,6 +219,8 @@ __all__ = [
     'prod',
     'min',
     'max',
+    'any',
+    'all',
 
     'argmin',
     'argmax'
