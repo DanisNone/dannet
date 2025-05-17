@@ -335,8 +335,44 @@ def _make_unary(name: str, class_: type[_ElementWiseUnary]):
     return inner
 
 
-def _make_binary(name: str, class_: type[_ElementWiseBinary]):
+def _make_binary(
+    name: str,
+    class_: type[_ElementWiseBinary],
+    x_neutral: bool | int | float | None = None,
+    y_neutral: bool | int | float | None = None,
+):
+    assert (
+        isinstance(x_neutral, (bool, int, float))
+        or x_neutral is None
+    )
+
+    assert (
+        isinstance(y_neutral, (bool, int, float))
+        or y_neutral is None
+    )
+
     def inner(x: dt.typing.TensorLike, y: dt.typing.TensorLike):
+        x = dt.convert_to_tensor(x)
+        y = dt.convert_to_tensor(y)
+        if (
+            x_neutral is not None and
+            dt.core._is_constant(x)
+        ):
+            all_eq = dt.equal(x, x_neutral)
+            all_eq = dt.all(all_eq)
+            if all_eq:
+                return y
+
+        if (
+            y_neutral is not None and
+            dt.core._is_constant(y)
+        ):
+            all_eq = dt.equal(y, y_neutral)
+            all_eq = dt.all(all_eq)
+            all_eq = dt.eval(all_eq)
+            if all_eq:
+                return x
+
         z = class_(x, y)
         return dt.core._node_prepare(z)
     inner.__name__ = name
@@ -470,11 +506,11 @@ sinh = _make_unary('sinh', _Sinh)
 cosh = _make_unary('cosh', _Cosh)
 tanh = _make_unary('tanh', _Tanh)
 
-add = _make_binary('add', _Add)
-subtract = _make_binary('subtract', _Subtract)
-multiply = _make_binary('multiply', _Multiply)
-divide = _make_binary('divide', _Divide)
-power = _make_binary('power', _Power)
+add = _make_binary('add', _Add, 0, 0)  # x + 0 = 0 + x = 1
+subtract = _make_binary('subtract', _Subtract, y_neutral=0)  # x - 0 = x
+multiply = _make_binary('multiply', _Multiply, 1, 1)  # 1 * x = x * 1 = x
+divide = _make_binary('divide', _Divide, y_neutral=1)  # x / 1 = x
+power = _make_binary('power', _Power, y_neutral=1)  # x^1 = x
 minimum = _make_binary('minimum', _Minimum)
 maximum = _make_binary('maximum', _Maximum)
 
