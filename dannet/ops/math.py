@@ -356,6 +356,7 @@ def _make_binary(
         y = dt.convert_to_tensor(y)
         if (
             x_neutral is not None and
+            not dt.is_eager() and
             dt.core._is_constant(x)
         ):
             all_eq = dt.equal(x, x_neutral)
@@ -365,6 +366,7 @@ def _make_binary(
 
         if (
             y_neutral is not None and
+            not dt.is_eager() and
             dt.core._is_constant(y)
         ):
             all_eq = dt.equal(y, y_neutral)
