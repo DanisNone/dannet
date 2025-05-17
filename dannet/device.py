@@ -54,7 +54,8 @@ class Device:
 
         self.context: cl.Context = cl.Context(devices=[self.device])
         self.queue: cl.CommandQueue = cl.CommandQueue(
-            self.context, self.device)
+            self.context, self.device
+        )
 
         self.max_work_group_size: int = self.device.max_work_group_size
         self.allocated_buffers: set[DeviceBuffer] = set()

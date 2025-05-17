@@ -67,8 +67,11 @@ class function:
         flatten_input, placeholders = self._create_placeholders(
             flatten_input, idx)
 
+        args_t: tuple
+        kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(
-            (args, kwargs), flatten_input)  # type: ignore
+            (args, kwargs), flatten_input
+        )  # type: ignore
 
         function._run_instance = self
         output = self._func(*args_t, **kwargs_t)
@@ -142,7 +145,8 @@ class function:
         args_t: tuple
         kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(
-            (args, kwargs), flatten_input)  # type: ignore
+            (args, kwargs), flatten_input
+        )  # type: ignore
 
         function._run_instance = self
         output = self._func(*args_t, **kwargs_t)
@@ -158,7 +162,8 @@ class function:
                 output_indexes.append(i)
 
         compiled = dt.compiler.compile(
-            placeholders, outputs, self._nodes, is_eager_mode=False)
+            placeholders, outputs, self._nodes, is_eager_mode=False
+        )
         self._nodes = []
 
         output_template: list[Any] = []
