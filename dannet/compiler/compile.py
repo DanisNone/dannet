@@ -98,21 +98,31 @@ class compile:
             if isinstance(node, dt.core.Update):
                 update_dependencies[node._variable].add(node)
 
+        in_degree = {node: len(dependencies[node]) for node in self._nodes}
         node_indices: dict[TensorBase, int] = {}
         nodes: list[TensorBase] = []
-        not_visited: set[TensorBase] = set(self._nodes)
-        while not_visited:
-            visited = set()
-            for node in not_visited:
-                if len(dependencies[node] & not_visited) == 0:
-                    visited.add(node)
 
-            not_visited -= visited
+        ready = [node for node in self._nodes if in_degree[node] == 0]
 
-            visited_sorted = sorted(visited, key=sort_key)
-            for i, node in enumerate(visited_sorted, len(nodes)):
+        while ready:
+            ready.sort(key=sort_key)
+
+            for node in ready:
+                node_indices[node] = len(nodes)
                 nodes.append(node)
-                node_indices[node] = i
+
+                for other in self._nodes:
+                    if node in dependencies[other]:
+                        in_degree[other] -= 1
+                        dependencies[other].discard(node)
+
+            ready = [
+                node for node in self._nodes
+                if (
+                    in_degree[node] == 0 and
+                    node not in node_indices
+                )
+            ]
 
         self._nodes = nodes
 
@@ -191,9 +201,9 @@ class compile:
         allocated_buffers: list[DeviceBuffer],
         nbytes: int
     ) -> tuple[DeviceBuffer, bool]:
-        for device_buffer in allocated_buffers:
-            if device_buffer.nbytes == nbytes:
-                return (device_buffer, True)
+        for buffer in allocated_buffers:
+            if buffer.nbytes == nbytes:
+                return (buffer, True)
         buffer = self.device.allocate_buffer(mem_flags.READ_WRITE, nbytes)
         return (buffer, False)
 
