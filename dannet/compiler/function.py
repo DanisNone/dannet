@@ -87,12 +87,15 @@ class function:
         inputs: list[dt.core.Constant] = []
         idx: list[int] = []
         for i, obj in enumerate(flatten_input):
-            if isinstance(obj, dt.core.Constant):
-                inputs.append(obj)
+            if not isinstance(obj, dt.core.TensorBase):
+                continue
+            if dt.core._is_constant(obj):
+                inputs.append(dt.eval(obj))
                 idx.append(i)
-            elif isinstance(obj, dt.core.TensorBase):
+            else:
                 raise NotImplementedError(
-                    'TensorBase inputs not supported yet')
+                    'TensorBase inputs not supported yet'
+                )
 
         return flatten_input, input_spec, inputs, idx
 
@@ -134,6 +137,9 @@ class function:
 
         flatten_input, placeholders = self._create_placeholders(
             flatten_input, idx)
+        
+        args_t: tuple
+        kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(
             (args, kwargs), flatten_input)  # type: ignore
 

@@ -48,8 +48,12 @@ class TensorBase(abc.ABC):
     def compute_gradients(self, grad: TensorBase) -> Sequence[TensorBase]:
         pass
 
+    @abc.abstractmethod
+    def get_config(self) -> dict[str, Any]:
+        pass
+
     def numpy(self) -> np.ndarray:
-        if is_constant(self):
+        if _is_constant(self):
             return dt.eval(self)._value.copy()
         raise ValueError('Only constant tensor may be converted to numpy')
 
@@ -61,10 +65,6 @@ class TensorBase(abc.ABC):
         if dtype is not None:
             res = res.astype(dtype)
         return res
-
-    @abc.abstractmethod
-    def get_config(self) -> dict[str, Any]:
-        pass
 
     def __eq__(self, other):
         if self is other:
@@ -171,11 +171,13 @@ class TensorBase(abc.ABC):
         return f'<{name} shape={shape} dtype={dtype}>'
 
     def __bool__(self):
-        if not dt.is_eager():
-            raise NotImplementedError(
-                'Boolean evaluation is only supported in eager mode.')
         if self.shape != ():
             raise ValueError('Only scalar tensors can be used as a boolean.')
+
+        if not _is_constant(self) and not dt.is_eager():
+            raise NotImplementedError(
+                'Boolean evaluation is only supported in eager mode.'
+            )
         return bool(dt.eval(self)._value)
 
     def argmax(self, axis=None):
@@ -421,20 +423,18 @@ class Update(TensorBase):
         return {}
 
 
-def is_constant(node: TensorBase) -> bool:
+def _is_constant(node: TensorBase) -> bool:
+    assert isinstance(node, TensorBase)
     if isinstance(node, Constant):
         return True
     inputs = node.inputs()
     if inputs:
-        return all(is_constant(inp) for inp in inputs)
+        return all(_is_constant(inp) for inp in inputs)
     return False
 
 
 def _node_prepare(node: TensorBase):
-    if dt.is_eager():
-        return dt.eval(node)
-    # not evaluate broadcast_to, reshape, ...
-    if node._buffer.parent == node and is_constant(node):
+    if dt.is_eager() or _is_constant(node):
         return dt.eval(node)
     dt.function._add_node(node)
     return node

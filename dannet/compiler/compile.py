@@ -13,7 +13,7 @@ from dannet.device import DeviceBuffer, mem_flags
 from dannet.core import TensorBase
 
 
-class NotSupportDtypeError(BaseException):
+class NotSupportDtypeError(Exception):
     pass
 
 
@@ -21,12 +21,13 @@ class compile:
     _compile_uid: int = 0
     _log_dir_path: pathlib.Path | None = None
 
-    def __init__(self,
-                 inputs: list[dt.core.Placeholder],
-                 outputs: list[TensorBase],
-                 nodes: list[TensorBase],
-                 is_eager_mode: bool
-                 ):
+    def __init__(
+        self,
+        inputs: list[dt.core.Placeholder],
+        outputs: list[TensorBase],
+        nodes: list[TensorBase],
+        is_eager_mode: bool
+    ):
         self.device = dt.current_device()
 
         if not all(isinstance(inp, dt.core.Placeholder) for inp in inputs):
@@ -82,6 +83,9 @@ class compile:
         self._nodes = [node for node in self._nodes if node in nodes]
 
     def _sort_nodes(self):
+        def sort_key(node):
+            return max([node_indices[inp] for inp in node.inputs()], default=0)
+
         dependencies: dict[TensorBase, set[TensorBase]] = {}
         update_dependencies: dict[TensorBase, set[TensorBase]] = {}
 
@@ -105,9 +109,7 @@ class compile:
 
             not_visited -= visited
 
-            def key(node): return max([node_indices[inp]
-                                       for inp in node.inputs()], default=0)
-            visited_sorted = sorted(visited, key=key)
+            visited_sorted = sorted(visited, key=sort_key)
             for i, node in enumerate(visited_sorted, len(nodes)):
                 nodes.append(node)
                 node_indices[node] = i
@@ -149,7 +151,8 @@ class compile:
         with open(file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([
-                'node_id', 'op_type', 'category', 'shape', 'dtype',
+                'node_id', 'op_type', 'category',
+                'shape', 'dtype', 'strides',
                 'inputs', 'buffer_id', 'buffer_bytes', 'last_used',
             ])
 
@@ -168,6 +171,7 @@ class compile:
 
                 shape = node.shape
                 dtype = node.dtype
+                strides = node.strides
 
                 input_ids = [self._nodes.index(inp) for inp in node.inputs()]
 
@@ -177,7 +181,8 @@ class compile:
                 last_idx = last_usage[buf]
 
                 writer.writerow([
-                    idx, op_type, category, shape, dtype,
+                    idx, op_type, category,
+                    shape, dtype, strides,
                     input_ids, buf_id, buf_bytes, last_idx
                 ])
 
@@ -279,7 +284,7 @@ class compile:
             for out in self._outputs:
                 res = np.empty(out.shape, dtype=out.dtype)
                 buffer = self._buffers[out._buffer]
-                self.device.enqueue_copy(res, buffer)
+                self.device.enqueue_copy(res, buffer, is_blocking=True)
                 result.append(dt.constant(res))
             self.device.queue.finish()
 
