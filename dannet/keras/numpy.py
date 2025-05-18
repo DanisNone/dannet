@@ -86,11 +86,15 @@ def abs(x):
 
 
 def all(x, axis=None, keepdims=False):
-    raise NotImplementedError('all')
+    x = convert_to_tensor(x)
+
+    return dt.all(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
-    raise NotImplementedError('any')
+    x = convert_to_tensor(x)
+
+    return dt.any(x, axis=axis, keepdims=keepdims)
 
 
 def amax(x, axis=None, keepdims=False):
@@ -429,7 +433,9 @@ def logical_and(x1, x2):
 
 
 def logical_not(x):
-    raise NotImplementedError('logical_not')
+    x = convert_to_tensor(x)
+
+    return dt.logical_not(x)
 
 
 def logical_or(x1, x2):
