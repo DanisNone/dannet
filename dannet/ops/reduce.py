@@ -27,9 +27,7 @@ class _Reduce(dt.core.TensorBase):
         self._axis = tuple(axis)
         self._keepdims = bool(keepdims)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     @abc.abstractmethod
     def result_type(self, dtype: str) -> str:
@@ -139,9 +137,8 @@ class _ArgReduce(dt.core.TensorBase):
             self._shape = tuple(output_shape)
 
         self._dtype = dt.dtype.uint_dtype
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x]

@@ -11,7 +11,7 @@ from .utils import (
 
 @register_impl(dt.basic._Copy)
 def copy(device, node: dt.basic._Copy, input_buffers, output_buffer):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     (A,) = input_buffers
     B = output_buffer
@@ -33,7 +33,7 @@ def copy(device, node: dt.basic._Copy, input_buffers, output_buffer):
 
 @register_impl(dt.basic._Cast)
 def cast(device, node: dt.basic._Cast, input_buffers, output_buffer):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     (A,) = input_buffers
     B = output_buffer
@@ -56,7 +56,7 @@ def cast(device, node: dt.basic._Cast, input_buffers, output_buffer):
 # TODO: implement smart reshape
 @register_impl(dt.basic._Reshape)
 def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
-    assert node._is_default_strides()
+    assert node._is_contiguous
     (A,) = input_buffers
     B = output_buffer
 
@@ -81,7 +81,7 @@ def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
 
 @register_impl(dt.core.Update)
 def update(device, node: dt.core.Update, input_buffers, output_buffer):
-    assert node._variable._is_default_strides()
+    assert node._variable._is_contiguous
     var, value = input_buffers
     assert var is output_buffer
 

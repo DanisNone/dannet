@@ -26,7 +26,7 @@ dtypeB operation(dtypeA x)
 }}
 '''
     )
-    if node.x._is_default_strides():
+    if node.x._is_contiguous:
         headers.append(generate_mode('full'))
     else:
         headers.append(generate_mode('strided'))

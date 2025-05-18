@@ -76,6 +76,7 @@ def normalize_axis_tuple(
     for a in axis:
         if a < 0 or a >= ndim:
             raise ValueError(
-                f"axis {axis} is out of bounds for tensor of dimension {ndim}")
+                f'axis {axis} is out of bounds for tensor of dimension {ndim}'
+            )
 
     return tuple(axis)

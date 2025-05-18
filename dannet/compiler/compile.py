@@ -42,7 +42,7 @@ class compile:
         self._inputs = inputs
         self._outputs = outputs
         for i in range(len(self._outputs)):
-            if not self._outputs[i]._is_default_strides():
+            if not self._outputs[i]._is_contiguous:
                 self._outputs[i] = dt.basic._Copy(self._outputs[i])
                 nodes.append(self._outputs[i])
 

@@ -15,7 +15,7 @@ def binary(
     op: str,
     headers: list[str] | None = None
 ):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     A, B = input_buffers
     C = output_buffer
@@ -31,7 +31,7 @@ dtypeC operation(dtypeA x, dtypeB y)
 '''
     )
 
-    if node.x._is_default_strides() and node.y._is_default_strides():
+    if node.x._is_contiguous and node.y._is_contiguous:
         headers.append(generate_mode('full'))
     else:
         headers.append(generate_mode('strided'))

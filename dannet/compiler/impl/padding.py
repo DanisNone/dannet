@@ -19,7 +19,7 @@ def matmul(
     A, = input_buffers
     B = output_buffer
 
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     headers = generate_nodes_info(
         A=node.x,

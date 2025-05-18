@@ -15,9 +15,7 @@ class _ElementWiseUnary(_ElementWise):
         self._shape = self.x._shape
         self._dtype = self.result_dtype(self.x._dtype)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     @abc.abstractmethod
     def result_dtype(self, dtype: str) -> str:
@@ -133,9 +131,7 @@ class _ElementWiseBinary(_ElementWise):
 
         self._dtype = self.result_dtype(self.x._dtype, self.y._dtype)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     @abc.abstractmethod
     def result_dtype(self, dtype1: str, dtype2: str) -> str:
@@ -232,9 +228,7 @@ class _ElementWiseTernary(_ElementWise):
         self._dtype = self.result_dtype(
             self.x._dtype, self.y._dtype, self.z._dtype)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     @abc.abstractmethod
     def result_dtype(self, dtype1: str, dtype2: str, dtype3: str) -> str:
@@ -291,9 +285,7 @@ class _Matmul(dt.core.TensorBase):
 
         self._dtype = dt.dtype.max_dtype(self.x.dtype, self.y.dtype, 'uint32')
 
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x, self.y]

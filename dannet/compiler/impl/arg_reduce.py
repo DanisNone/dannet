@@ -47,7 +47,7 @@ def arg_reduce(
     output_buffer,
     condition: str,
 ):
-    assert node._is_default_strides()
+    assert node._is_contiguous
     (A,) = input_buffers
     B = output_buffer
 

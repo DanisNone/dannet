@@ -10,7 +10,7 @@ from .utils import (
 
 @register_impl(dt.nnet.convolve._ConvND)
 def conv(device, node: dt.nnet.convolve._ConvND, input_buffers, output_buffer):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     A, B = input_buffers
     C = output_buffer
@@ -33,7 +33,7 @@ def depthwise_conv(
     input_buffers,
     output_buffer
 ):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     A, B = input_buffers
     C = output_buffer

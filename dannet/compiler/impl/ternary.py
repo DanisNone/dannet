@@ -15,7 +15,7 @@ def ternary(
     output_buffer,
     op: str
 ):
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     A, B, C = input_buffers
     D = output_buffer

@@ -18,7 +18,7 @@ def matmul(
 ):
     A, B = input_buffers
     C = output_buffer
-    assert node._is_default_strides()
+    assert node._is_contiguous
 
     shapeA, shapeB = node.x._shape, node.y._shape
     shapeC = node._shape

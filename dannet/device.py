@@ -4,7 +4,7 @@ from __future__ import annotations
 import enum
 import os
 from typing import overload
-import weakref
+from weakref import WeakSet
 import numpy as np
 import pyopencl as cl
 
@@ -58,7 +58,8 @@ class Device:
         )
 
         self.max_work_group_size: int = self.device.max_work_group_size
-        self.allocated_buffers: weakref.WeakSet[DeviceBuffer] = weakref.WeakSet()
+        self.allocated_buffers: WeakSet[DeviceBuffer] = WeakSet()
+
         self.memory_usage: int = 0
         self._initialized: bool = True
 

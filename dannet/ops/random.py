@@ -27,9 +27,7 @@ class _RandomInt(dt.core.TensorBase):
         self._shape = dt.utils.normalize_shape(shape)
         self._dtype = 'uint64'
 
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
+        self._init_default_buffer()
 
         if rng is None:
             rng = default_rng
@@ -63,9 +61,7 @@ class _RandomFloat(dt.core.TensorBase):
         self._shape = dt.utils.normalize_shape(shape)
         self._dtype = dt.dtype.normalize_dtype(dtype)
 
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
+        self._init_default_buffer()
 
         if not dt.dtype.is_float_dtype(self.dtype) or self.dtype == 'float16':
             raise TypeError(f'RandomFloat not support {self.dtype}')

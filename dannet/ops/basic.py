@@ -3,6 +3,8 @@ import math
 import numpy as np
 import dannet as dt
 
+py_slice = slice
+
 
 class _BroadcastTo(dt.core.TensorBase):
     def __init__(self, x, new_shape):
@@ -30,6 +32,7 @@ class _BroadcastTo(dt.core.TensorBase):
         self._strides = tuple(strides)
         self._buffer = self.x._buffer
         self._buffer_offset = self.x._buffer_offset
+        self._is_contiguous = False
 
     def inputs(self):
         return [self.x]
@@ -48,9 +51,7 @@ class _Cast(dt.core.TensorBase):
         self._shape = self.x._shape
         self._dtype = dt.dtype.normalize_dtype(new_dtype)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x]
@@ -97,14 +98,13 @@ class _Reshape(dt.core.TensorBase):
         self._dtype = self.x.dtype
 
         # TODO: implement smart reshape
-        if self.x._is_default_strides():
+        if self.x._is_contiguous:
             self._strides = self._default_strides()
             self._buffer = self.x._buffer
             self._buffer_offset = self.x._buffer_offset
+            self._is_contiguous = self.x._is_contiguous
         else:
-            self._strides = self._default_strides()
-            self._buffer = dt.core.TensorBuffer(self)
-            self._buffer_offset = 0
+            self._init_default_buffer()
 
     def inputs(self):
         return [self.x]
@@ -133,6 +133,7 @@ class _Transpose(dt.core.TensorBase):
         self._strides = tuple(self.x._strides[a] for a in axes)
         self._buffer = self.x._buffer
         self._buffer_offset = self.x._buffer_offset
+        self._is_contiguous = False
 
         self._axes = tuple(axes)
 
@@ -185,6 +186,7 @@ class _Flip(dt.core.TensorBase):
         self._strides = tuple(new_strides)
         self._buffer = self.x._buffer
         self._buffer_offset = offset
+        self._is_contiguous = False
 
     def inputs(self):
         return [self.x]
@@ -203,9 +205,7 @@ class _Copy(dt.core.TensorBase):
         self._shape = self.x._shape
         self._dtype = self.x._dtype
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x]
@@ -250,10 +250,7 @@ class _Pad(dt.core.TensorBase):
         )
 
         self._dtype = self.x.dtype
-
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x]
@@ -282,7 +279,19 @@ class _Slice(dt.core.TensorBase):
                 f'Too many slice tuples ({len(slices)}) '
                 f'for tensor of ndim {ndim}'
             )
-        slices = list(slices) + [(None, None, None)] * (ndim - len(slices))
+
+        slices = list(slices)
+        for i in range(len(slices)):
+            if hasattr(slices[i], '__index__'):
+                s = int(slices[i])
+                slices[i] = (s, s+1, 1)
+            elif isinstance(slices[i], py_slice):
+                s = slices[i]
+                slices[i] = (s.start, s.stop, s.step)
+
+        self._slices = list(slices) + \
+            [(None, None, None)] * (ndim - len(slices))
+        self._slices = tuple(self._slices)
 
         orig_shape = self.x.shape
         orig_strides = self.x._strides
@@ -290,7 +299,7 @@ class _Slice(dt.core.TensorBase):
         new_strides = []
         offset = self.x._buffer_offset
 
-        for i, (start, stop, step) in enumerate(slices):
+        for i, (start, stop, step) in enumerate(self._slices):
             dim = orig_shape[i]
             stride = orig_strides[i]
 
@@ -336,8 +345,7 @@ class _Slice(dt.core.TensorBase):
         self._strides = tuple(new_strides)
         self._buffer = self.x._buffer
         self._buffer_offset = offset
-
-        self._slices = tuple(slices)
+        self._is_contiguous = False
 
     def inputs(self):
         return [self.x]
@@ -368,9 +376,7 @@ class _Gather(dt.core.TensorBase):
         self._shape = self.indices.shape + self.x.shape[1:]
         self._dtype = self.x.dtype
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.x, self.indices]
@@ -404,9 +410,7 @@ class _OneHot(dt.core.TensorBase):
         self._shape = (*self.indices._shape, depth)
         self._dtype = dt.dtype.normalize_dtype(dtype)
 
-        self._strides = self._default_strides()
-        self._buffer = dt.core.TensorBuffer(self)
-        self._buffer_offset = 0
+        self._init_default_buffer()
 
     def inputs(self):
         return [self.indices]

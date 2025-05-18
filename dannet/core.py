@@ -8,6 +8,24 @@ import numpy as np
 import dannet as dt
 
 
+class TensorMeta(abc.ABCMeta):
+    def __call__(cls, *args, **kwargs):
+        instance = super().__call__(*args, **kwargs)
+
+        required_attrs = [
+            '_buffer', '_buffer_offset',
+            '_strides', '_is_contiguous'
+        ]
+        for attr in required_attrs:
+            if not hasattr(instance, attr):
+                raise AttributeError(
+                    f'Missing required attribute \'{attr}\' '
+                    f'in instance of {cls.__name__}'
+                )
+
+        return instance
+
+
 class TensorBuffer:
     def __init__(self, parent: TensorBase):
         self.nbytes = parent.nbytes
@@ -33,12 +51,13 @@ class TensorBuffer:
         return [inp._buffer for inp in self.parent.inputs()]
 
 
-class TensorBase(abc.ABC):
+class TensorBase(abc.ABC, metaclass=TensorMeta):
     _dtype: str
     _shape: tuple[int, ...]
     _strides: tuple[int, ...]
     _buffer: TensorBuffer
     _buffer_offset: int
+    _is_contiguous: bool
 
     @abc.abstractmethod
     def inputs(self) -> list[TensorBase]:
@@ -119,8 +138,11 @@ class TensorBase(abc.ABC):
             math.prod(self._shape[i+1:]) for i in range(len(self._shape))
         )
 
-    def _is_default_strides(self):
-        return self._strides == self._default_strides()
+    def _init_default_buffer(self):
+        self._buffer = TensorBuffer(self)
+        self._buffer_offset = 0
+        self._strides = self._default_strides()
+        self._is_contiguous = True
 
     def __add__(self, other):
         return dt.add(self, other)
@@ -166,8 +188,8 @@ class TensorBase(abc.ABC):
         name = ''.join(f'_{c.lower()}' if c.isupper() else c for c in name)
         name = name.lstrip('_')
 
-        shape = getattr(self, "_shape", "UNKNOWN")
-        dtype = getattr(self, "_dtype", "UNKNOWN")
+        shape = getattr(self, '_shape', 'UNKNOWN')
+        dtype = getattr(self, '_dtype', 'UNKNOWN')
         return f'<{name} shape={shape} dtype={dtype}>'
 
     def __bool__(self):
@@ -179,6 +201,51 @@ class TensorBase(abc.ABC):
                 'Boolean evaluation is only supported in eager mode.'
             )
         return bool(dt.eval(self)._value)
+
+    def __getitem__(
+        self,
+        key: int | slice | None | tuple[int | slice | None, ...]
+    ) -> TensorBase:
+        if not isinstance(key, tuple):
+            key = (key,)
+
+        for i, k in enumerate(key):
+            if not isinstance(k, (int, slice)) and k is not None:
+                raise TypeError(
+                    f'Invalid index at position {i}: '
+                    f'expected int, slice, or None, got {type(k).__name__}'
+                )
+        n_newaxes = sum(1 for k in key if k is None)
+
+        full_key_len = self.ndim + n_newaxes
+        if len(key) < full_key_len:
+            key += (slice(None),) * (full_key_len - len(key))
+
+        slices: list[slice] = []
+        squeeze_axes: list[int] = []
+        newaxes_positions: list[int] = []
+
+        for i, k in enumerate(key):
+            if k is None:
+                newaxes_positions.append(i)
+            elif isinstance(k, int):
+                slices.append(slice(k, k + 1, 1))
+                squeeze_axes.append(i)
+            elif isinstance(k, slice):
+                slices.append(k)
+
+        result = dt.slice(self, slices)
+
+        for axis in newaxes_positions:
+            result = dt.expand_dims(result, axis=axis)
+
+        if squeeze_axes:
+            result = dt.squeeze(result, axis=squeeze_axes)
+
+        return result
+
+    def __abs__(self):
+        return dt.abs(self)
 
     def any(self, axis=None, keepdims=False):
         return dt.any(self, axis=axis, keepdims=keepdims)
@@ -248,9 +315,7 @@ class Constant(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
-        self._buffer = TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
+        self._init_default_buffer()
 
     def inputs(self):
         return []
@@ -302,10 +367,7 @@ class Variable(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(self._value.dtype)
         self._shape = dt.utils.normalize_shape(self._value.shape)
 
-        self._buffer = TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
-
+        self._init_default_buffer()
         self._used_by: dt.compiler.compile | None = None
 
     def numpy(self):
@@ -371,9 +433,7 @@ class Placeholder(TensorBase):
         self._dtype = dt.dtype.normalize_dtype(dtype)
         self._shape = dt.utils.normalize_shape(shape)
 
-        self._buffer = TensorBuffer(self)
-        self._buffer_offset = 0
-        self._strides = self._default_strides()
+        self._init_default_buffer()
 
     def inputs(self):
         return []
@@ -414,6 +474,7 @@ class Update(TensorBase):
         self._buffer = self._variable._buffer
         self._buffer_offset = self._variable._buffer_offset
         self._strides = self._variable._strides
+        self._is_contiguous = self._value._is_contiguous
 
     def inputs(self):
         return [self._variable, self._value]

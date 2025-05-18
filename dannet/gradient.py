@@ -11,11 +11,11 @@ def gradients(
 
     if not isinstance(loss, dt.core.TensorBase):
         raise TypeError('loss must be TensorBase instances.')
-    
+
     for param in params:
         if not isinstance(param, dt.core.TensorBase):
             raise TypeError('All params must be TensorBase instances.')
-    
+
     gradients: dict[dt.core.TensorBase, dt.core.TensorBase] = {
         loss: dt.ones_like(loss)}
 
