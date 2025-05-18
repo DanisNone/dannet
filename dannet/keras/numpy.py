@@ -166,23 +166,34 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def bitwise_and(x, y):
-    raise NotImplementedError('bitwise_and')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.bitwise_and(x, y)
 
 
 def bitwise_invert(x):
-    raise NotImplementedError('bitwise_invert')
+    x = convert_to_tensor(x)
+    return dt.bitwise_invert(x)
 
 
 def bitwise_not(x):
-    raise NotImplementedError('bitwise_not')
+    x = convert_to_tensor(x)
+    return dt.bitwise_not(x)
 
 
 def bitwise_or(x, y):
-    raise NotImplementedError('bitwise_or')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
-    raise NotImplementedError('bitwise_xor')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.bitwise_xor(x, y)
 
 
 def bitwise_left_shift(x, y):
@@ -411,7 +422,10 @@ def logaddexp(x1, x2):
 
 
 def logical_and(x1, x2):
-    raise NotImplementedError('logical_and')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.logical_and(x1, x2)
 
 
 def logical_not(x):
@@ -419,7 +433,10 @@ def logical_not(x):
 
 
 def logical_or(x1, x2):
-    raise NotImplementedError('logical_or')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.logical_or(x1, x2)
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
@@ -735,7 +752,10 @@ def floor_divide(x1, x2):
 
 
 def logical_xor(x1, x2):
-    raise NotImplementedError('logical_xor')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.logical_xor(x1, x2)
 
 
 def correlate(x1, x2, mode='valid'):

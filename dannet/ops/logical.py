@@ -1,9 +1,19 @@
 import dannet as dt
-from dannet.ops.math import _ElementWiseBinary
-from dannet.ops.math import _make_binary
+from dannet.ops.math import (
+    _ElementWiseUnary, _make_unary,
+    _ElementWiseBinary, _make_binary
+)
 
 
-class _Logical(_ElementWiseBinary):
+class _LogicalUnary(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        return dt.dtype.bool_dtype
+
+    def compute_gradients(self, grad):
+        return [dt.zeros_like(self.x)]
+
+
+class _LogicalBinary(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
         return dt.dtype.bool_dtype
 
@@ -11,27 +21,43 @@ class _Logical(_ElementWiseBinary):
         return [dt.zeros_like(self.x), dt.zeros_like(self.y)]
 
 
-class _Equal(_Logical):
+class _Equal(_LogicalBinary):
     pass
 
 
-class _NotEqual(_Logical):
+class _NotEqual(_LogicalBinary):
     pass
 
 
-class _Greater(_Logical):
+class _Greater(_LogicalBinary):
     pass
 
 
-class _GreaterEqual(_Logical):
+class _GreaterEqual(_LogicalBinary):
     pass
 
 
-class _Less(_Logical):
+class _Less(_LogicalBinary):
     pass
 
 
-class _LessEqual(_Logical):
+class _LessEqual(_LogicalBinary):
+    pass
+
+
+class _LogicalNot(_LogicalUnary):
+    pass
+
+
+class _LogicalOr(_LogicalBinary):
+    pass
+
+
+class _LogicalAnd(_LogicalBinary):
+    pass
+
+
+class _LogicalXor(_LogicalBinary):
     pass
 
 
@@ -43,6 +69,12 @@ less = _make_binary('less', _Less)
 less_equal = _make_binary('less_equal', _LessEqual)
 
 
+logical_not = _make_unary('logical_not', _LogicalNot)
+logical_or = _make_binary('logical_or', _LogicalOr)
+logical_and = _make_binary('logical_and', _LogicalAnd)
+logical_xor = _make_binary('logical_xor', _LogicalXor)
+
+
 __all__ = [
     'equal',
     'not_equal',
@@ -50,4 +82,9 @@ __all__ = [
     'greater_equal',
     'less',
     'less_equal',
+
+    'logical_not',
+    'logical_and',
+    'logical_or',
+    'logical_xor',
 ]

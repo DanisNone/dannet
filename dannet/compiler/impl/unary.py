@@ -168,3 +168,22 @@ def hard_sigmoid(device, node, input_buffers, output_buffer):
         device, node, input_buffers, output_buffer,
         'x < -3 ? 0 : (x > 3? 1 : (dtypeB)x * (1.0 / 6.0) + 0.5)'
     )
+
+
+@register_impl(dt.bitwise._BitwiseNot)
+def bitwise_not(device, node, input_buffers, output_buffer):
+    op = '~x'
+    if dt.dtype.is_bool_dtype(node.x.dtype):
+        op = '!x'
+    return unary(
+        device, node, input_buffers, output_buffer,
+        op
+    )
+
+
+@register_impl(dt.logical._LogicalNot)
+def logical_not(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer,
+        '~(bool)x'
+    )

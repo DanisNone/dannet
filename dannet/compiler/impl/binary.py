@@ -140,3 +140,51 @@ def less(device, node, input_buffers, output_buffer):
 @register_impl(dt.logical._LessEqual)
 def less_equal(device, node, input_buffers, output_buffer):
     return binary(device, node, input_buffers, output_buffer, 'x <= y')
+
+
+@register_impl(dt.bitwise._BitwiseOr)
+def bitwise_or(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(dtypeC)x | (dtypeC)y'
+    )
+
+
+@register_impl(dt.bitwise._BitwiseAnd)
+def bitwise_and(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(dtypeC)x & (dtypeC)y'
+    )
+
+
+@register_impl(dt.bitwise._BitwiseXor)
+def bitwise_xor(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(dtypeC)x ^ (dtypeC)y'
+    )
+
+
+@register_impl(dt.logical._LogicalOr)
+def logical_or(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(bool)x || (bool)y'
+    )
+
+
+@register_impl(dt.logical._LogicalAnd)
+def logical_and(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(bool)x && (bool)y'
+    )
+
+
+@register_impl(dt.logical._LogicalXor)
+def logical_xor(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        '(bool)x != (bool)y'
+    )

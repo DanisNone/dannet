@@ -262,6 +262,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
     def __abs__(self):
         return dt.abs(self)
 
+    def __invert__(self):
+        return dt.bitwise_invert(self)
+
     def any(self, axis=None, keepdims=False):
         return dt.any(self, axis=axis, keepdims=keepdims)
 
