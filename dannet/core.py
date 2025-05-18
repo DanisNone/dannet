@@ -165,6 +165,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
     def __truediv__(self, other):
         return dt.divide(self, other)
 
+    def __floordiv__(self, other):
+        return dt.floor_divide(self, other)
+
     def __radd__(self, other):
         return dt.add(other, self)
 
@@ -176,6 +179,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __rtruediv__(self, other):
         return dt.divide(other, self)
+
+    def __rfloordiv__(self, other):
+        return dt.floor_divide(other, self)
 
     def __neg__(self):
         return dt.negative(self)
@@ -209,13 +215,33 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __bool__(self):
         if self.shape != ():
-            raise ValueError('Only scalar tensors can be used as a boolean.')
+            raise ValueError('Only scalar arrays can be converted to Python scalars.')
 
         if not _is_constant(self) and not dt.is_eager():
             raise NotImplementedError(
                 'Boolean evaluation is only supported in eager mode.'
             )
         return bool(dt.eval(self)._value)
+
+    def __int__(self):
+        if self.shape != ():
+            raise ValueError('Only scalar arrays can be converted to Python scalars.')
+
+        if not _is_constant(self) and not dt.is_eager():
+            raise NotImplementedError(
+                'Integer evaluation is only supported in eager mode.'
+            )
+        return int(dt.eval(self)._value)
+
+    def __float__(self):
+        if self.shape != ():
+            raise ValueError('Only scalar arrays can be converted to Python scalars.')
+
+        if not _is_constant(self) and not dt.is_eager():
+            raise NotImplementedError(
+                'Float evaluation is only supported in eager mode.'
+            )
+        return float(dt.eval(self)._value)
 
     def __getitem__(
         self,

@@ -112,6 +112,33 @@ def maximum(device, node, input_buffers, output_buffer):
     return binary(device, node, input_buffers, output_buffer, 'x < y ? y : x')
 
 
+@register_impl(dt.math._FloorDivide)
+def floor_divide(device, node, input_buffers, output_buffer):
+    if dt.dtype.is_float_dtype(node.dtype):
+        header = """
+dtypeC floor_divide(dtypeA x, dtypeB y)
+{
+    return floor(x / y);
+}
+"""
+    else:
+        header = """
+dtypeC floor_divide(dtypeA x, dtypeB y)
+{
+    dtypeC q = (dtypeC)x / (dtypeC)y;
+    dtypeC r = (dtypeC)x % (dtypeC)y;
+    if ((r != 0) && ((x < 0) != (y < 0))) {
+        q -= 1;
+    }
+    return q;
+}
+"""
+    return binary(
+        device, node, input_buffers, output_buffer,
+        'floor_divide(x, y)', [header]
+    )
+
+
 @register_impl(dt.logical._Equal)
 def equal(device, node, input_buffers, output_buffer):
     return binary(device, node, input_buffers, output_buffer, 'x == y')

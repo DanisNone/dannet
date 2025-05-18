@@ -31,11 +31,16 @@ def itemsize(dtype: dt.typing.DTypeLike) -> int:
 
 def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     dtypes = tuple(normalize_dtype(dtype) for dtype in dtypes)
-    common = set.intersection(*(_reachable_dict[name] for name in dtypes))
+    if len(dtypes) == 0:
+        return bool_dtype
 
-    for dtype in support:
-        if dtype in common:
-            return dtype
+    common = _reachable_dict[dtypes[0]]
+    for dtype in dtypes[1:]:
+        reachable = _reachable_dict[dtype]
+        common = [d for d in common if d in reachable]
+
+    if common:
+        return common[0]
 
     raise TypeError('No common dtype found')
 
@@ -107,15 +112,15 @@ def to_unsigned_dtype(dtype: dt.typing.DTypeLike) -> str:
     }[dtype]
 
 
-def _reachable_from(dtype: str) -> set[str]:
-    reached = {dtype}
+def _reachable_from(dtype: str) -> list[str]:
+    reached = [dtype]
     frontier = {dtype}
     while frontier:
         next_frontier = set()
         for t in frontier:
             for neighbor in graph.get(t, []):
                 if neighbor not in reached:
-                    reached.add(neighbor)
+                    reached.append(neighbor)
                     next_frontier.add(neighbor)
         frontier = next_frontier
     return reached

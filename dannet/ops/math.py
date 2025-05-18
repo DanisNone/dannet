@@ -212,6 +212,14 @@ class _Maximum(_ElementWiseBinary):
         return [grad_x, grad_y]
 
 
+class _FloorDivide(_ElementWiseBinary):
+    def result_dtype(self, dtype1, dtype2):
+        return dt.dtype.max_dtype(dtype1, dtype2)
+
+    def compute_gradients(self, grad):
+        return [dt.zeros_like(self.x), dt.zeros_like(self.y)]
+
+
 class _ElementWiseTernary(_ElementWise):
     def __init__(self, x, y, z):
         self.x = dt.convert_to_tensor(x)
@@ -507,6 +515,7 @@ divide = _make_binary('divide', _Divide, y_neutral=1)  # x / 1 = x
 power = _make_binary('power', _Power, y_neutral=1)  # x^1 = x
 minimum = _make_binary('minimum', _Minimum)
 maximum = _make_binary('maximum', _Maximum)
+floor_divide = _make_binary('floor_divide', _FloorDivide)
 
 where = _make_ternary('where', _Where)
 clip = _make_ternary('clip', _Clip)
@@ -518,6 +527,7 @@ __all__ = [
     'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
     'add', 'subtract', 'multiply', 'divide',
     'power', 'minimum', 'maximum',
+    'floor_divide',
     'where', 'clip',
     'matmul', 'tensordot', 'outer'
 ]
