@@ -34,6 +34,8 @@ def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     if len(dtypes) == 0:
         return bool_dtype
     return np.result_type(*dtypes).name
+
+
 def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.bool_)
 
@@ -52,6 +54,7 @@ def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.floating)
+
 
 def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = np.dtype(normalize_dtype(dtype))

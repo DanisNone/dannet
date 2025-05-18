@@ -215,7 +215,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __bool__(self):
         if self.shape != ():
-            raise ValueError('Only scalar arrays can be converted to Python scalars.')
+            raise ValueError(
+                'Only scalar arrays can be converted to Python scalars.'
+            )
 
         if not _is_constant(self) and not dt.is_eager():
             raise NotImplementedError(
@@ -225,7 +227,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __int__(self):
         if self.shape != ():
-            raise ValueError('Only scalar arrays can be converted to Python scalars.')
+            raise ValueError(
+                'Only scalar arrays can be converted to Python scalars.'
+            )
 
         if not _is_constant(self) and not dt.is_eager():
             raise NotImplementedError(
@@ -235,7 +239,9 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __float__(self):
         if self.shape != ():
-            raise ValueError('Only scalar arrays can be converted to Python scalars.')
+            raise ValueError(
+                'Only scalar arrays can be converted to Python scalars.'
+            )
 
         if not _is_constant(self) and not dt.is_eager():
             raise NotImplementedError(

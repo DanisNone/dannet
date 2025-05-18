@@ -32,7 +32,7 @@ class _ElementWiseUnaryFloat(_ElementWiseUnary):
 
 class _Negative(_ElementWiseUnary):
     def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, 'int8')  # make signed
+        return dtype
 
     def compute_gradients(self, grad):
         return [-grad]

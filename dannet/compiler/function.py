@@ -73,7 +73,7 @@ class function:
             *args, **kwargs)
         flatten_input, placeholders = self._create_placeholders(
             flatten_input, idx)
-        
+
         args_t: tuple
         kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(
@@ -88,7 +88,6 @@ class function:
             raise e
         finally:
             function._run_instance = None
-
 
         return tree.map_structure(_get_output_spec, output)
 
@@ -166,7 +165,7 @@ class function:
         )  # type: ignore
 
         function._run_instance = self
-        
+
         try:
             output = self._func(*args_t, **kwargs_t)
         except Exception as e:
