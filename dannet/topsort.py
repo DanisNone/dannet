@@ -1,12 +1,16 @@
+from typing import Sequence
 import dannet as dt
+
+from dannet.graph_collections import GList
 
 
 def topological_sort(
-    tensors: list[dt.core.TensorBase] | dt.core.TensorBase
+    tensors: Sequence[dt.core.TensorBase] | dt.core.TensorBase
 ) -> list[dt.core.TensorBase]:
-    result = []
+    result = GList()
     if isinstance(tensors, dt.core.TensorBase):
         tensors = [tensors]
+    tensors = list(tensors)
     stack = tensors[::-1].copy()
 
     while stack:
@@ -21,4 +25,4 @@ def topological_sort(
             stack.extend(inputs)
         else:
             result.append(x)
-    return result[::-1]
+    return result[::-1].tolist()

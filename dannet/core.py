@@ -28,24 +28,21 @@ class TensorMeta(abc.ABCMeta):
 
 class TensorBuffer:
     def __init__(self, parent: TensorBase):
-        self.nbytes = parent.nbytes
-        self.parent = parent
-
-        if self.nbytes <= 0:
-            raise ValueError('Buffer size must be greater than 0.')
-
-        if not isinstance(self.parent, TensorBase):
+        if not isinstance(parent, TensorBase):
             raise TypeError('Parent must be an instance of TensorBase.')
 
-    def __eq__(self, other):
+        self.parent = parent
+        self.nbytes = self.parent.nbytes
+
+    def __graph_eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, TensorBuffer):
             return False
-        return self.nbytes == other.nbytes and self.parent == other.parent
+        return self.parent.__graph_eq__(other.parent)
 
-    def __hash__(self):
-        return hash((self.nbytes, self.parent))
+    def __graph_hash__(self):
+        return hash((self.nbytes, self.parent.__graph_hash__()))
 
     def inputs(self) -> list[TensorBuffer]:
         return [inp._buffer for inp in self.parent.inputs()]
@@ -85,24 +82,36 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
             res = res.astype(dtype)
         return res
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         if self is other:
             return True
-
-        if type(self) != type(other):  # noqa: E721
+        if type(self) is not type(other):
             return False
 
-        if self.shape != other.shape or self.dtype != other.dtype:
+        if self.shape != other.shape:
             return False
-        if self.get_config() != other.get_config():
+        if self.dtype != other.dtype:
             return False
-        return self.inputs() == other.inputs()
 
-    def __hash__(self):
+        inps1 = self.inputs()
+        inps2 = other.inputs()
+        if len(inps1) != len(inps2):
+            return False
+
+        return all(
+            inp1.__graph_eq__(inp2)
+            for inp1, inp2 in zip(inps1, inps2)
+        )
+
+    def __graph_hash__(self):
         if not hasattr(self, '_hash'):
             config = self.get_config()
             config = tuple(config.items())
-            self._hash = hash((config, self.shape, self.dtype, *self.inputs()))
+
+            hash_obj = [config, self.shape, self.dtype]
+            for inp in self.inputs():
+                hash_obj.append(inp.__graph_hash__())
+            self._hash = hash(tuple(hash_obj))
         return self._hash
 
     @property
@@ -170,6 +179,12 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __neg__(self):
         return dt.negative(self)
+
+    def __eq__(self, other):  # type: ignore[override]
+        return dt.equal(self, other)
+
+    def __ne__(self, other):  # type: ignore[override]
+        return dt.not_equal(self, other)
 
     def __lt__(self, other):
         return dt.less(self, other)
@@ -323,7 +338,7 @@ class Constant(TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         if not isinstance(other, Constant):
             return False
         if self._shape != other._shape:
@@ -334,7 +349,7 @@ class Constant(TensorBase):
             return False
         return True
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return hash((Constant, self._shape, self._dtype))
 
     def __repr__(self):
@@ -399,10 +414,10 @@ class Variable(TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         return self is other
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return id(self)
 
     def __array__(self, dtype=None):
@@ -441,10 +456,10 @@ class Placeholder(TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         return self is other
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return id(self)
 
     def get_config(self):
@@ -482,10 +497,10 @@ class Update(TensorBase):
     def compute_gradients(self, grad):
         raise TypeError('Update operation not have gradient')
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         return self is other
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return id(self)
 
     def get_config(self):

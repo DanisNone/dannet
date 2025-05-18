@@ -1,7 +1,6 @@
 import os
 import pathlib
 from typing import Callable, Sequence
-from collections import OrderedDict
 
 import pyopencl as cl
 import numpy as np
@@ -11,6 +10,9 @@ from dannet.topsort import topological_sort
 from dannet.device import DeviceBuffer, mem_flags
 
 from dannet.core import TensorBase
+from dannet.graph_collections import (
+    GList, GDict, GSet
+)
 
 
 class NotSupportDtypeError(Exception):
@@ -25,7 +27,7 @@ class compile:
         self,
         inputs: list[dt.core.Placeholder],
         outputs: list[TensorBase],
-        nodes: list[TensorBase],
+        nodes: list[TensorBase] | GList[TensorBase],
         is_eager_mode: bool
     ):
         self.device = dt.current_device()
@@ -39,24 +41,24 @@ class compile:
         if not all(isinstance(node, TensorBase) for node in nodes):
             raise TypeError('All nodes must be TensorBase instances.')
 
-        self._inputs = inputs
-        self._outputs = outputs
+        self._inputs = GList(inputs)
+        self._outputs = GList(outputs)
         for i in range(len(self._outputs)):
             if not self._outputs[i]._is_contiguous:
                 self._outputs[i] = dt.basic._Copy(self._outputs[i])
                 nodes.append(self._outputs[i])
 
-        self._nodes = nodes
-        self._constant_nodes: list[dt.core.Constant] = []
-        self._variable_nodes: list[dt.core.Variable] = []
-        self._compute_nodes: list[TensorBase] = []
+        self._nodes = GList(nodes)
+        self._constant_nodes: GList[dt.core.Constant] = GList()
+        self._variable_nodes: GList[dt.core.Variable] = GList()
+        self._compute_nodes: GList[TensorBase] = GList()
 
-        self._buffers: dict[dt.core.TensorBuffer, DeviceBuffer] = {}
+        self._buffers: GDict[dt.core.TensorBuffer, DeviceBuffer] = GDict()
         self._constants_loaded: bool = False
-        self._kernels: OrderedDict[
+        self._kernels: list[tuple[
             TensorBase,
             Callable[[], cl.Event | None]
-        ] = OrderedDict()
+        ]] = []
 
         self._is_eager_mode = bool(is_eager_mode)
         if not self._is_eager_mode:
@@ -79,18 +81,18 @@ class compile:
             if isinstance(node, dt.core.Update):
                 target_tensors.append(node)
 
-        nodes = topological_sort(target_tensors)
+        nodes = GList(topological_sort(target_tensors))
         self._nodes = [node for node in self._nodes if node in nodes]
 
     def _sort_nodes(self):
         def sort_key(node):
             return max([node_indices[inp] for inp in node.inputs()], default=0)
 
-        dependencies: dict[TensorBase, set[TensorBase]] = {}
-        update_dependencies: dict[TensorBase, set[TensorBase]] = {}
+        dependencies: GDict[TensorBase, GSet[TensorBase]] = GDict()
+        update_dependencies: GDict[TensorBase, GSet[TensorBase]] = GDict()
 
         for node in self._nodes:
-            dependencies[node] = set(node.inputs())
+            dependencies[node] = GSet(node.inputs())
             for inp in node.inputs():
                 dependencies[node] |= update_dependencies[inp]
             update_dependencies[node] = dependencies[node].copy()
@@ -98,11 +100,14 @@ class compile:
             if isinstance(node, dt.core.Update):
                 update_dependencies[node._variable].add(node)
 
-        in_degree = {node: len(dependencies[node]) for node in self._nodes}
-        node_indices: dict[TensorBase, int] = {}
-        nodes: list[TensorBase] = []
+        in_degree = GDict(
+            (node, len(dependencies[node]))
+            for node in self._nodes
+        )
+        node_indices: GDict[TensorBase, int] = GDict()
+        nodes: GList[TensorBase] = GList()
 
-        ready = [node for node in self._nodes if in_degree[node] == 0]
+        ready = GList(node for node in self._nodes if in_degree[node] == 0)
 
         while ready:
             ready.sort(key=sort_key)
@@ -116,13 +121,13 @@ class compile:
                         in_degree[other] -= 1
                         dependencies[other].discard(node)
 
-            ready = [
+            ready = GList(
                 node for node in self._nodes
                 if (
                     in_degree[node] == 0 and
                     node not in node_indices
                 )
-            ]
+            )
 
         self._nodes = nodes
 
@@ -150,13 +155,13 @@ class compile:
             return
         file_path = self._log_dir_path / f'{compile._compile_uid}.csv'
 
-        last_usage: dict[dt.core.TensorBuffer, int] = {}
+        last_usage: GDict[dt.core.TensorBuffer, int] = GDict()
         for idx, node in enumerate(self._nodes):
             buf = node._buffer
             last_usage[buf] = idx
 
-        unique_bufs = list({node._buffer for node in self._nodes})
-        buf_id_map = {buf: i for i, buf in enumerate(unique_bufs)}
+        unique_bufs = list(GSet(node._buffer for node in self._nodes))
+        buf_id_map = GDict((buf, i) for i, buf in enumerate(unique_bufs))
 
         with open(file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
@@ -213,7 +218,7 @@ class compile:
             if node._buffer not in need_buffers:
                 need_buffers.append(node._buffer)
 
-        buffer_usage: dict[dt.core.TensorBuffer, int] = {}
+        buffer_usage: GDict[dt.core.TensorBuffer, int] = GDict()
         for buffer in need_buffers:
             if buffer not in buffer_usage:
                 buffer_usage[buffer] = 0
@@ -322,7 +327,7 @@ class compile:
                 kernel = dt.compiler.compile_node(
                     self.device, node, input_buffers, output_buffer)
                 if kernel is not None:
-                    self._kernels[node] = kernel
+                    self._kernels.append((node, kernel))
 
     def __call__(
         self,
@@ -332,10 +337,10 @@ class compile:
             self._load_variables()
             self._load_inputs(data)
 
-            events: dict[TensorBase, cl.Event] = {}
+            events: GDict[TensorBase, cl.Event] = GDict()
             with dt.timestat.record('execute_kernels'):
                 if dt.timestat.enabled():
-                    for node, kernel in self._kernels.items():
+                    for node, kernel in self._kernels:
                         s = str([(inp.shape, inp.dtype)
                                 for inp in node.inputs()])
                         s = f'{node}: {s}'
@@ -344,7 +349,7 @@ class compile:
                             self.device.queue.finish()
 
                 else:
-                    for node, kernel in self._kernels.items():
+                    for node, kernel in self._kernels:
                         for inp in node.inputs():
                             if inp in events:
                                 events.pop(inp).wait()

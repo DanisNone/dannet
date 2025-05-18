@@ -7,6 +7,8 @@ import numpy as np
 import dannet as dt
 import dannet.topsort as topsort
 
+from dannet.graph_collections import GList
+
 
 class InputTensor:
     def __init__(self, shape, dtype):
@@ -57,7 +59,7 @@ class function:
 
     def __init__(self, func):
         self._func = func
-        self._nodes: list[dt.core.TensorBase] = []
+        self._nodes: GList[dt.core.TensorBase] = GList()
 
         self._cached: dict[Any, tuple] = {}
 
@@ -66,6 +68,11 @@ class function:
             *args, **kwargs)
         flatten_input, placeholders = self._create_placeholders(
             flatten_input, idx)
+
+        if self._nodes:
+            raise RuntimeError(
+                'Internal node buffer not empty before graph build'
+            )
 
         args_t: tuple
         kwargs_t: dict
@@ -76,16 +83,19 @@ class function:
         function._run_instance = self
         output = self._func(*args_t, **kwargs_t)
         function._run_instance = None
-        self._nodes = []
+
+        self._nodes = GList()
 
         return tree.map_structure(_get_output_spec, output)
 
     def _prepare_inputs(self, *args, **kwargs):
         flatten_input: list = tree.flatten((args, kwargs))
         flatten_input = tree.map_structure(
-            _to_dannet_tensor, flatten_input)  # type: ignore
+            _to_dannet_tensor, flatten_input
+        )  # type: ignore
         input_spec = tuple(tree.map_structure(
-            _get_input_spec, flatten_input))  # type: ignore
+            _get_input_spec, flatten_input
+        ))  # type: ignore
 
         inputs: list[dt.core.Constant] = []
         idx: list[int] = []
@@ -107,7 +117,8 @@ class function:
         placeholders = []
         for i in idx:
             placeholder = dt.core.Placeholder(
-                flatten_input[i].shape, flatten_input[i].dtype)
+                flatten_input[i].shape, flatten_input[i].dtype
+            )
             flatten_input[i] = placeholder
             placeholders.append(placeholder)
         return flatten_input, placeholders
@@ -115,11 +126,13 @@ class function:
     def __call__(self, *args, **kwargs):
         if function._run_instance is not None:
             raise NotImplementedError(
-                'Nested function calls are not supported')
+                'Nested function calls are not supported'
+            )
 
         if self._nodes:
             raise RuntimeError(
-                'Internal node buffer not empty before graph build')
+                'Internal node buffer not empty before graph build'
+            )
 
         flatten_input, input_spec, inputs, idx = self._prepare_inputs(
             *args, **kwargs)
@@ -164,7 +177,7 @@ class function:
         compiled = dt.compiler.compile(
             placeholders, outputs, self._nodes, is_eager_mode=False
         )
-        self._nodes = []
+        self._nodes = GList()
 
         output_template: list[Any] = []
         for val in flatten_output:

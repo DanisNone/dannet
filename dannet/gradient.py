@@ -1,23 +1,24 @@
 import dannet as dt
 from dannet.topsort import topological_sort
+from dannet.core import TensorBase
+from dannet.graph_collections import GDict
 
 
 def gradients(
-    loss: dt.core.TensorBase,
-    params: list[dt.core.TensorBase]
-) -> list[dt.core.TensorBase]:
+    loss: TensorBase,
+    params: list[TensorBase]
+) -> list[TensorBase]:
     if dt.is_eager():
         raise RuntimeError('gradients not work in eager mode')
 
-    if not isinstance(loss, dt.core.TensorBase):
+    if not isinstance(loss, TensorBase):
         raise TypeError('loss must be TensorBase instances.')
 
     for param in params:
-        if not isinstance(param, dt.core.TensorBase):
+        if not isinstance(param, TensorBase):
             raise TypeError('All params must be TensorBase instances.')
 
-    gradients: dict[dt.core.TensorBase, dt.core.TensorBase] = {
-        loss: dt.ones_like(loss)}
+    gradients = GDict([(loss, dt.ones_like(loss))])
 
     for node in topological_sort(loss):
         gradient = gradients[node]

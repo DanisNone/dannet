@@ -41,10 +41,10 @@ class _RandomInt(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         return self is other
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return id(self)
 
     def get_config(self):
@@ -78,10 +78,10 @@ class _RandomFloat(dt.core.TensorBase):
     def compute_gradients(self, grad):
         return []
 
-    def __eq__(self, other):
+    def __graph_eq__(self, other):
         return self is other
 
-    def __hash__(self):
+    def __graph_hash__(self):
         return id(self)
 
     def get_config(self):
