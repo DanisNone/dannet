@@ -64,16 +64,16 @@ class function:
         self._cached: dict[Any, tuple] = {}
 
     def compute_output_spec(self, *args, **kwargs):
+        if self._nodes:
+            print(self._nodes)
+            raise RuntimeError(
+                'Internal node buffer not empty before graph build'
+            )
         flatten_input, input_spec, inputs, idx = self._prepare_inputs(
             *args, **kwargs)
         flatten_input, placeholders = self._create_placeholders(
             flatten_input, idx)
-
-        if self._nodes:
-            raise RuntimeError(
-                'Internal node buffer not empty before graph build'
-            )
-
+        
         args_t: tuple
         kwargs_t: dict
         args_t, kwargs_t = tree.unflatten_as(
@@ -81,10 +81,14 @@ class function:
         )  # type: ignore
 
         function._run_instance = self
-        output = self._func(*args_t, **kwargs_t)
-        function._run_instance = None
+        try:
+            output = self._func(*args_t, **kwargs_t)
+        except Exception as e:
+            self._nodes.clear()
+            raise e
+        finally:
+            function._run_instance = None
 
-        self._nodes = GList()
 
         return tree.map_structure(_get_output_spec, output)
 
@@ -162,8 +166,14 @@ class function:
         )  # type: ignore
 
         function._run_instance = self
-        output = self._func(*args_t, **kwargs_t)
-        function._run_instance = None
+        
+        try:
+            output = self._func(*args_t, **kwargs_t)
+        except Exception as e:
+            self._nodes.clear()
+            raise e
+        finally:
+            function._run_instance = None
 
         flatten_output: list = tree.flatten(output)
 
@@ -177,7 +187,7 @@ class function:
         compiled = dt.compiler.compile(
             placeholders, outputs, self._nodes, is_eager_mode=False
         )
-        self._nodes = GList()
+        self._nodes.clear()
 
         output_template: list[Any] = []
         for val in flatten_output:

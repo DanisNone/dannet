@@ -26,104 +26,49 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
 
 
 def itemsize(dtype: dt.typing.DTypeLike) -> int:
-    return _size_table[normalize_dtype(dtype)]
+    return np.dtype(normalize_dtype(dtype)).itemsize
 
 
 def max_dtype(*dtypes: dt.typing.DTypeLike) -> str:
     dtypes = tuple(normalize_dtype(dtype) for dtype in dtypes)
     if len(dtypes) == 0:
         return bool_dtype
-
-    common = _reachable_dict[dtypes[0]]
-    for dtype in dtypes[1:]:
-        reachable = _reachable_dict[dtype]
-        common = [d for d in common if d in reachable]
-
-    if common:
-        return common[0]
-
-    raise TypeError('No common dtype found')
-
-
+    return np.result_type(*dtypes).name
 def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return normalize_dtype(dtype) == 'bool'
+    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.bool_)
 
 
 def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return normalize_dtype(dtype) in [
-        'int8',
-        'int16',
-        'int32',
-        'int64',
-        'uint8',
-        'uint16',
-        'uint32',
-        'uint64',
-    ]
+    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.integer)
 
 
 def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return normalize_dtype(dtype) in [
-        'int8',
-        'int16',
-        'int32',
-        'int64',
-    ]
+    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.signedinteger)
 
 
 def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return normalize_dtype(dtype) in [
-        'uint8',
-        'uint16',
-        'uint32',
-        'uint64',
-    ]
+    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.unsignedinteger)
 
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return normalize_dtype(dtype) in [
-        'float16',
-        'float32',
-        'float64',
-    ]
-
+    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.floating)
 
 def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
-    dtype = normalize_dtype(dtype)
-    if not is_integer_dtype(dtype):
-        raise TypeError(f'fail convert to signed: {dtype!r}')
-    return {
-        'uint8': 'int8',
-        'uint16': 'int16',
-        'uint32': 'int32',
-        'uint64': 'int64',
-    }[dtype]
+    dtype = np.dtype(normalize_dtype(dtype))
+    if not np.issubdtype(dtype, np.integer):
+        raise TypeError(f'fail convert to signed: {dtype.name!r}')
+    if np.issubdtype(dtype, np.signedinteger):
+        return dtype.name
+    return np.dtype(f'int{dtype.itemsize * 8}').name
 
 
 def to_unsigned_dtype(dtype: dt.typing.DTypeLike) -> str:
-    dtype = normalize_dtype(dtype)
-    if not is_integer_dtype(dtype):
-        raise TypeError(f'fail convert to unsigned: {dtype!r}')
-    return {
-        'int8': 'uint8',
-        'int16': 'uint16',
-        'int32': 'uint32',
-        'int64': 'uint64',
-    }[dtype]
-
-
-def _reachable_from(dtype: str) -> list[str]:
-    reached = [dtype]
-    frontier = {dtype}
-    while frontier:
-        next_frontier = set()
-        for t in frontier:
-            for neighbor in graph.get(t, []):
-                if neighbor not in reached:
-                    reached.append(neighbor)
-                    next_frontier.add(neighbor)
-        frontier = next_frontier
-    return reached
+    dtype = np.dtype(normalize_dtype(dtype))
+    if not np.issubdtype(dtype, np.integer):
+        raise TypeError(f'fail convert to unsigned: {dtype.name!r}')
+    if np.issubdtype(dtype, np.unsignedinteger):
+        return dtype.name
+    return np.dtype(f'uint{dtype.itemsize * 8}').name
 
 
 support = [
@@ -136,42 +81,11 @@ support = [
     'uint16',
     'uint32',
     'uint64',
+
     'float16',
     'float32',
     'float64',
 ]
-
-graph = {
-    'bool': ['uint8'],
-    'uint8': ['int8', 'uint16'],
-    'uint16': ['int16', 'uint32'],
-    'uint32': ['int32', 'uint64'],
-    'uint64': ['int64'],
-    'int8': ['int16'],
-    'int16': ['int32', 'float16'],
-    'int32': ['int64', 'float32'],
-    'int64': ['float64'],
-    'float16': ['float32'],
-    'float32': ['float64'],
-    'float64': [],
-}
-
-_size_table = {
-    'bool': 1,
-    'uint8': 1,
-    'uint16': 2,
-    'uint32': 4,
-    'uint64': 8,
-    'int8': 1,
-    'int16': 2,
-    'int32': 4,
-    'int64': 8,
-    'float16': 2,
-    'float32': 4,
-    'float64': 8,
-}
-
-_reachable_dict = {dtype: _reachable_from(dtype) for dtype in support}
 
 
 int_dtype = 'int32'
