@@ -37,7 +37,7 @@ class _BroadcastTo(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [dt.reduce_to(grad, self.x._shape)]
 
     def get_config(self):
@@ -56,7 +56,7 @@ class _Cast(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad]
 
     def get_config(self):
@@ -109,7 +109,7 @@ class _Reshape(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [reshape(grad, self.x.shape)]
 
     def get_config(self):
@@ -140,7 +140,7 @@ class _Transpose(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         inv = [self._axes.index(i) for i in range(self.x.ndim)]
         return [transpose(grad, inv)]
 
@@ -191,7 +191,7 @@ class _Flip(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [flip(grad, self._axes)]
 
     def get_config(self):
@@ -210,7 +210,7 @@ class _Copy(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad]
 
     def get_config(self):
@@ -255,7 +255,7 @@ class _Pad(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         slices = []
         for i, (before, _after) in enumerate(self._paddings):
             start = before
@@ -350,7 +350,7 @@ class _Slice(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         pads = []
         for (start, stop, step), out_dim in zip(self._slices, grad.shape):
             if step not in (None, 1):
@@ -381,7 +381,7 @@ class _Gather(dt.core.TensorBase):
     def inputs(self):
         return [self.x, self.indices]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         flat_dim = math.prod(self.x.shape[1:])
 
         one_hot = dt.one_hot(self.indices, self.x.shape[0], dtype=grad.dtype)
@@ -392,7 +392,7 @@ class _Gather(dt.core.TensorBase):
         grad_x_flat = dt.matmul(one_hot_2d, grad_2d, transpose_a=True)
 
         grad_x = dt.reshape(grad_x_flat, self.x.shape)
-        return [grad_x, dt.zeros_like(self.indices)]
+        return [grad_x, None]
 
     def get_config(self):
         return {}
@@ -415,8 +415,8 @@ class _OneHot(dt.core.TensorBase):
     def inputs(self):
         return [self.indices]
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.indices)]
+    def _compute_gradients(self, grad):
+        return None
 
     def get_config(self):
         return {'depth': self._depth}

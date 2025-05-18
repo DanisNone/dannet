@@ -44,7 +44,7 @@ class _Sum(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.max_dtype(dtype, 'uint32')
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
         return [dt.broadcast_to(grad, self.x.shape)]
 
@@ -53,7 +53,7 @@ class _Mean(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
         grad = grad * dt.cast(self.size / self.x.size, grad.dtype)
         return [dt.broadcast_to(grad, self.x.shape)]
@@ -63,7 +63,7 @@ class _Prod(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.max_dtype(dtype, 'uint32')
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
         grad = dt.broadcast_to(grad, self.x.shape)
         return [grad * self / self.x]
@@ -73,7 +73,7 @@ class _Min(_Reduce):
     def result_type(self, dtype):
         return dtype
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         self_b = dt.reshape(self, self._keepdims_shape)
         grad = dt.reshape(grad, self._keepdims_shape)
         mask = dt.equal(self.x, self_b)
@@ -84,7 +84,7 @@ class _Max(_Reduce):
     def result_type(self, dtype):
         return dtype
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         self_b = dt.reshape(self, self._keepdims_shape)
         grad = dt.reshape(grad, self._keepdims_shape)
         mask = dt.equal(self.x, self_b)
@@ -95,16 +95,16 @@ class _Any(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.bool_dtype
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _All(_Reduce):
     def result_type(self, dtype):
         return dt.dtype.bool_dtype
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _ArgReduce(dt.core.TensorBase):
@@ -143,8 +143,8 @@ class _ArgReduce(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x)]
+    def _compute_gradients(self, grad):
+        return None
 
     def get_config(self):
         return {

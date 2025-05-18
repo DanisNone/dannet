@@ -11,8 +11,8 @@ class _BitwiseUnary(_ElementWiseUnary):
             raise TypeError('Bitwise operations wait integer or bool dtype')
         return dtype
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _BitwiseBinary(_ElementWiseBinary):
@@ -23,8 +23,8 @@ class _BitwiseBinary(_ElementWiseBinary):
             raise TypeError('Bitwise operations wait integer or bool dtype')
         return dt.dtype.max_dtype(dtype1, dtype2)
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x), dt.zeros_like(self.y)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _BitwiseNot(_BitwiseUnary):

@@ -9,16 +9,16 @@ class _LogicalUnary(_ElementWiseUnary):
     def result_dtype(self, dtype):
         return dt.dtype.bool_dtype
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _LogicalBinary(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
         return dt.dtype.bool_dtype
 
-    def compute_gradients(self, grad):
-        return [dt.zeros_like(self.x), dt.zeros_like(self.y)]
+    def _compute_gradients(self, grad):
+        return None
 
 
 class _Equal(_LogicalBinary):

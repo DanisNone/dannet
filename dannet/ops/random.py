@@ -38,7 +38,7 @@ class _RandomInt(dt.core.TensorBase):
     def inputs(self):
         return []
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return []
 
     def __graph_eq__(self, other):
@@ -75,7 +75,7 @@ class _RandomFloat(dt.core.TensorBase):
     def inputs(self):
         return []
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return []
 
     def __graph_eq__(self, other):

@@ -59,7 +59,7 @@ class _ConvND(dt.core.TensorBase):
     def inputs(self):
         return [self.input, self.kernel]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         batch, *x_shape, c1 = self.input._shape
         *k_shape, c1_, c2 = self.kernel._shape
 
@@ -146,7 +146,7 @@ class _DepthwiseConv2D(dt.core.TensorBase):
     def inputs(self):
         return [self.input, self.kernel]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         raise NotImplementedError(
             'gradient for depthwise2d conv not implemented'
         )
@@ -192,7 +192,7 @@ class _UpSampleZeros(dt.core.TensorBase):
     def inputs(self):
         return [self.x]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         slices = [(None, None, s) for s in self._upsample_size]
         return [dt.slice(grad, slices)]
 

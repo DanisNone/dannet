@@ -61,8 +61,37 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
         pass
 
     @abc.abstractmethod
-    def compute_gradients(self, grad: TensorBase) -> Sequence[TensorBase]:
+    def _compute_gradients(
+        self,
+        grad: TensorBase
+    ) -> Sequence[TensorBase | None] | None:
         pass
+
+    def compute_gradients(self, grad: TensorBase) -> list[TensorBase]:
+        inputs = self.inputs()
+        grads = self._compute_gradients(grad)
+        if grads is None:
+            grads = [None] * len(inputs)
+
+        if len(grads) != len(inputs):
+            raise ValueError(
+                f"compute_gradients: expected {len(inputs)} gradient(s) "
+                f"but got {len(grads)}"
+            )
+
+        result = []
+        for i, (inp_grad, inp) in enumerate(zip(grads, inputs)):
+            if inp_grad is None:
+                inp_grad = dt.zeros_like(inp)
+
+            if inp_grad.shape != inp.shape:
+                raise ValueError(
+                    f"compute_gradients: shape mismatch for input #{i}. "
+                    f"expected {tuple(inp.shape)}, got {tuple(inp_grad.shape)}"
+                )
+
+            result.append(inp_grad)
+        return result
 
     @abc.abstractmethod
     def get_config(self) -> dict[str, Any]:
@@ -370,7 +399,7 @@ class Constant(TensorBase):
     def inputs(self):
         return []
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return []
 
     def __graph_eq__(self, other):
@@ -446,7 +475,7 @@ class Variable(TensorBase):
     def inputs(self):
         return []
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return []
 
     def __graph_eq__(self, other):
@@ -488,7 +517,7 @@ class Placeholder(TensorBase):
     def inputs(self):
         return []
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return []
 
     def __graph_eq__(self, other):
@@ -529,7 +558,7 @@ class Update(TensorBase):
     def inputs(self):
         return [self._variable, self._value]
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         raise TypeError('Update operation not have gradient')
 
     def __graph_eq__(self, other):

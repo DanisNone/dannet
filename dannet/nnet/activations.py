@@ -12,7 +12,7 @@ class _Relu(_ElementWiseUnary):
     def result_dtype(self, dtype):
         return dtype
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad * (self.x > 0)]
 
 
@@ -21,37 +21,34 @@ class _Relu6(_ElementWiseUnary):
     def result_dtype(self, dtype):
         return dtype
 
-    def compute_gradients(self, grad):
-        return [grad * (self.x > 0) * (self.x < 6)]
+    def _compute_gradients(self, grad):
+        return [grad * dt.logical_and(self.x > 0, self.x < 6)]
 
 
 class _Sigmoid(_ElementWiseUnaryFloat):
     # 1 / (1 + exp(-x))
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad * self * (1 - self)]
 
 
 class _Softplus(_ElementWiseUnaryFloat):
     # log(1 + exp(x))
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad * sigmoid(self.x)]
 
 
 class _Softsign(_ElementWiseUnaryFloat):
     # x / (1 + abs(x))
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         return [grad / dt.square(1 + dt.abs(self.x))]
 
 
 class _HardSigmoid(_ElementWiseUnaryFloat):
     # clip(x / 6 + 0.5, 0, 1)
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         res = grad * (1 / 6)
-        return [dt.where(
-            (-3 <= self.x) * (self.x <= 3),
-            res,
-            dt.zeros_like(res)
-        )]
+        mask = dt.logical_and(-3 <= self.x, self.x <= 3)
+        return [res * mask]
 
 
 relu = _make_unary('relu', _Relu)
@@ -108,7 +105,7 @@ class _LogSumExp(dt.reduce._Reduce):
     def result_type(self, dtype):
         return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
 
-    def compute_gradients(self, grad):
+    def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
         exp_x_minus_max = dt.exp(
             self.x - dt.reshape(self, self._keepdims_shape))
