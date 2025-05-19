@@ -407,6 +407,8 @@ class Constant(TensorBase):
             return True
         if not isinstance(other, Constant):
             return False
+        if self.shape != other.shape or self.dtype != other.dtype:
+            return False
         return np.array_equal(self._value, other._value, equal_nan=True)
 
     def __graph_hash__(self):
