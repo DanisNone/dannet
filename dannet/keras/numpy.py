@@ -787,3 +787,8 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins, range):
     raise NotImplementedError('histogram')
+
+
+bartlett = dt.bartlett
+blackman = dt.blackman
+hamming = dt.hamming

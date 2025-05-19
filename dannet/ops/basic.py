@@ -606,8 +606,7 @@ def rot90(x, k=1, axes=(0, 1)):
 
     if axes[0] == axes[1]:
         raise ValueError('Axes must be different.')
-    
-    
+
     perm = list(range(x.ndim))
     perm[axes[0]], perm[axes[1]] = perm[axes[1]], perm[axes[0]]
 
@@ -619,7 +618,7 @@ def rot90(x, k=1, axes=(0, 1)):
         return flip(x, (axes[0], axes[1]))
     else:
         return flip(transpose(x, perm), axes[1])
-        
+
 
 def pad(x, paddings):
     x = dt.convert_to_tensor(x)
@@ -737,6 +736,25 @@ def triu(m, k=0):
     return dt.where(mask, zeros(1, m.dtype), m)
 
 
+def bartlett(M: int):
+    M = int(M)
+    halfM = (M - 1) / 2
+    n = arange(M)
+    return 1 - dt.abs(n/halfM - 1)
+
+
+def blackman(M: int):
+    M = int(M)
+    n = arange(1-M, M, 2) * (np.pi/(M - 1))
+    return 0.42 + 0.5*dt.cos(n) + 0.08*dt.cos(2*n)
+
+
+def hamming(M: int):
+    M = int(M)
+    n = arange(M) * (2*np.pi/(M - 1))
+    return 0.54 - 0.46*dt.cos(n)
+
+
 __all__ = [
     'zeros',
     'ones',
@@ -761,5 +779,8 @@ __all__ = [
     'arange',
     'tri',
     'tril',
-    'triu'
+    'triu',
+    'bartlett',
+    'blackman',
+    'hamming',
 ]
