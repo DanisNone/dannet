@@ -7,7 +7,9 @@ py_max = max
 
 
 def rot90(array, k=1, axes=(0, 1)):
-    raise NotImplementedError('rot90')
+    array = convert_to_tensor(array)
+
+    return dt.rot90(array, k, axes)
 
 
 def einsum(subscripts, *operands, **kwargs):
