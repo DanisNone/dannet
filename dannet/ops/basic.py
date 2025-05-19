@@ -590,6 +590,37 @@ def flip(x, axis=None):
     return dt.core._node_prepare(y)
 
 
+def rot90(x, k=1, axes=(0, 1)):
+    x = dt.convert_to_tensor(x)
+
+    if len(axes) != 2:
+        raise ValueError('len(axes) must be 2.')
+
+    axes = tuple(axes)
+    k = int(k) % 4
+
+    axes = tuple(ax if ax >= 0 else x.ndim + ax for ax in axes)
+
+    if any(ax >= x.ndim for ax in axes):
+        raise ValueError('Axes must be less than tensor\'s ndim.')
+
+    if axes[0] == axes[1]:
+        raise ValueError('Axes must be different.')
+    
+    
+    perm = list(range(x.ndim))
+    perm[axes[0]], perm[axes[1]] = perm[axes[1]], perm[axes[0]]
+
+    if k == 0:
+        return x
+    elif k == 1:
+        return flip(transpose(x, perm), axes[0])
+    elif k == 2:
+        return flip(x, (axes[0], axes[1]))
+    else:
+        return flip(transpose(x, perm), axes[1])
+        
+
 def pad(x, paddings):
     x = dt.convert_to_tensor(x)
     y = _Pad(x, paddings)
@@ -721,6 +752,7 @@ __all__ = [
     'swapaxes',
     'moveaxis',
     'copy',
+    'rot90',
     'flip',
     'pad',
     'slice',
