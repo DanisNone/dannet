@@ -1,4 +1,5 @@
 import math
+from typing import Sequence
 
 import numpy as np
 import dannet as dt
@@ -63,10 +64,40 @@ class _Cast(dt.core.TensorBase):
         return {}
 
 
+class _Bitcast(dt.core.TensorBase):
+    def __init__(self, x, new_dtype):
+        self.x = dt.convert_to_tensor(x)
+
+        self._shape = self.x._shape
+        self._dtype = dt.dtype.normalize_dtype(new_dtype)
+
+        if self.x.itemsize != self.itemsize:
+            raise ValueError(
+                f'bitcast not possible between types '
+                f'{self.x.dtype} and {self._dtype}'
+            )
+
+        self._buffer = self.x._buffer
+        self._buffer_offset = self.x._buffer_offset
+        self._strides = self.x._strides
+        self._is_contiguous = self.x._is_contiguous
+
+    def inputs(self):
+        return [self.x]
+
+    def _compute_gradients(self, grad):
+        return None
+
+    def get_config(self):
+        return {}
+
+
 class _Reshape(dt.core.TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
 
+        if isinstance(new_shape, int):
+            new_shape = [new_shape]
         new_shape = [int(dim) for dim in new_shape]
         if min(new_shape, default=0) < -1:
             raise ValueError(f'Invalid shape: {new_shape}')
@@ -338,7 +369,8 @@ class _Slice(dt.core.TensorBase):
 
         if 0 in new_shape:
             raise NotImplementedError(
-                'TensorBase not support slice with zero size')
+                'TensorBase not support slice with zero size'
+            )
 
         self._shape = tuple(new_shape)
         self._dtype = self.x.dtype
@@ -422,6 +454,118 @@ class _OneHot(dt.core.TensorBase):
         return {'depth': self._depth}
 
 
+class _Concatenate(dt.core.TensorBase):
+    def __init__(self, tensors):
+        self._tensors = [dt.convert_to_tensor(x) for x in tensors]
+        if not self._tensors:
+            raise ValueError('Need at least one tensor to concatenate')
+
+        ndim = self._tensors[0].ndim
+
+        out_shape = list(self._tensors[0].shape)
+        total = 0
+        for t in self._tensors:
+            if t.ndim != ndim:
+                raise ValueError(
+                    'All tensors must have the same number of dimensions'
+                )
+            for i, (d_out, d_in) in enumerate(zip(out_shape, t.shape)):
+                if i == 0:
+                    continue
+                if d_out != d_in:
+                    raise ValueError(
+                        f'All dimensions except axis {0} must match: '
+                        f'got {out_shape} vs {t.shape}'
+                    )
+            total += t.shape[0]
+        out_shape[0] = total
+
+        self._shape = tuple(out_shape)
+        self._dtype = dt.dtype.max_dtype(*[inp.dtype for inp in self._tensors])
+
+        self._init_default_buffer()
+
+    def inputs(self):
+        return self._tensors
+
+    def _compute_gradients(self, grad):
+        grads = []
+        start = 0
+        for t in self._tensors:
+            size = t.shape[0]
+            slices = []
+            for i in range(grad.ndim):
+                if i == 0:
+                    slices.append((start, start + size, None))
+                else:
+                    slices.append((None, None, None))
+            grads.append(slice(grad, tuple(slices)))
+            start += size
+        return grads
+
+    def get_config(self):
+        return {}
+
+
+class _Diagonal(dt.core.TensorBase):
+    def __init__(self, x, offset=0):
+        self.x = dt.convert_to_tensor(x)
+        if self.x.ndim < 2:
+            raise ValueError(
+                f'Diagonal requires input tensor with ndim>=2, '
+                f'got ndim={self.x.ndim}'
+            )
+
+        dim1, dim2 = self.x.shape[-2:]
+
+        k = offset
+        if k > 0:
+            diag_len = max(0, min(dim1, dim2 - k))
+        else:
+            diag_len = max(0, min(dim1 + k, dim2))
+
+        new_shape = self.x.shape[:-2] + (diag_len, )
+
+        s1, s2 = self.x._strides[-2:]
+        strides = self.x._strides[:-2] + (s1 + s2, )
+
+        buffer_offset = self.x._buffer_offset
+        buffer_offset += abs(k) * (s2 if k > 0 else s1)
+
+        self._shape = tuple(new_shape)
+        self._dtype = self.x.dtype
+
+        self._strides = tuple(strides)
+        self._buffer = self.x._buffer
+        self._buffer_offset = buffer_offset
+        self._is_contiguous = False
+
+        self._offset = offset
+
+    def inputs(self):
+        return [self.x]
+
+    def _compute_gradients(self, grad):
+        input_shape = self.x.shape
+        mask = dt.eye(
+            input_shape[-2],
+            input_shape[-1],
+            k=self._offset,
+            dtype=dt.dtype.bool_dtype
+        )
+
+        grad_expanded = dt.expand_dims(grad, (-1, -2))
+        grad_broadcasted = dt.broadcast_to(grad_expanded, input_shape)
+
+        final_grad = dt.where(mask, grad_broadcasted, 0.0)
+        return [final_grad]
+
+    def get_config(self):
+        return {
+            'offset': self._offset,
+        }
+
+
 def zeros(shape, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float_dtype
@@ -487,6 +631,12 @@ def cast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None):
     return dt.core._node_prepare(y)
 
 
+def bitcast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike):
+    x = dt.convert_to_tensor(x)
+    y = _Bitcast(x, dtype)
+    return dt.core._node_prepare(y)
+
+
 def reshape(x, shape):
     x = dt.convert_to_tensor(x)
     y = _Reshape(x, shape)
@@ -528,27 +678,20 @@ def squeeze(x, axis=None):
 def expand_dims(x, axis):
     x = dt.convert_to_tensor(x)
 
-    if hasattr(axis, '__index__'):
-        axis = (int(axis), )
-    axis = tuple(axis)
+    if type(axis) not in (tuple, list):
+        axis = (axis,)
 
-    if len(set(axis)) != len(axis):
-        raise ValueError(f'Duplicate axes: {axis}')
+    out_ndim = len(axis) + x.ndim
+    axis = dt.utils.normalize_axis_tuple(out_ndim, axis)
 
-    normalized_axes = []
-    for ax in axis:
-        if ax < 0:
-            ax = x.ndim + 1 + ax
-        if ax < 0 or ax > x.ndim:
-            raise ValueError(
-                f'Axis {ax} out of bounds for tensor of dimension {x.ndim}')
-        normalized_axes.append(ax)
+    shape_it = iter(x.shape)
+    shape = [
+        1 if ax in axis
+        else next(shape_it)
+        for ax in range(out_ndim)
+    ]
 
-    shape = list(x.shape)
-    for ax in sorted(normalized_axes, reverse=True):
-        shape.insert(ax, 1)
-
-    return reshape(x, shape)
+    return dt.reshape(x, shape)
 
 
 def transpose(x, axes=None):
@@ -569,19 +712,23 @@ def swapaxes(x, axis1, axis2):
     return dt.transpose(x, axes)
 
 
-def moveaxis(a, source, destination):
-    source = dt.utils.normalize_axis_tuple(source, a.ndim)
-    destination = dt.utils.normalize_axis_tuple(destination, a.ndim)
+def moveaxis(x, source, destination):
+    x = dt.convert_to_tensor(x)
+    source = dt.utils.normalize_axis_tuple(x, source)
+    destination = dt.utils.normalize_axis_tuple(x, destination)
 
     if len(source) != len(destination):
         raise ValueError(
-            '`source` and `destination` must have the same number of elements')
+            '`source` and `destination` arguments must have '
+            'the same number of elements'
+        )
 
-    order = list(range(a.ndim))
-    for s, d in sorted(zip(source, destination), key=lambda x: x[1]):
-        order.pop(s)
-        order.insert(d, s)
-    return dt.transpose(a, order)
+    order = [n for n in range(x.ndim) if n not in source]
+
+    for dest, src in sorted(zip(destination, source)):
+        order.insert(dest, src)
+
+    return transpose(x, order)
 
 
 def flip(x, axis=None):
@@ -637,6 +784,39 @@ def copy(x):
 def slice(x, slices):
     y = _Slice(x, slices)
     return dt.core._node_prepare(y)
+
+
+def split(x, indices_or_sections, axis=0):
+    x = dt.convert_to_tensor(x)
+    axis = dt.utils.normalize_axis_index(axis, x.ndim)
+    L = x.shape[axis]
+
+    if isinstance(indices_or_sections, int):
+        n = indices_or_sections
+        if n <= 0:
+            raise ValueError('number of sections must be positive')
+        if L % n != 0:
+            raise ValueError(
+                f'array split does not result in an equal division: '
+                f'{L} elements to {n} sections'
+            )
+        indices = [*range(0, L, L//n), L]
+    else:
+        if hasattr(indices_or_sections, 'tolist'):
+            indices_or_sections = indices_or_sections.tolist()
+        indices = [0] + list(indices_or_sections) + [L]
+
+    result = []
+    for i in range(len(indices) - 1):
+        start = indices[i]
+        end = indices[i+1]
+
+        slices = [py_slice(None)] * x.ndim
+        slices[axis] = py_slice(start, end)
+        print(slices, indices)
+        result.append(x[tuple(slices)])
+
+    return result
 
 
 def take(x, indices, axis=None):
@@ -695,6 +875,36 @@ def one_hot(x, depth, axis=-1, dtype=None):
     return transpose(res, perm)
 
 
+def concatenate(
+    arrays: Sequence[dt.typing.TensorLike],
+    axis=0
+):
+    arrays = list(arrays)
+    if len(arrays) == 1:
+        return dt.convert_to_tensor(arrays[0])
+    for i in range(len(arrays)):
+        arrays[i] = dt.moveaxis(arrays[i], axis, 0)
+    res = dt.core._node_prepare(_Concatenate(arrays))
+    return dt.moveaxis(res, 0, axis)
+
+
+def vstack(arrays: Sequence[dt.typing.TensorLike]):
+    return concatenate(arrays, axis=0)
+
+
+def hstack(arrays: Sequence[dt.typing.TensorLike]):
+    return concatenate(arrays, axis=1)
+
+
+def stack(
+    arrays: Sequence[dt.typing.TensorLike],
+    axis=0
+):
+    arrays = [dt.convert_to_tensor(a) for a in arrays]
+    expanded = [dt.expand_dims(a, axis) for a in arrays]
+    return concatenate(expanded, axis=axis)
+
+
 def arange(
     start: int | float,
     stop: int | float | None = None,
@@ -708,6 +918,13 @@ def arange(
     return dt.cast(res, dtype)
 
 
+def eye(N: int, M: int | None = None, k: int = 0, dtype=None):
+    if dtype is None:
+        dtype = dt.dtype.float_dtype
+    res = np.eye(N, M, k, dtype)
+    return dt.constant(res)
+
+
 def tri(N, M=None, k=0, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float_dtype
@@ -717,7 +934,7 @@ def tri(N, M=None, k=0, dtype=None):
 
     a = arange(N, dtype='int64')
     b = arange(-k, M-k, dtype='int64')
-    m = (dt.expand_dims(a, 0) > dt.expand_dims(b, 1))
+    m = (dt.expand_dims(a, 1) >= dt.expand_dims(b, 0))
 
     return dt.cast(m, dtype)
 
@@ -745,14 +962,108 @@ def bartlett(M: int):
 
 def blackman(M: int):
     M = int(M)
-    n = arange(1-M, M, 2) * (np.pi/(M - 1))
+    n = arange(1-M, M, 2) * (dt.pi/(M - 1))
     return 0.42 + 0.5*dt.cos(n) + 0.08*dt.cos(2*n)
 
 
 def hamming(M: int):
     M = int(M)
-    n = arange(M) * (2*np.pi/(M - 1))
+    n = arange(M) * (2*dt.pi/(M - 1))
     return 0.54 - 0.46*dt.cos(n)
+
+
+def signbit(x):
+    x = dt.convert_to_tensor(x)
+    if dt.dtype.is_bool_dtype(x.dtype):
+        return dt.zeros_like(x, dtype=dt.dtype.bool_dtype)
+    if dt.dtype.is_integer_dtype(x.dtype):
+        return x < 0
+
+    bits = x.itemsize * 8
+    uint = dt.dtype.normalize_dtype(f'uint{bits}')
+    mask = 1 << (bits - 1)
+
+    x = dt.bitwise_and(
+        bitcast(x, uint),
+        dt.constant(mask, uint)
+    )
+    return x.cast(dt.dtype.bool_dtype)
+
+
+def angle(x):
+    #  all tensors is real
+    x = dt.convert_to_tensor(x)
+    if not dt.dtype.is_float_dtype(x.dtype):
+        x = dt.cast(x, dt.dtype.float_dtype)
+    return dt.cast(dt.pi, x.dtype) * (x < 0)
+
+
+def diagonal(x, offset=0, axis1=0, axis2=1):
+    x = dt.convert_to_tensor(x)
+    ndim = x.ndim
+    if ndim < 2:
+        raise ValueError(f'diagonal requires ndim>=2, got ndim={ndim}')
+
+    axis1 = axis1 % ndim
+    axis2 = axis2 % ndim
+    if axis1 == axis2:
+        raise ValueError(f'axis1 and axis2 must be different, both = {axis1}')
+
+    perm = [i for i in range(ndim) if i not in (axis1, axis2)] + [axis1, axis2]
+    x_t = x.transpose(perm)
+
+    res = _Diagonal(x_t, offset)
+
+    return dt.core._node_prepare(res)
+
+
+def diag(x, k=0):
+    x = dt.convert_to_tensor(x)
+    if x.ndim == 1:
+        N = x.shape[0]
+        mask = dt.eye(N, dtype=dt.dtype.bool_dtype)
+        zeros = dt.zeros((N, N), dtype=x.dtype)
+        res = dt.where(mask, x, zeros)
+        a, b = (0, k) if k > 0 else (-k, 0)
+        return dt.pad(res, ((a, b), (b, a)))
+    elif x.ndim == 2:
+        return diagonal(x, k)
+    else:
+        raise ValueError('Input must be 1- or 2-d.')
+
+
+def diagflat(x, k=0):
+    x = dt.convert_to_tensor(x)
+    flat = dt.reshape(x, (-1,))
+    return diag(flat, k)
+
+
+def trace(x, offset=0, axis1=0, axis2=1):
+    d = diagonal(x, offset, axis1, axis2)
+    return dt.sum(d, axis=-1)
+
+
+def meshgrid(*xi, indexing='xy'):
+    ndim = len(xi)
+
+    if indexing not in ['xy', 'ij']:
+        raise ValueError(
+            'Valid values for `indexing` are \'xy\' and \'ij\'.'
+        )
+
+    s0 = (1,) * ndim
+    output = [
+        dt.convert_to_tensor(x).reshape(s0[:i] + (-1,) + s0[i + 1:])
+        for i, x in enumerate(xi)
+    ]
+
+    if indexing == 'xy' and ndim > 1:
+        output[0] = output[0].reshape((1, -1) + s0[2:])
+        output[1] = output[1].reshape((-1, 1) + s0[2:])
+
+    shape = dt.utils.broadcast_shapes(*[out.shape for out in output])
+    output = [dt.broadcast_to(out, shape) for out in output]
+    return output
 
 
 __all__ = [
@@ -763,6 +1074,7 @@ __all__ = [
     'broadcast_to',
     'reduce_to',
     'cast',
+    'bitcast',
     'reshape',
     'squeeze',
     'expand_dims',
@@ -774,13 +1086,33 @@ __all__ = [
     'flip',
     'pad',
     'slice',
+    'split',
+
     'take',
     'one_hot',
     'arange',
+
+    'eye',
     'tri',
     'tril',
     'triu',
+
     'bartlett',
     'blackman',
     'hamming',
+    'angle',
+
+    'concatenate',
+    'hstack',
+    'vstack',
+    'stack',
+
+    'signbit',
+
+    'diagonal',
+    'diag',
+    'diagflat',
+    'trace',
+
+    'meshgrid'
 ]

@@ -66,7 +66,7 @@ def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
 
     headers = generate_nodes_info(A=node.x, B=node)
     headers.append(
-        generate_static_array('stridesAN', node.x._default_strides())
+        generate_static_array('stridesAN', default_strides(node.x))
     )
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
@@ -87,7 +87,8 @@ def update(device, node: dt.core.Update, input_buffers, output_buffer):
 
     headers = generate_nodes_info(A=node._value, B=node._variable)
     headers.append(generate_static_array(
-        'stridesAN', node._value._default_strides()))
+        'stridesAN', default_strides(node._value)
+    ))
     headers.append(generate_mode('strided'))
     kernel = build_kernel(device, 'copy.cl', headers)
 
@@ -96,35 +97,3 @@ def update(device, node: dt.core.Update, input_buffers, output_buffer):
     return lambda: kernel.copy_strided(
         device.queue, global_size, local_size, value, var
     )
-
-
-@register_impl(dt.basic._BroadcastTo)
-def broadcast_to(device, node, input_buffers, output_buffer):
-    (A,) = input_buffers
-
-    assert A is output_buffer
-    return None
-
-
-@register_impl(dt.basic._Transpose)
-def transpose(device, node, input_buffers, output_buffer):
-    (A,) = input_buffers
-
-    assert A is output_buffer
-    return None
-
-
-@register_impl(dt.basic._Flip)
-def flip(device, node, input_buffers, output_buffer):
-    (A,) = input_buffers
-
-    assert A is output_buffer
-    return None
-
-
-@register_impl(dt.basic._Slice)
-def slice(device, node, input_buffers, output_buffer):
-    (A,) = input_buffers
-
-    assert A is output_buffer
-    return None

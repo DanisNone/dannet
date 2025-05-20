@@ -3,7 +3,8 @@ from .utils import (
     generate_nodes_info,
     generate_mode,
     register_impl,
-    build_kernel
+    build_kernel,
+    to_cl_dtype
 )
 
 
@@ -74,12 +75,58 @@ def sign(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.math._Exp)
 def exp(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'exp((dtypeB)x)')
+    return unary(
+        device, node, input_buffers, output_buffer, 'exp((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Exp2)
+def exp2(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'exp2((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Exp10)
+def exp10(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'exp10((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Expm1)
+def expm1(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'expm1((dtypeB)x)'
+    )
 
 
 @register_impl(dt.math._Log)
 def log(device, node, input_buffers, output_buffer):
-    return unary(device, node, input_buffers, output_buffer, 'log((dtypeB)x)')
+    return unary(
+        device, node, input_buffers, output_buffer, 'log((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Log2)
+def log2(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'log2((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Log10)
+def log10(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'log10((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Log1p)
+def log1p(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'log1p((dtypeB)x)'
+    )
 
 
 @register_impl(dt.math._Sqrt)
@@ -123,6 +170,68 @@ def cosh(device, node, input_buffers, output_buffer):
 @register_impl(dt.math._Tanh)
 def tanh(device, node, input_buffers, output_buffer):
     return unary(device, node, input_buffers, output_buffer, 'tanh((dtypeB)x)')
+
+
+@register_impl(dt.math._Arcsin)
+def arcsin(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'asin((dtypeB)x)')
+
+
+@register_impl(dt.math._Arccos)
+def arccos(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'acos((dtypeB)x)')
+
+
+@register_impl(dt.math._Arctan)
+def arctan(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'atan((dtypeB)x)')
+
+
+@register_impl(dt.math._Arcsinh)
+def arcsinh(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'asinh((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Arccosh)
+def arccosh(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'acosh((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Arctanh)
+def arctanh(device, node, input_buffers, output_buffer):
+    return unary(
+        device, node, input_buffers, output_buffer, 'atanh((dtypeB)x)'
+    )
+
+
+@register_impl(dt.math._Round)
+def round(device, node, input_buffers, output_buffer):
+    assert dt.dtype.is_float_dtype(node.dtype)
+    bits = node.itemsize * 8
+    out = dt.dtype.normalize_dtype(f'int{bits}')
+    dtype = to_cl_dtype(out)
+    return unary(
+        device, node, input_buffers, output_buffer, f'convert_{dtype}_rte(x)'
+    )
+
+
+@register_impl(dt.math._Trunc)
+def trunc(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'trunc(x)')
+
+
+@register_impl(dt.math._Floor)
+def floor(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'floor(x)')
+
+
+@register_impl(dt.math._Ceil)
+def ceil(device, node, input_buffers, output_buffer):
+    return unary(device, node, input_buffers, output_buffer, 'ceil(x)')
 
 
 @register_impl(dt.nnet.activations._Relu)
@@ -185,5 +294,5 @@ def bitwise_not(device, node, input_buffers, output_buffer):
 def logical_not(device, node, input_buffers, output_buffer):
     return unary(
         device, node, input_buffers, output_buffer,
-        '~(bool)x'
+        '!(bool)x'
     )

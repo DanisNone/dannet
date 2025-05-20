@@ -14,5 +14,10 @@ from .utils import convert_to_tensor
 
 from .compiler import function, is_eager, eval
 
-from .device import Device, default_device
-current_device = Device.current_device
+from .device import (
+    Device,
+    default_device,
+    current_device
+)
+
+from .math_constants import *  # noqa: E402

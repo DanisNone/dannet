@@ -85,9 +85,39 @@ class _Exp(_ElementWiseUnaryFloat):
         return [grad * self]
 
 
+class _Exp2(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad * self * dt.cast(dt.c_log2, grad.dtype)]
+
+
+class _Exp10(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad * self * dt.cast(dt.c_log10, grad.dtype)]
+
+
+class _Expm1(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad * (self + 1)]
+
+
 class _Log(_ElementWiseUnaryFloat):
     def _compute_gradients(self, grad):
         return [grad / self.x]
+
+
+class _Log2(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / self.x * dt.cast(dt.c_inv_log2, grad.dtype)]
+
+
+class _Log10(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / self.x * dt.cast(dt.c_inv_log10, grad.dtype)]
+
+
+class _Log1p(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / (self.x + 1)]
 
 
 class _Sin(_ElementWiseUnaryFloat):
@@ -118,6 +148,60 @@ class _Cosh(_ElementWiseUnaryFloat):
 class _Tanh(_ElementWiseUnaryFloat):
     def _compute_gradients(self, grad):
         return [grad * (1 - dt.square(self))]
+
+
+class _Arcsin(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / dt.sqrt(1 - dt.square(self.x))]
+
+
+class _Arccos(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [-grad / dt.sqrt(1 - dt.square(self.x))]
+
+
+class _Arctan(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / (1 + dt.square(self.x))]
+
+
+class _Arcsinh(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / dt.sqrt(1 + dt.square(self.x))]
+
+
+class _Arccosh(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / dt.sqrt(-1 + dt.square(self.x))]
+
+
+class _Arctanh(_ElementWiseUnaryFloat):
+    def _compute_gradients(self, grad):
+        return [grad / (1 - dt.square(self.x))]
+
+
+class _RoundBase(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        return dtype
+
+    def _compute_gradients(self, grad):
+        return None
+
+
+class _Round(_RoundBase):
+    pass
+
+
+class _Trunc(_RoundBase):
+    pass
+
+
+class _Ceil(_RoundBase):
+    pass
+
+
+class _Floor(_RoundBase):
+    pass
 
 
 class _ElementWiseBinary(_ElementWise):
@@ -222,6 +306,26 @@ class _FloorDivide(_ElementWiseBinary):
         return None
 
 
+class _Logaddexp(_ElementWiseBinary):
+    def result_dtype(self, dtype1, dtype2):
+        return dt.dtype.max_dtype(dtype1, dtype2, dt.dtype.float_dtype)
+
+    def _compute_gradients(self, grad):
+        self_grad = grad / dt.exp(self)
+        return [dt.exp(self.x) * self_grad, dt.exp(self.y) * self_grad]
+
+
+class _Arctan2(_ElementWiseBinary):
+    def result_dtype(self, dtype1, dtype2):
+        return dt.dtype.max_dtype(dtype1, dtype2, dt.dtype.float_dtype)
+
+    def _compute_gradients(self, grad):
+        norm2 = dt.square(self.x) + dt.square(self.y)
+        grad_norm2 = grad / norm2
+        # TODO: not tested
+        return [-self.y*grad_norm2, self.x*grad_norm2]
+
+
 class _ElementWiseTernary(_ElementWise):
     def __init__(self, x, y, z):
         self.x = dt.convert_to_tensor(x)
@@ -264,7 +368,7 @@ class _Where(_ElementWiseTernary):
 
 class _Clip(_ElementWiseTernary):
     def result_dtype(self, dtype1, dtype2, dtype3):
-        return dt.dtype.max_dtype(dtype1, dtype2, dtype3)
+        return dtype1
 
     def _compute_gradients(self, grad):
         condition = dt.logical_and(
@@ -335,6 +439,19 @@ class _Matmul(dt.core.TensorBase):
 
 def _make_unary(name: str, class_: type[_ElementWiseUnary]):
     def inner(x: dt.typing.TensorLike):
+        y = class_(x)
+        return dt.core._node_prepare(y)
+    inner.__name__ = name
+    return inner
+
+
+def _make_round(name: str, class_: type[_RoundBase]):
+    def inner(x: dt.typing.TensorLike):
+        x = dt.convert_to_tensor(x)
+        if dt.dtype.is_bool_dtype(x.dtype):
+            return x
+        if dt.dtype.is_integer_dtype(x.dtype):
+            return x
         y = class_(x)
         return dt.core._node_prepare(y)
     inner.__name__ = name
@@ -453,6 +570,14 @@ def tensordot(x, y, axes):
         axes_y = tuple(range(axes))
     else:
         axes_x, axes_y = axes
+        if isinstance(axes_x, int):
+            axes_x = (axes_x, )
+
+        if isinstance(axes_y, int):
+            axes_y = (axes_y, )
+
+    axes_x = dt.utils.normalize_axis_tuple(x, axes_x)
+    axes_y = dt.utils.normalize_axis_tuple(y, axes_y)
     if len(axes_x) != len(axes_y):
         raise ValueError('Number of axes for contraction must be equal')
 
@@ -489,11 +614,116 @@ def tensordot(x, y, axes):
     return dt.sum(x * y, axis=-1)
 
 
-def outer(x1: dt.typing.TensorLike, x2: dt.typing.TensorLike):
-    x1 = dt.reshape(x1, (-1, 1))
-    x2 = dt.reshape(x2, (1, -1))
+def dot(x, y):
+    x = dt.convert_to_tensor(x)
+    y = dt.convert_to_tensor(y)
 
-    return x1 * x2
+    if x.ndim == 0 or y.ndim == 0:
+        return x * y
+    elif y.ndim == 1:
+        return tensordot(x, y, axes=[[-1], [-1]])
+    else:
+        return tensordot(x, y, axes=[[-1], [-2]])
+
+
+def vdot(x, y):
+    x = dt.convert_to_tensor(x).reshape(-1)
+    y = dt.convert_to_tensor(y).reshape(-1)
+    return dt.sum(x * y)
+
+
+def outer(x: dt.typing.TensorLike, y: dt.typing.TensorLike):
+    x = dt.reshape(x, (-1, 1))
+    y = dt.reshape(y, (1, -1))
+
+    return x * y
+
+
+def inner(x, y):
+    return dt.tensordot(x, y, axes=(-1, -1))
+
+
+def cross(
+    x: dt.typing.TensorLike,
+    y: dt.typing.TensorLike,
+    axisa=-1, axisb=-1, axisc=-1, axis=None
+):
+    if axis is not None:
+        axisa, axisb, axisc = (axis,) * 3
+
+    x = dt.convert_to_tensor(x)
+    y = dt.convert_to_tensor(y)
+
+    if x.ndim < 1 or y.ndim < 1:
+        raise ValueError('At least one array has zero dimension')
+
+    axisa = dt.utils.normalize_axis_index(axisa, x.ndim, 'axisa')
+    axisb = dt.utils.normalize_axis_index(axisb, y.ndim, 'axisb')
+
+    x = dt.moveaxis(x, axisa, 0)
+    y = dt.moveaxis(y, axisb, 0)
+
+    if x.shape[0] not in (2, 3) or y.shape[0] not in (2, 3):
+        raise ValueError(
+            'incompatible dimensions for cross product (must be 2 or 3)'
+        )
+
+    out_shape = dt.utils.broadcast_shapes(x.shape[1:], y.shape[1:])
+
+    if x.shape[0] == 3 or y.shape[0] == 3:
+        out_shape = (3, ) + out_shape
+        axisc = dt.utils.normalize_axis_index(axisc, len(out_shape), 'axisc')
+
+    dtype = dt.dtype.max_dtype(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
+
+    x0, x1 = x[0], x[1]
+    y0, y1 = y[0], y[1]
+
+    if x.shape[0] == 2 and y.shape[0] == 2:
+        return x0 * y1 - x1 * y0
+    elif x.shape[0] == 2:
+        assert y.shape[0] == 3
+        y2 = y[2]
+        cp0 = x1 * y2
+        cp1 = -x0 * y2
+        cp2 = x0 * y1 - x1 * y0
+    elif y.shape[0] == 2:
+        assert x.shape[0] == 3
+        x2 = x[2]
+        cp0 = -x2 * y1
+        cp1 = x2 * y0
+        cp2 = x0 * y1 - x1 * y0
+    else:
+        assert x.shape[0] == 3
+        assert y.shape[0] == 3
+        x2 = x[2]
+        y2 = y[2]
+
+        cp0 = x1 * y2 - x2 * y1
+        cp1 = x2 * y0 - x0 * y2
+        cp2 = x0 * y1 - x1 * y0
+
+    cp = dt.stack([cp0, cp1, cp2], axis=0)
+    return dt.moveaxis(cp, 0, axisc)
+
+
+def round(x, decimals=0):
+    if decimals == 0:
+        return _base_round(x)
+    x_dtype = x.dtype
+    if dt.dtype.is_integer_dtype(x_dtype):
+        if decimals > 0:
+            return x
+        factor = dt.cast(dt.power(10.0, decimals), dt.dtype.float_dtype)
+        x = dt.cast(x, dt.dtype.float_dtype)
+    else:
+        factor = dt.cast(dt.power(10.0, decimals), x.dtype)
+    x = x * factor
+    x = _base_round(x)
+    x = x / factor
+    return dt.cast(x, x_dtype)
 
 
 negative = _make_unary('negative', _Negative)
@@ -503,8 +733,16 @@ abs = _make_unary('abs', _Abs)
 sign = _make_unary('sign', _Sign)
 sqrt = _make_unary('sqrt', _Sqrt)
 rsqrt = _make_unary('rsqrt', _Rsqrt)
+
 exp = _make_unary('exp', _Exp)
+exp2 = _make_unary('exp2', _Exp2)
+exp10 = _make_unary('exp10', _Exp10)
+expm1 = _make_unary('expm1', _Expm1)
+
 log = _make_unary('log', _Log)
+log2 = _make_unary('log2', _Log2)
+log10 = _make_unary('log10', _Log10)
+log1p = _make_unary('log1p', _Log1p)
 
 sin = _make_unary('sin', _Sin)
 cos = _make_unary('cos', _Cos)
@@ -514,6 +752,19 @@ sinh = _make_unary('sinh', _Sinh)
 cosh = _make_unary('cosh', _Cosh)
 tanh = _make_unary('tanh', _Tanh)
 
+arcsin = _make_unary('arcsin', _Arcsin)
+arccos = _make_unary('arccos', _Arccos)
+arctan = _make_unary('arctan', _Arctan)
+
+arcsinh = _make_unary('arcsinh', _Arcsinh)
+arccosh = _make_unary('arccosh', _Arccosh)
+arctanh = _make_unary('arctanh', _Arctanh)
+
+_base_round = _make_round('base_round', _Round)
+trunc = _make_round('trunc', _Trunc)
+floor = _make_round('floor', _Floor)
+ceil = _make_round('ceil', _Ceil)
+
 add = _make_binary('add', _Add, 0, 0)  # x + 0 = 0 + x = 1
 subtract = _make_binary('subtract', _Subtract, y_neutral=0)  # x - 0 = x
 multiply = _make_binary('multiply', _Multiply, 1, 1)  # 1 * x = x * 1 = x
@@ -522,6 +773,8 @@ power = _make_binary('power', _Power, y_neutral=1)  # x^1 = x
 minimum = _make_binary('minimum', _Minimum)
 maximum = _make_binary('maximum', _Maximum)
 floor_divide = _make_binary('floor_divide', _FloorDivide)
+logaddexp = _make_binary('logaddexp', _Logaddexp)
+arctan2 = _make_binary('arctan2', _Arctan2)
 
 where = _make_ternary('where', _Where)
 clip = _make_ternary('clip', _Clip)
@@ -529,11 +782,24 @@ clip = _make_ternary('clip', _Clip)
 
 __all__ = [
     'negative', 'reciprocal', 'square',
-    'abs', 'sign', 'sqrt', 'rsqrt', 'exp', 'log',
+    'abs', 'sign', 'sqrt', 'rsqrt',
+
+    'exp', 'exp2', 'exp10', 'expm1',
+    'log', 'log2', 'log10', 'log1p',
+
     'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh',
+    'arcsin', 'arccos', 'arctan',
+    'arcsinh', 'arccosh', 'arctanh',
+
+    'round', 'trunc', 'floor', 'ceil',
     'add', 'subtract', 'multiply', 'divide',
     'power', 'minimum', 'maximum',
     'floor_divide',
+    'logaddexp',
+    'arctan2',
+
     'where', 'clip',
-    'matmul', 'tensordot', 'outer'
+    'matmul', 'tensordot', 'dot', 'vdot',
+    'outer', 'inner',
+    'cross'
 ]

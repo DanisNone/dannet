@@ -6,7 +6,7 @@ import dannet as dt
 
 
 def normalize_shape(
-    shape: dt.typing.ShapeLike | SupportsIndex
+    shape: dt.typing.ShapeLike
 ) -> tuple[int, ...]:
     if isinstance(shape, SupportsIndex):
         shape = [shape]
@@ -61,22 +61,40 @@ def broadcast_shape_to(
 
 
 def normalize_axis_tuple(
-    x: dt.typing.TensorLike,
+    x: dt.typing.TensorLike | int,
     axis: None | SupportsIndex | Sequence[SupportsIndex]
 ) -> tuple[int, ...]:
-    ndim = dt.convert_to_tensor(x).ndim
+    if isinstance(x, int):
+        ndim = x
+    else:
+        ndim = dt.convert_to_tensor(x).ndim
 
     if axis is None:
         axis = range(ndim)
     if isinstance(axis, SupportsIndex):
         axis = [axis]
-    axis = [int(a) for a in axis]
-    axis = [a if a >= 0 else a + ndim for a in axis]
 
-    for a in axis:
-        if a < 0 or a >= ndim:
-            raise ValueError(
-                f'axis {axis} is out of bounds for tensor of dimension {ndim}'
-            )
+    axis = [normalize_axis_index(i, ndim) for i in axis]
+    if len(set(axis)) != len(axis):
+        raise ValueError(f'repeated axis: {axis}')
 
     return tuple(axis)
+
+
+def normalize_axis_index(
+    axis: SupportsIndex,
+    ndim: int,
+    msg_prefix: str | None = None
+):
+    axis = int(axis)
+    if not (-ndim <= axis < ndim):
+        msg = (
+            f'axis {axis} is out of bounds '
+            f'for tensor of dimension {ndim}'
+        )
+        if msg_prefix is not None:
+            msg = f'{msg_prefix}: {msg}'
+        raise ValueError(msg)
+    if axis < 0:
+        axis += ndim
+    return axis

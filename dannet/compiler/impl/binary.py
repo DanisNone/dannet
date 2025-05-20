@@ -115,14 +115,14 @@ def maximum(device, node, input_buffers, output_buffer):
 @register_impl(dt.math._FloorDivide)
 def floor_divide(device, node, input_buffers, output_buffer):
     if dt.dtype.is_float_dtype(node.dtype):
-        header = """
+        header = '''
 dtypeC floor_divide(dtypeA x, dtypeB y)
 {
     return floor(x / y);
 }
-"""
+'''
     else:
-        header = """
+        header = '''
 dtypeC floor_divide(dtypeA x, dtypeB y)
 {
     dtypeC q = (dtypeC)x / (dtypeC)y;
@@ -132,10 +132,30 @@ dtypeC floor_divide(dtypeA x, dtypeB y)
     }
     return q;
 }
-"""
+'''
     return binary(
         device, node, input_buffers, output_buffer,
         'floor_divide(x, y)', [header]
+    )
+
+
+@register_impl(dt.math._Logaddexp)
+def logaddexp(device, node, input_buffers, output_buffer):
+    x = '(dtypeC)x'
+    y = '(dtypeC)y'
+
+    return binary(
+        device, node, input_buffers, output_buffer,
+        f'fmax({x}, {y}) + '
+        f'log1p(exp(-fabs({x} - {y})))'
+    )
+
+
+@register_impl(dt.math._Arctan2)
+def arctan2(device, node, input_buffers, output_buffer):
+    return binary(
+        device, node, input_buffers, output_buffer,
+        'atan2((dtypeC)x, (dtypeC)y)'
     )
 
 

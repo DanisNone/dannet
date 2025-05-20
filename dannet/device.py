@@ -265,3 +265,6 @@ def default_device() -> Device:
     except ValueError:
         device_id = 0
     return Device(platform_id, device_id)
+
+
+current_device = Device.current_device

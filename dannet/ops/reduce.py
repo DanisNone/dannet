@@ -195,6 +195,12 @@ def std(x: dt.typing.TensorLike, axis=None, keepdims=False):
     return dt.sqrt(variance)
 
 
+def count_nonzero(x: dt.typing.TensorLike, axis=None, keepdims=False):
+    x = dt.convert_to_tensor(x)
+    mask = (x != 0)
+    return dt.sum(mask, axis=axis, keepdims=keepdims)
+
+
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)
 prod = _make_reduce('prod', _Prod)
@@ -220,5 +226,7 @@ __all__ = [
     'all',
 
     'argmin',
-    'argmax'
+    'argmax',
+
+    'count_nonzero'
 ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import math
+from types import EllipsisType
 from typing import Any, Sequence
 import numpy as np
 
@@ -48,6 +49,16 @@ class TensorBuffer:
         return [inp._buffer for inp in self.parent.inputs()]
 
 
+_getitem_sub_type = (
+    int | slice | None |
+    EllipsisType
+)
+_getitem_key_type = (
+    _getitem_sub_type |
+    tuple[_getitem_sub_type, ...]
+)
+
+
 class TensorBase(abc.ABC, metaclass=TensorMeta):
     _dtype: str
     _shape: tuple[int, ...]
@@ -75,8 +86,8 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
         if len(grads) != len(inputs):
             raise ValueError(
-                f"compute_gradients: expected {len(inputs)} gradient(s) "
-                f"but got {len(grads)}"
+                f'compute_gradients: expected {len(inputs)} gradient(s) '
+                f'but got {len(grads)}'
             )
 
         result = []
@@ -86,8 +97,8 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
             if inp_grad.shape != inp.shape:
                 raise ValueError(
-                    f"compute_gradients: shape mismatch for input #{i}. "
-                    f"expected {tuple(inp.shape)}, got {tuple(inp_grad.shape)}"
+                    f'compute_gradients: shape mismatch for input #{i}. '
+                    f'expected {tuple(inp.shape)}, got {tuple(inp_grad.shape)}'
                 )
 
             result.append(inp_grad)
@@ -280,34 +291,49 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
 
     def __getitem__(
         self,
-        key: int | slice | None | tuple[int | slice | None, ...]
+        key: _getitem_key_type
     ) -> TensorBase:
         if not isinstance(key, tuple):
             key = (key,)
 
-        for i, k in enumerate(key):
+        n_ellipsis = sum(1 for k in key if k is Ellipsis)
+        if n_ellipsis > 1:
+            raise IndexError(
+                'an index can only have a single ellipsis (\'...\')'
+            )
+
+        n_newaxes = sum(1 for k in key if k is None)
+        full_key_len = self.ndim + n_newaxes
+        missing = full_key_len - (len(key) - 1)
+
+        key_norm: list[int | slice | None] = []
+        for k in key:
+            if isinstance(k, EllipsisType):
+                key_norm.extend([slice(None)] * missing)
+            else:
+                key_norm.append(k)
+
+        if len(key) < full_key_len:
+            key = key + (slice(None),) * (full_key_len - len(key))
+
+        for i, k in enumerate(key_norm):
             if not isinstance(k, (int, slice)) and k is not None:
                 raise TypeError(
                     f'Invalid index at position {i}: '
                     f'expected int, slice, or None, got {type(k).__name__}'
                 )
-        n_newaxes = sum(1 for k in key if k is None)
-
-        full_key_len = self.ndim + n_newaxes
-        if len(key) < full_key_len:
-            key += (slice(None),) * (full_key_len - len(key))
 
         slices: list[slice] = []
         squeeze_axes: list[int] = []
         newaxes_positions: list[int] = []
 
-        for i, k in enumerate(key):
+        for i, k in enumerate(key_norm):
             if k is None:
                 newaxes_positions.append(i)
             elif isinstance(k, int):
                 slices.append(slice(k, k + 1, 1))
                 squeeze_axes.append(i)
-            elif isinstance(k, slice):
+            else:
                 slices.append(k)
 
         result = dt.slice(self, slices)

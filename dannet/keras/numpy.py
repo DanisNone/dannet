@@ -1,14 +1,22 @@
 import dannet as dt
+
+from keras.src import tree
 from keras.src.backend import floatx
+from keras.src.backend.common import dtypes
 from dannet.keras import convert_to_tensor
+
 
 py_min = min
 py_max = max
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    return dt.angle(x)
+
+
 def rot90(array, k=1, axes=(0, 1)):
     array = convert_to_tensor(array)
-
     return dt.rot90(array, k, axes)
 
 
@@ -20,22 +28,30 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def add(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     return dt.add(x1, x2)
 
 
 def subtract(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     return dt.subtract(x1, x2)
 
 
-def matmul(x1, x2, transpose_a=False, transpose_b=False):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return dt.matmul(x1, x2, transpose_a, transpose_b)
+def matmul(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.matmul(x1, x2)
 
 
 def multiply(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     return dt.multiply(x1, x2)
 
 
@@ -45,10 +61,21 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    if initial is not None:
-        raise NotImplementedError('initial must be None')
+    if 0 in getattr(x, 'shape', ()):
+        if initial is None:
+            raise ValueError('Cannot compute the max of an empty tensor.')
+        elif keepdims:
+            return dt.broadcast_to(initial, (1,) * len(x.shape))
+        else:
+            return dt.convert_to_tensor(initial)
+
     x = convert_to_tensor(x)
-    return dt.max(x, axis, keepdims)
+    result = dt.max(x, axis, keepdims)
+
+    if initial is not None:
+        initial = convert_to_tensor(initial, dtype=result.dtype)
+        result = dt.maximum(result, initial)
+    return result
 
 
 def zeros(shape, dtype=None):
@@ -89,13 +116,11 @@ def abs(x):
 
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-
     return dt.all(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-
     return dt.any(x, axis=axis, keepdims=keepdims)
 
 
@@ -118,31 +143,40 @@ def arange(start, stop=None, step=1, dtype=None):
 
 
 def arccos(x):
-    raise NotImplementedError('arccos')
+    x = convert_to_tensor(x)
+    return dt.arccos(x)
 
 
 def arccosh(x):
-    raise NotImplementedError('arccosh')
+    x = convert_to_tensor(x)
+    return dt.arccosh(x)
 
 
 def arcsin(x):
-    raise NotImplementedError('arcsin')
+    x = convert_to_tensor(x)
+    return dt.arcsin(x)
 
 
 def arcsinh(x):
-    raise NotImplementedError('arcsinh')
+    x = convert_to_tensor(x)
+    return dt.arcsinh(x)
 
 
 def arctan(x):
-    raise NotImplementedError('arctan')
+    x = convert_to_tensor(x)
+    return dt.arctan(x)
 
 
 def arctan2(x1, x2):
-    raise NotImplementedError('arctan2')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.arctan2(x1, x2)
 
 
 def arctanh(x):
-    raise NotImplementedError('arctanh')
+    x = convert_to_tensor(x)
+    return dt.arctanh(x)
 
 
 def argmax(x, axis=None, keepdims=False):
@@ -160,7 +194,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    raise NotImplementedError('array')
+    return convert_to_tensor(x, dtype)
 
 
 def average(x, axis=None, weights=None):
@@ -224,18 +258,21 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    raise NotImplementedError('ceil')
+    x = convert_to_tensor(x)
+    return dt.ceil(x)
 
 
 def clip(x, x_min, x_max):
     x = convert_to_tensor(x)
     x_min = convert_to_tensor(x_min)
     x_max = convert_to_tensor(x_max)
+
     return dt.clip(x, x_min, x_max)
 
 
 def concatenate(xs, axis=0):
-    raise NotImplementedError('concatenate')
+    xs = [convert_to_tensor(x) for x in xs]
+    return dt.concatenate(xs, axis=axis)
 
 
 def conjugate(x):
@@ -249,7 +286,8 @@ def conj(x):
 
 
 def copy(x):
-    raise NotImplementedError('copy')
+    x = convert_to_tensor(x)
+    return dt.copy(x)
 
 
 def cos(x):
@@ -263,11 +301,14 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    raise NotImplementedError('count_nonzero')
+    return dt.count_nonzero(x, axis)
 
 
-def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
-    raise NotImplementedError('cross')
+def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.cross(x1, x2, axisa, axisb, axisc, axis)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -279,15 +320,18 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def diag(x, k=0):
-    raise NotImplementedError('diag')
+    x = convert_to_tensor(x)
+    return dt.diag(x, k)
 
 
 def diagflat(x, k=0):
-    raise NotImplementedError('diagflat')
+    x = convert_to_tensor(x)
+    return dt.diagflat(x, k)
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError('diagonal')
+    x = convert_to_tensor(x)
+    return dt.diagonal(x, offset, axis1, axis2)
 
 
 def diff(a, n=1, axis=-1):
@@ -299,7 +343,10 @@ def digitize(x, bins):
 
 
 def dot(x, y):
-    raise NotImplementedError('dot')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.dot(x, y)
 
 
 def empty(shape, dtype=None):
@@ -309,6 +356,7 @@ def empty(shape, dtype=None):
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.equal(x1, x2)
 
 
@@ -318,7 +366,8 @@ def exp(x):
 
 
 def exp2(x):
-    raise NotImplementedError('exp2')
+    x = convert_to_tensor(x)
+    return dt.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -327,7 +376,8 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    raise NotImplementedError('expm1')
+    x = convert_to_tensor(x)
+    return dt.expm1(x)
 
 
 def flip(x, axis=None):
@@ -336,31 +386,42 @@ def flip(x, axis=None):
 
 
 def floor(x):
-    raise NotImplementedError('floor')
+    x = convert_to_tensor(x)
+    return dt.floor(x)
 
 
 def full(shape, fill_value, dtype=None):
-    raise NotImplementedError('full')
+    if dtype is None:
+        dtype = floatx()
+    fill_value = convert_to_tensor(fill_value, dtype)
+    return dt.broadcast_to(fill_value, shape)
 
 
 def full_like(x, fill_value, dtype=None):
-    raise NotImplementedError('full_like')
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    fill_value = convert_to_tensor(fill_value, dtype)
+
+    return dt.broadcast_to(fill_value, x.shape)
 
 
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.greater(x1, x2)
 
 
 def greater_equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.greater_equal(x1, x2)
 
 
 def hstack(xs):
-    raise NotImplementedError('hstack')
+    xs = [convert_to_tensor(x) for x in xs]
+    return dt.hstack(xs)
 
 
 def identity(n, dtype=None):
@@ -391,12 +452,14 @@ def isnan(x):
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.less(x1, x2)
 
 
 def less_equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.less_equal(x1, x2)
 
 
@@ -412,19 +475,25 @@ def log(x):
 
 
 def log10(x):
-    raise NotImplementedError('log10')
+    x = convert_to_tensor(x)
+    return dt.log10(x)
 
 
 def log1p(x):
-    raise NotImplementedError('log1p')
+    x = convert_to_tensor(x)
+    return dt.log1p(x)
 
 
 def log2(x):
-    raise NotImplementedError('log2')
+    x = convert_to_tensor(x)
+    return dt.log2(x)
 
 
 def logaddexp(x1, x2):
-    raise NotImplementedError('logaddexp')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.logaddexp(x1, x2)
 
 
 def logical_and(x1, x2):
@@ -436,7 +505,6 @@ def logical_and(x1, x2):
 
 def logical_not(x):
     x = convert_to_tensor(x)
-
     return dt.logical_not(x)
 
 
@@ -454,6 +522,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 def maximum(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.maximum(x1, x2)
 
 
@@ -462,19 +531,32 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing='xy'):
-    raise NotImplementedError('meshgrid')
+    x = [convert_to_tensor(t) for t in x]
+    return dt.meshgrid(*x, indexing=indexing)
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    if initial is not None:
-        raise NotImplementedError('initial must be None')
+    if 0 in getattr(x, 'shape', ()):
+        if initial is None:
+            raise ValueError('Cannot compute the min of an empty tensor.')
+        elif keepdims:
+            return dt.broadcast_to(initial, (1,) * len(x.shape))
+        else:
+            return dt.convert_to_tensor(initial)
+
     x = convert_to_tensor(x)
-    return dt.min(x, axis, keepdims)
+    result = dt.min(x, axis, keepdims)
+
+    if initial is not None:
+        initial = convert_to_tensor(initial, dtype=result.dtype)
+        result = dt.minimum(result, initial)
+    return result
 
 
 def minimum(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.minimum(x1, x2)
 
 
@@ -483,7 +565,8 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    raise NotImplementedError('moveaxis')
+    x = convert_to_tensor(x)
+    return dt.moveaxis(x, source, destination)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -502,15 +585,26 @@ def nonzero(x):
 def not_equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.not_equal(x1, x2)
 
 
 def outer(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     return dt.outer(x1, x2)
 
 
 def pad(x, pad_width, mode='constant', constant_values=None):
+    if constant_values is not None:
+        if mode != 'constant':
+            raise ValueError(
+                'Argument `constant_values` can only be '
+                'provided when `mode == \'constant\'`. '
+                f'Received: mode={mode}'
+            )
+
     if mode != 'constant':
         raise NotImplementedError(mode)
     if constant_values is None:
@@ -575,7 +669,8 @@ def sign(x):
 
 
 def signbit(x):
-    raise NotImplementedError('signbit')
+    x = convert_to_tensor(x)
+    return dt.signbit(x)
 
 
 def sin(x):
@@ -598,11 +693,16 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
-    raise NotImplementedError('split')
+    x = convert_to_tensor(x)
+    return dt.split(x, indices_or_sections, axis)
 
 
 def stack(x, axis=0):
-    raise NotImplementedError('stack')
+    dtype_set = set([getattr(a, 'dtype', type(a)) for a in x])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        x = tree.map_structure(lambda a: convert_to_tensor(a).astype(dtype), x)
+    return dt.stack(x, axis=axis)  # type: ignore
 
 
 def std(x, axis=None, keepdims=False):
@@ -618,6 +718,7 @@ def swapaxes(x, axis1, axis2):
 def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices)
+
     return dt.take(x, indices, axis)
 
 
@@ -643,43 +744,55 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
-    raise NotImplementedError('round')
+    x = convert_to_tensor(x)
+    return dt.round(x, decimals)
 
 
 def tile(x, repeats):
     raise NotImplementedError('tile')
 
 
-def trace(x, offset=None, axis1=None, axis2=None):
-    raise NotImplementedError('trace')
+def trace(x, offset=0, axis1=0, axis2=1):
+    x = convert_to_tensor(x)
+    return dt.trace(x, offset, axis1, axis2)
 
 
 def tri(N, M=None, k=0, dtype=None):
-    raise NotImplementedError('tri')
+    return dt.tri(M, N, k, dtype)
 
 
 def tril(x, k=0):
-    raise NotImplementedError('tril')
+    x = convert_to_tensor(x)
+    return dt.tril(x, k)
 
 
 def triu(x, k=0):
-    raise NotImplementedError('triu')
+    x = convert_to_tensor(x)
+    return dt.triu(x, k)
 
 
 def trunc(x):
-    raise NotImplementedError('trunc')
+    x = convert_to_tensor(x)
+    return dt.trunc(x)
 
 
 def vdot(x1, x2):
-    raise NotImplementedError('vdot')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.vdot(x1, x2)
 
 
 def inner(x1, x2):
-    raise NotImplementedError('inner')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    return dt.inner(x1, x2)
 
 
 def vstack(xs):
-    raise NotImplementedError('vstack')
+    xs = [convert_to_tensor(x) for x in xs]
+    return dt.vstack(xs)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
@@ -690,12 +803,14 @@ def where(condition, x1, x2):
     condition = convert_to_tensor(condition)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.where(condition, x1, x2)
 
 
 def divide(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
     return dt.divide(x1, x2)
 
 
@@ -712,7 +827,9 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     return dt.power(x1, x2)
 
 
@@ -774,7 +891,10 @@ def correlate(x1, x2, mode='valid'):
 
 
 def select(condlist, choicelist, default=0):
-    raise NotImplementedError('select')
+    res = default
+    for cond, choice in zip(condlist[::-1], choicelist[::-1]):
+        res = where(cond, choice, res)
+    return res
 
 
 def slogdet(x):
