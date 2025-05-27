@@ -1,83 +1,95 @@
 from __future__ import annotations
 
 
+import functools
 import math
 from pathlib import Path
-from typing import Sequence
+import re
 import pyopencl as cl
 
 import dannet as dt
 from dannet.compiler.reg_impl import register_impl  # noqa: F401
 
-dtype_map = {
-    'bool': 'bool',
-    'uint8': 'uchar',
-    'uint16': 'ushort',
-    'uint32': 'uint',
-    'uint64': 'ulong',
-    'int8': 'char',
-    'int16': 'short',
-    'int32': 'int',
-    'int64': 'long',
-    'float16': 'half',
-    'float32': 'float',
-    'float64': 'double',
-}
+
+class Generator:
+    def __init__(self):
+        self._defines: list[str] = []
+        self._lines: list[str] = []
+        self._replaces: dict[str, str] = {}
+
+    def static_array(self, name: str, values: tuple[int, ...] | list[int]):
+        vals = list(values) + [0]
+        array_str = ', '.join(str(v) for v in vals)
+        line = f'__constant size_t {name}[{len(vals)}] = {{{array_str}}};'
+        self._lines.append(line)
+
+    def nodes_info(self, **kwargs: dt.core.TensorBase):
+        for name, node in kwargs.items():
+            self.static_array(f'shape{name}', node._shape)
+            self.static_array(f'strides{name}', node._strides)
+
+            self._defines.append(f'#define offset{name} {node._buffer_offset}')
+            self._defines.append(f'#define ndim{name} {node.ndim}')
+            self._defines.append(f'#define size{name} {node.size}')
+
+            self._replaces[f'dtype{name}'] = node._dtype
+
+    def dtype_names(self, **kwargs: str):
+        for name, dtype in kwargs.items():
+            dtype = dt.dtype.normalize_dtype(dtype)
+            self._replaces[name] = dtype
+
+    def defines(self, **kwargs):
+        for key, value in kwargs.items():
+            self._defines.append(f'#define {key} {value}')
+
+    def mode(self, mode_name: str):
+        self._defines.append(f'#define {mode_name}')
+
+    def line(self, line: str):
+        self._lines.append(line)
+
+    def get_all(self) -> str:
+        parts = ['#include "dtypes/core.cl"']
+        parts.extend(self._defines)
+        parts.extend(self._lines)
+
+        return '\n'.join(parts)
+
+    def apply(self, code: str) -> str:
+        result = '\n'.join((self.get_all(), code))
+        for name, dtype in self._replaces.items():
+            result = re.sub(f'\\b{name}\\b', f'dt_{dtype}', result)
+            result = re.sub(name, dtype, result)
+
+        return result
+
+    def __eq__(self, other):
+        if not isinstance(other, Generator):
+            return False
+        return (
+            self._defines == other._defines and
+            self._lines == other._lines and
+            self._replaces == other._replaces
+        )
+
+    def __hash__(self):
+        return hash(self.apply(''))
 
 
-def to_cl_dtype(dtype: str) -> str:
-    if dtype not in dtype_map:
-        raise ValueError(f'Unsupported dtype: {dtype}')
-    return dtype_map[dtype]
-
-
-def generate_static_array(name: str, values: Sequence[int]) -> str:
-    values = list(values)
-    values.append(0)
-
-    array_str = ', '.join(str(v) for v in values)
-    return f'__constant size_t {name}[{len(values)}] = {{{array_str}}};'
-
-
-def generate_nodes_info(**kwargs: dt.core.TensorBase) -> list[str]:
-    result = []
-    for name, node in kwargs.items():
-        result.append(f'#define dtype{name} {to_cl_dtype(node._dtype)}')
-        result.append(generate_static_array(f'shape{name}', node._shape))
-        result.append(generate_static_array(f'strides{name}', node._strides))
-        result.append(f'#define offset{name} {node._buffer_offset}')
-        result.append(f'#define ndim{name} {node.ndim}')
-        result.append(f'#define size{name} {node.size}')
-        result.append('')
-    return result
-
-
-def generate_defines(**kwargs) -> list[str]:
-    res = []
-    for key, value in kwargs.items():
-        res.append(f'#define {key} {value}')
-    return res
-
-
-def generate_mode(mode: str):
-    return f'#define {mode}'
-
-
-_build_cache = {}
-
-
-def build_kernel(device: dt.Device, name: str, headers: list[str] = []):
-    key = (device, name, *headers)
-    if key in _build_cache:
-        return _build_cache[key]
-    path = Path(__file__).parent.parent / 'kernels' / name
+@functools.cache
+def build_kernel(device: dt.Device, name: str, gen: Generator):
+    root = Path(__file__).parent.parent
+    path = root / 'kernels' / name
 
     with open(path, encoding='utf-8') as file:
-        code = '\n'.join([*headers, file.read()])
+        code = gen.apply(file.read())
     with open('last_compiled.cl', 'w') as file:
         print(f'//{name}\n'+code, file=file)
-    _build_cache[key] = cl.Program(device.context, code).build()
-    return _build_cache[key]
+    options = [f'-I {root}']
+
+    program = cl.Program(device.context, code).build(options)
+    return program
 
 
 def default_strides(obj):

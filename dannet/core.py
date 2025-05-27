@@ -78,7 +78,20 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
     ) -> Sequence[TensorBase | None] | None:
         pass
 
-    def compute_gradients(self, grad: TensorBase) -> list[TensorBase]:
+    def compute_gradients(self, grad: TensorBase) -> list[TensorBase | None]:
+        if (
+            dt.dtype.is_complex_dtype(self.dtype) or
+            dt.dtype.is_complex_dtype(grad.dtype)
+        ):
+            raise NotImplementedError(
+                'dannet already not support complex gradients'
+            )
+        if (
+            dt.dtype.is_integer_dtype(grad.dtype) or
+            dt.dtype.is_bool_dtype(grad.dtype)
+        ):
+            return [None] * len(self.inputs())
+
         inputs = self.inputs()
         grads = self._compute_gradients(grad)
         if grads is None:
@@ -90,17 +103,22 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
                 f'but got {len(grads)}'
             )
 
-        result = []
+        result: list[TensorBase | None] = []
         for i, (inp_grad, inp) in enumerate(zip(grads, inputs)):
-            if inp_grad is None:
-                inp_grad = dt.zeros_like(inp)
-
-            if inp_grad.shape != inp.shape:
+            if dt.dtype.is_complex_dtype(inp.dtype):
+                raise NotImplementedError(
+                    'dannet already not support complex gradients'
+                )
+            if inp_grad is not None and inp_grad.shape != inp.shape:
                 raise ValueError(
                     f'compute_gradients: shape mismatch for input #{i}. '
                     f'expected {tuple(inp.shape)}, got {tuple(inp_grad.shape)}'
                 )
-
+            if (
+                dt.dtype.is_integer_dtype(inp.dtype) or
+                dt.dtype.is_bool_dtype(inp.dtype)
+            ):
+                inp_grad = None
             result.append(inp_grad)
         return result
 
@@ -414,6 +432,8 @@ class Constant(TensorBase):
                 dtype = dt.dtype.int_dtype
             if isinstance(value, float):
                 dtype = dt.dtype.float_dtype
+            if isinstance(value, complex):
+                dtype = dt.dtype.complex_dtype
         self._value = np.array(value, dtype=dtype)
         dtype = self._value.dtype
 
@@ -612,5 +632,12 @@ def _node_prepare(node: TensorBase):
     return node
 
 
-variable = Variable
-constant = Constant
+def variable(value, dtype=None):
+    return Variable(value, dtype)
+
+
+def constant(value, dtype=None):
+    return Constant(value, dtype)
+
+
+array = constant

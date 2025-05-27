@@ -15,7 +15,10 @@ __kernel void onehot(
 
     for (size_t i = 0; i < shapeB[ndimB - 1]; i++)
     {
-        B[shiftB + i] = i == value? 1 : 0;
+        if (i == value)
+            B[shiftB + i] = dt_one_dtypeB();
+        else
+            B[shiftB + i] = dt_zero_dtypeB();
     }
 
 }

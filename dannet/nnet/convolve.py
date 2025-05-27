@@ -48,7 +48,7 @@ class _ConvND(dt.core.TensorBase):
             self.kernel._shape,
             self._conv_strides,
         )
-        self._dtype = dt.dtype.max_dtype(
+        self._dtype = dt.dtype.promote_dtypes(
             self.input._dtype,
             self.kernel._dtype,
             'uint32',
@@ -135,7 +135,7 @@ class _DepthwiseConv2D(dt.core.TensorBase):
             self._conv_strides,
         )
 
-        self._dtype = dt.dtype.max_dtype(
+        self._dtype = dt.dtype.promote_dtypes(
             self.input._dtype,
             self.kernel._dtype,
             'uint32',

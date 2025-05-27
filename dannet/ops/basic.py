@@ -481,7 +481,9 @@ class _Concatenate(dt.core.TensorBase):
         out_shape[0] = total
 
         self._shape = tuple(out_shape)
-        self._dtype = dt.dtype.max_dtype(*[inp.dtype for inp in self._tensors])
+        self._dtype = dt.dtype.promote_dtypes(
+            *[inp.dtype for inp in self._tensors]
+        )
 
         self._init_default_buffer()
 

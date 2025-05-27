@@ -25,7 +25,8 @@ def compile_node(
     t = type(node)
     if t not in impl_ops:
         raise NotImplementedError(
-            f'No implementation registered for {type(node)}')
+            f'No implementation registered for {type(node)}'
+        )
 
     input_cl_buffers = [input.cl_buffer for input in input_buffers]
     output_cl_buffer = output_buffer.cl_buffer

@@ -2,9 +2,8 @@ import math
 import dannet as dt
 
 from .utils import (
-    generate_nodes_info,
+    Generator,
     build_kernel,
-    generate_defines,
     register_impl
 )
 
@@ -26,11 +25,14 @@ def matmul(
     assert len(shapeA) >= 2 and len(shapeB) >= 2
 
     shapeC = dt.utils.broadcast_shapes(
-        shapeA[:-2], shapeB[:-2]) + (shapeA[-2], shapeB[-1])
+        shapeA[:-2], shapeB[:-2]
+    ) + (shapeA[-2], shapeB[-1])
     shapeA = dt.utils.broadcast_shape_to(
-        shapeA[:-2], shapeC[:-2]) + shapeA[-2:]
+        shapeA[:-2], shapeC[:-2]
+    ) + shapeA[-2:]
     shapeB = dt.utils.broadcast_shape_to(
-        shapeB[:-2], shapeC[:-2]) + shapeB[-2:]
+        shapeB[:-2], shapeC[:-2]
+    ) + shapeB[-2:]
 
     M, N = shapeA[-2:]
     N0, K = shapeB[-2:]
@@ -45,14 +47,15 @@ def matmul(
     )
     local_size = (tile_size, tile_size)
 
-    headers = generate_nodes_info(
+    gen = Generator()
+    gen.nodes_info(
         A=node.x,
         B=node.y,
         C=node
     )
-    headers.extend(generate_defines(M=M, N=N, K=K, tile_size=tile_size))
+    gen.defines(M=M, N=N, K=K, tile_size=tile_size)
 
-    kernel = build_kernel(device, 'matmul.cl', headers)
+    kernel = build_kernel(device, 'matmul.cl', gen)
     return lambda: kernel.general(
         device.queue, global_size, local_size,
         A, B, C

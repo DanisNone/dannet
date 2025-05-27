@@ -23,8 +23,8 @@ __kernel void padding(
     }
 
     if (is_zero)
-        B[shiftB + offsetB] = 0;
+        B[shiftB + offsetB] = dt_zero_dtypeB();
     else
-        B[shiftB + offsetB] = A[shiftA + offsetA];
+        B[shiftB + offsetB] = dt_convert_dtypeA_to_dtypeB(A[shiftA + offsetA]);
 }
 #endif

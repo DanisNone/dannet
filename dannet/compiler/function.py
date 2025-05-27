@@ -63,16 +63,17 @@ class function:
 
         self._cached: dict[Any, tuple] = {}
 
-    def compute_output_spec(self, *args, **kwargs):
+    def compute_output_spec(self, *args, **kwargs) -> Any:
         if self._nodes:
-            print(self._nodes)
             raise RuntimeError(
                 'Internal node buffer not empty before graph build'
             )
         flatten_input, input_spec, inputs, idx = self._prepare_inputs(
-            *args, **kwargs)
+            *args, **kwargs
+        )
         flatten_input, placeholders = self._create_placeholders(
-            flatten_input, idx)
+            flatten_input, idx
+        )
 
         args_t: tuple
         kwargs_t: dict

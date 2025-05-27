@@ -10,6 +10,6 @@ __kernel void copy_strided(
     for (int axis = 0; axis < ndimA; axis++)
         shiftA += ((shiftB / stridesAN[axis]) % shapeA[axis]) * stridesA[axis];
 
-    B[shiftB + offsetB] = A[shiftA + offsetA];    
+    B[shiftB + offsetB] = dt_convert_dtypeA_to_dtypeB(A[shiftA + offsetA]);    
 }
 #endif

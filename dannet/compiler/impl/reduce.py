@@ -1,11 +1,7 @@
 import dannet as dt
-
 from .utils import (
-    generate_nodes_info,
-    generate_mode,
+    Generator,
     default_strides,
-    generate_static_array,
-    generate_defines,
     register_impl,
     build_kernel
 )
@@ -16,9 +12,10 @@ def reduce(
     node: dt.reduce._Reduce,
     input_buffers,
     output_buffer,
-    init_value: str,
-    operation: str,
-    final_operation: str,
+    *,
+    op: str,
+    init_op: str | None = None,
+    final_op: str | None = None
 ):
     assert node._is_contiguous
     (A,) = input_buffers
@@ -28,48 +25,68 @@ def reduce(
 
     inner_size = node.x.size // node.size
     inner_shape = [s for i, s in enumerate(node.x._shape) if i in node._axis]
-    inner_strides = [s for i, s in enumerate(
-        node.x._strides) if i in node._axis]
+    inner_strides = [
+        s
+        for i, s in enumerate(node.x._strides)
+        if i in node._axis
+    ]
     inner_strides_norm = default_strides(inner_shape)
 
     outer_size = node.size
-    outer_shape = [s for i, s in enumerate(
-        node.x._shape) if i not in node._axis]
-    outer_strides = [s for i, s in enumerate(
-        node.x._strides) if i not in node._axis]
+    outer_shape = [
+        s
+        for i, s in enumerate(node.x._shape)
+        if i not in node._axis
+    ]
+    outer_strides = [
+        s
+        for i, s in enumerate(node.x._strides)
+        if i not in node._axis
+    ]
     outer_strides_norm = default_strides(outer_shape)
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(generate_static_array('shapeI', inner_shape))
-    headers.append(generate_static_array('stridesI', inner_strides))
-    headers.append(generate_static_array('stridesIN', inner_strides_norm))
-    headers.extend(generate_defines(ndimI=len(inner_shape), sizeI=inner_size))
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
 
-    headers.append(generate_static_array('shapeO', outer_shape))
-    headers.append(generate_static_array('stridesO', outer_strides))
-    headers.append(generate_static_array('stridesON', outer_strides_norm))
-    headers.extend(generate_defines(ndimO=len(outer_shape), sizeO=outer_size))
+    gen.static_array('shapeI', inner_shape)
+    gen.static_array('stridesI', inner_strides)
+    gen.static_array('stridesIN', inner_strides_norm)
+    gen.defines(ndimI=len(inner_shape), sizeI=inner_size)
 
-    headers.append(
-        f'''
-__constant dtypeB init_value = {init_value};
+    gen.static_array('shapeO', outer_shape)
+    gen.static_array('stridesO', outer_strides)
+    gen.static_array('stridesON', outer_strides_norm)
+    gen.defines(ndimO=len(outer_shape), sizeO=outer_size)
 
-dtypeB operation(dtypeB acc, dtypeA x)
+    if init_op is None:
+        init_op = 'x'
+    if final_op is None:
+        final_op = 'res'
+
+    gen.line(f'''
+dtypeB init_operation(dtypeA x_inp)
 {{
-    return {operation};
+    dtypeB x = dt_convert_dtypeA_to_dtypeB(x_inp);
+    return {init_op};
+}}
+
+dtypeB operation(dtypeB acc, dtypeA x_inp)
+{{
+    dtypeB x = dt_convert_dtypeA_to_dtypeB(x_inp);
+    return {op};
 }}
 
 dtypeB final_operation(dtypeB res, size_t inner_size)
 {{
-    return {final_operation};
+    return {final_op};
 }}
-'''
-    )
-    headers.append(generate_mode('general'))
+''')
+
+    gen.mode('general')
 
     global_size = (node.size,)
     local_size = None
-    kernel = build_kernel(device, 'reduce.cl', headers)
+    kernel = build_kernel(device, 'reduce.cl', gen)
     return lambda: kernel.reduce(device.queue, global_size, local_size, A, B)
 
 
@@ -77,20 +94,28 @@ dtypeB final_operation(dtypeB res, size_t inner_size)
 def sum(device, node, input_buffers, output_buffer):
     return reduce(
         device, node, input_buffers, output_buffer,
-        '0', 'acc + x', 'res'
+        op='dt_add_dtypeB(acc, x)',
+    )
+
+
+@register_impl(dt.reduce._DefaultDtypeSum)
+def default_typed_sum(device, node, input_buffers, output_buffer):
+    return reduce(
+        device, node, input_buffers, output_buffer,
+        op='dt_add_dtypeB(acc, x)',
     )
 
 
 @register_impl(dt.reduce._Mean)
 def mean(device, node, input_buffers, output_buffer):
+    final_op = 'dt_divide_dtypeB(res, dt_convert_uint64_to_dtypeB(inner_size))'
     return reduce(
         device,
         node,
         input_buffers,
         output_buffer,
-        '0',
-        'acc + x',
-        'res / (dtypeB)inner_size',
+        op='dt_add_dtypeB(acc, x)',
+        final_op=final_op
     )
 
 
@@ -98,7 +123,7 @@ def mean(device, node, input_buffers, output_buffer):
 def prod(device, node, input_buffers, output_buffer):
     return reduce(
         device, node, input_buffers, output_buffer,
-        '1', 'acc * (dtypeB)x', 'res'
+        op='dt_multiply_dtypeB(acc, x)',
     )
 
 
@@ -109,9 +134,7 @@ def min(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        'INFINITY',
-        'acc < x ? acc : x',
-        'res',
+        op='dt_min_dtypeB(acc, x)',
     )
 
 
@@ -122,22 +145,19 @@ def max(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        '-INFINITY',
-        'acc > x ? acc : x',
-        'res',
+        op='dt_max_dtypeB(acc, x)',
     )
 
 
 @register_impl(dt.reduce._Any)
 def any(device, node, input_buffers, output_buffer):
+    assert node.dtype == dt.dtype.bool_dtype
     return reduce(
         device,
         node,
         input_buffers,
         output_buffer,
-        'false',
-        'acc || (bool)x',
-        'res',
+        op='acc || x',
     )
 
 
@@ -148,9 +168,7 @@ def all(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        'true',
-        'acc && (bool)x',
-        'res',
+        op='acc && x',
     )
 
 
@@ -161,7 +179,7 @@ def logsumexp(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        '0',
-        'acc + exp((dtypeB)x)',
-        'log(res)',
+        op='dt_add_dtypeB(acc, dt_exp_dtypeB(x))',
+        init_op='dt_exp(x)',
+        final_op='dt_log(res)'
     )

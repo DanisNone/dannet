@@ -21,7 +21,7 @@ __kernel void upsamplezeros(
     }
 
     if (is_zero)
-        B[shiftB] = 0;
+        B[shiftB] = dt_zero_dtypeB();
     else
-        B[shiftB] = A[shiftA + offsetA];
+        B[shiftB] = dt_convert_dtypeA_to_dtypeB(A[shiftA + offsetA]);
 }

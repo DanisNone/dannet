@@ -1,7 +1,6 @@
 import dannet as dt
 from .utils import (
-    generate_nodes_info,
-    generate_mode,
+    Generator,
     build_kernel,
     register_impl
 )
@@ -13,225 +12,95 @@ def binary(
     input_buffers,
     output_buffer,
     op: str,
-    headers: list[str] | None = None
+    workA: str = 'C',
+    workB: str = 'C',
+    workC: str = 'C'
 ):
     assert node._is_contiguous
 
     A, B = input_buffers
     C = output_buffer
 
-    headers = [] if headers is None else headers
-    headers = generate_nodes_info(A=node.x, B=node.y, C=node) + headers
-    headers.append(
-        f'''
-dtypeC operation(dtypeA x, dtypeB y)
-{{
-    return {op};
-}}
-'''
-    )
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node.y, C=node)
+
+    t = {'A': node.x.dtype, 'B': node.y.dtype, 'C': node.dtype}
+    workA = t.get(workA, workA)
+    workB = t.get(workB, workB)
+    workC = t.get(workC, workC)
+
+    gen.line(f'''
+dtypeC operation(dtypeA x_inp, dtypeB y_inp) {{
+    dt_workA x = dt_convert_dtypeA_to_workA(x_inp);
+    dt_workB y = dt_convert_dtypeB_to_workB(y_inp);
+    return dt_{op}_workC(x, y);
+}}''')
+    gen.dtype_names(workA=workA, workB=workB, workC=workC)
 
     if node.x._is_contiguous and node.y._is_contiguous:
-        headers.append(generate_mode('full'))
+        gen.mode('full')
     else:
-        headers.append(generate_mode('strided'))
+        gen.mode('strided')
 
     global_size = (node.size,)
     local_size = None
 
-    kernel = build_kernel(device, 'binary.cl', headers)
+    kernel = build_kernel(device, 'binary.cl', gen)
     return lambda: kernel.binary(
         device.queue, global_size, local_size,
         A, B, C
     )
 
 
-@register_impl(dt.math._Add)
-def add(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x + (dtypeC)y'
-    )
+def register_binary_simple(class_, op: str):
+    @register_impl(class_)
+    def inner(device, node, input_buffers, output_buffer):
+        return binary(device, node, input_buffers, output_buffer, op)
 
 
-@register_impl(dt.math._Subtract)
-def subtract(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x - (dtypeC)y'
-    )
-
-
-@register_impl(dt.math._Multiply)
-def multiply(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x * (dtypeC)y'
-    )
-
-
-@register_impl(dt.math._Divide)
-def divide(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x / (dtypeC)y'
-    )
-
-
-@register_impl(dt.math._Power)
-def power(device, node, input_buffers, output_buffer):
-    if not dt.dtype.is_float_dtype(node.dtype):
-        headers = ['''
-dtypeC int_pow(dtypeC base, dtypeC exp) {
-    dtypeC result = 1;
-    while (exp > 0) {
-        if (exp & 1) result *= base;
-        base *= base;
-        exp >>= 1;
-    }
-    return result;
-}
-''']
+def register_binary_cmp(class_, op: str):
+    @register_impl(class_)
+    def inner(device, node, input_buffers, output_buffer):
+        dtype = dt.dtype.promote_dtypes(node.x.dtype, node.y.dtype)
         return binary(
             device, node, input_buffers, output_buffer,
-            'int_pow(x, y)', headers
+            op, workA=dtype, workB=dtype, workC=dtype
         )
-    return binary(
-        device, node, input_buffers, output_buffer,
-        'pow((dtypeC)x, (dtypeC)y)'
-    )
 
 
-@register_impl(dt.math._Minimum)
-def minimum(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x < y ? x : y')
+register_binary_simple(dt.math._Add, 'add')
+register_binary_simple(dt.math._Subtract, 'subtract')
+register_binary_simple(dt.math._Multiply, 'multiply')
 
+register_binary_simple(dt.math._Divide, 'divide')
+register_binary_simple(dt.math._FloorDivide, 'floor_divide')
 
-@register_impl(dt.math._Maximum)
-def maximum(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x < y ? y : x')
+register_binary_simple(dt.math._Power, 'power')
 
+register_binary_simple(dt.math._Minimum, 'min')
+register_binary_simple(dt.math._Maximum, 'max')
 
-@register_impl(dt.math._FloorDivide)
-def floor_divide(device, node, input_buffers, output_buffer):
-    if dt.dtype.is_float_dtype(node.dtype):
-        header = '''
-dtypeC floor_divide(dtypeA x, dtypeB y)
-{
-    return floor(x / y);
-}
-'''
-    else:
-        header = '''
-dtypeC floor_divide(dtypeA x, dtypeB y)
-{
-    dtypeC q = (dtypeC)x / (dtypeC)y;
-    dtypeC r = (dtypeC)x % (dtypeC)y;
-    if ((r != 0) && ((x < 0) != (y < 0))) {
-        q -= 1;
-    }
-    return q;
-}
-'''
-    return binary(
-        device, node, input_buffers, output_buffer,
-        'floor_divide(x, y)', [header]
-    )
+register_binary_cmp(dt.logical._Equal, 'equal')
+register_binary_cmp(dt.logical._NotEqual, 'not_equal')
 
+register_binary_cmp(dt.logical._Less, 'less')
+register_binary_cmp(dt.logical._LessEqual, 'less_equal')
 
-@register_impl(dt.math._Logaddexp)
-def logaddexp(device, node, input_buffers, output_buffer):
-    x = '(dtypeC)x'
-    y = '(dtypeC)y'
+register_binary_cmp(dt.logical._Greater, 'greater')
+register_binary_cmp(dt.logical._GreaterEqual, 'greater_equal')
 
-    return binary(
-        device, node, input_buffers, output_buffer,
-        f'fmax({x}, {y}) + '
-        f'log1p(exp(-fabs({x} - {y})))'
-    )
+register_binary_cmp(dt.logical._LogicalOr, 'logical_or')
+register_binary_cmp(dt.logical._LogicalAnd, 'logical_and')
+register_binary_cmp(dt.logical._LogicalXor, 'logical_xor')
 
+register_binary_simple(dt.bitwise._BitwiseOr, 'bitwise_or')
+register_binary_simple(dt.bitwise._BitwiseAnd, 'bitwise_and')
+register_binary_simple(dt.bitwise._BitwiseXor, 'bitwise_xor')
 
-@register_impl(dt.math._Arctan2)
-def arctan2(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        'atan2((dtypeC)x, (dtypeC)y)'
-    )
+register_binary_simple(dt.bitwise._LeftShift, 'left_shift')
+register_binary_simple(dt.bitwise._RightShift, 'right_shift')
 
+register_binary_simple(dt.math._Arctan2, 'arctan2')
 
-@register_impl(dt.logical._Equal)
-def equal(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x == y')
-
-
-@register_impl(dt.logical._NotEqual)
-def not_equal(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x != y')
-
-
-@register_impl(dt.logical._Greater)
-def greater(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x > y')
-
-
-@register_impl(dt.logical._GreaterEqual)
-def greater_equal(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x >= y')
-
-
-@register_impl(dt.logical._Less)
-def less(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x < y')
-
-
-@register_impl(dt.logical._LessEqual)
-def less_equal(device, node, input_buffers, output_buffer):
-    return binary(device, node, input_buffers, output_buffer, 'x <= y')
-
-
-@register_impl(dt.bitwise._BitwiseOr)
-def bitwise_or(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x | (dtypeC)y'
-    )
-
-
-@register_impl(dt.bitwise._BitwiseAnd)
-def bitwise_and(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x & (dtypeC)y'
-    )
-
-
-@register_impl(dt.bitwise._BitwiseXor)
-def bitwise_xor(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(dtypeC)x ^ (dtypeC)y'
-    )
-
-
-@register_impl(dt.logical._LogicalOr)
-def logical_or(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(bool)x || (bool)y'
-    )
-
-
-@register_impl(dt.logical._LogicalAnd)
-def logical_and(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(bool)x && (bool)y'
-    )
-
-
-@register_impl(dt.logical._LogicalXor)
-def logical_xor(device, node, input_buffers, output_buffer):
-    return binary(
-        device, node, input_buffers, output_buffer,
-        '(bool)x != (bool)y'
-    )
+register_binary_simple(dt.math._Logaddexp, 'logaddexp')
+register_binary_simple(dt.math._Logaddexp2, 'logaddexp2')

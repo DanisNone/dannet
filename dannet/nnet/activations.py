@@ -1,6 +1,6 @@
 import dannet as dt
 from dannet.ops.math import (
-    _ElementWiseUnaryFloat,
+    _ElementWiseUnaryFC,
     _ElementWiseUnary,
     _make_unary
 )
@@ -10,6 +10,8 @@ from dannet.ops.math import tanh  # noqa: F401
 class _Relu(_ElementWiseUnary):
     # maximum(x, 0)
     def result_dtype(self, dtype):
+        if dt.dtype.is_complex_dtype(dtype):
+            raise TypeError('relu not support complex input')
         return dtype
 
     def _compute_gradients(self, grad):
@@ -19,32 +21,39 @@ class _Relu(_ElementWiseUnary):
 class _Relu6(_ElementWiseUnary):
     # clip(x, 0, 6)
     def result_dtype(self, dtype):
+        if dt.dtype.is_complex_dtype(dtype):
+            raise TypeError('relu6 not support complex input')
         return dtype
 
     def _compute_gradients(self, grad):
         return [grad * dt.logical_and(self.x > 0, self.x < 6)]
 
 
-class _Sigmoid(_ElementWiseUnaryFloat):
+class _Sigmoid(_ElementWiseUnaryFC):
     # 1 / (1 + exp(-x))
     def _compute_gradients(self, grad):
         return [grad * self * (1 - self)]
 
 
-class _Softplus(_ElementWiseUnaryFloat):
+class _Softplus(_ElementWiseUnaryFC):
     # log(1 + exp(x))
     def _compute_gradients(self, grad):
         return [grad * sigmoid(self.x)]
 
 
-class _Softsign(_ElementWiseUnaryFloat):
+class _Softsign(_ElementWiseUnaryFC):
     # x / (1 + abs(x))
     def _compute_gradients(self, grad):
         return [grad / dt.square(1 + dt.abs(self.x))]
 
 
-class _HardSigmoid(_ElementWiseUnaryFloat):
+class _HardSigmoid(_ElementWiseUnary):
     # clip(x / 6 + 0.5, 0, 1)
+    def result_dtype(self, dtype):
+        if dt.dtype.is_complex_dtype(dtype):
+            raise TypeError('hard sigmoid not support complex input')
+        return dt.dtype.promote_to_float(dtype)
+
     def _compute_gradients(self, grad):
         res = grad * (1 / 6)
         mask = dt.logical_and(-3 <= self.x, self.x <= 3)
@@ -103,7 +112,7 @@ def softmax(x, axis=-1):
 
 class _LogSumExp(dt.reduce._Reduce):
     def result_type(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
+        return dt.dtype.promote_dtypes(dtype, dt.dtype.float_dtype)
 
     def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)

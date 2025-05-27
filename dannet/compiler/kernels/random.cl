@@ -1,3 +1,4 @@
+#ifdef int_mode
 __kernel void random(
     __global ulong* A,
     ulong seed
@@ -16,9 +17,10 @@ __kernel void random(
     
     A[index] = x;
 }
+#endif
 
 
-#ifdef dtypeA
+#ifdef float_mode
 __kernel void random_float(
     __global dtypeA* A,
     ulong seed

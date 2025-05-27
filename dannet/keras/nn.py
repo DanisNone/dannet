@@ -384,7 +384,7 @@ def _apply_masks(logits, mask, is_causal):
 
 def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
     original_dtype = key.dtype
-    logits_dtype = dt.dtype.max_dtype(query.dtype, 'float32')
+    logits_dtype = dt.dtype.promote_dtypes(query.dtype, 'float32')
 
     logits = dt.einsum('BTNH,BSNH->BNTS', query, key)
     logits = dt.cast(logits, logits_dtype)

@@ -1,9 +1,9 @@
 import dannet as dt
 
 from .utils import (
+    Generator,
     build_kernel,
     register_impl,
-    generate_nodes_info
 )
 
 
@@ -14,13 +14,16 @@ def random_int(
     input_buffers,
     output_buffer
 ):
+    assert node._is_contiguous
     A = output_buffer
     assert node._dtype == 'uint64'
 
     global_size = (node.size,)
     local_size = None
 
-    kernel = build_kernel(device, 'random.cl')
+    gen = Generator()
+    gen.mode('int_mode')
+    kernel = build_kernel(device, 'random.cl', gen)
     return lambda: kernel.random(
         device.queue, global_size, local_size, A, node.rng.get_seed(node.size)
     )
@@ -39,8 +42,10 @@ def random_float(
     global_size = (node.size,)
     local_size = None
 
-    headers = generate_nodes_info(A=node)
-    kernel = build_kernel(device, 'random.cl', headers)
+    gen = Generator()
+    gen.nodes_info(A=node)
+    gen.mode('float_mode')
+    kernel = build_kernel(device, 'random.cl', gen)
     return lambda: kernel.random_float(
         device.queue, global_size, local_size, A, node.rng.get_seed(node.size)
     )

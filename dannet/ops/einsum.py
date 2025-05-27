@@ -22,7 +22,11 @@ def _einsum_one_arg(einsum_str, operands: list):
     assert len(input) == len(einsum_output)
 
     perm = [input.index(c) for c in einsum_output]
-    return dt.transpose(dt.sum(operands[0], sum_axes), perm)
+
+    sum_ = dt.core._node_prepare(
+        dt.reduce._DefaultDtypeSum(operands[0], sum_axes)
+    )
+    return dt.transpose(sum_, perm)
 
 
 def _einsum(einsum_str: str, operands: list):

@@ -27,24 +27,30 @@ __kernel void general(
             shiftB += ((batch_shift / stridesC[axis]) % shapeB[axis]) * stridesB[axis];
         }
 
-        dtypeC res = 0;
+        dtypeC res = dt_zero_dtypeC();
         for (size_t y = 0; y < N; y += tile_size)
         {
+            dtypeA a;
+            dtypeB b;
+
             if (x < M && (y + lz) < N)
-                subA[lx][lz] = A[shiftA + x * stridesA[ndimA - 2] + (y + lz) * stridesA[ndimA - 1]];
+                a = A[shiftA + x * stridesA[ndimA - 2] + (y + lz) * stridesA[ndimA - 1]];
             else
-                subA[lx][lz] = 0;
+                a = dt_zero_dtypeA();
             
             if ((y + lx) < N && z < K)
-                subB[lz][lx] = B[shiftB + (y + lx) * stridesB[ndimB - 2] + z * stridesB[ndimB - 1]];
+                b = B[shiftB + (y + lx) * stridesB[ndimB - 2] + z * stridesB[ndimB - 1]];
             else
-                subB[lz][lx] = 0;
+                b = dt_zero_dtypeB();
+                
+            subA[lx][lz] = dt_convert_dtypeA_to_dtypeC(a);
+            subB[lz][lx] = dt_convert_dtypeB_to_dtypeC(b);
                 
             barrier(CLK_LOCAL_MEM_FENCE);
             
             
             for (size_t ly = 0; ly < tile_size; ly++)
-                res += subA[lx][ly] * subB[lz][ly];
+                res = dt_mad_dtypeC(subA[lx][ly], subB[lz][ly], res);
             barrier(CLK_LOCAL_MEM_FENCE);
         }
 

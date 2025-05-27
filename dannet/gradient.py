@@ -21,11 +21,20 @@ def gradients(
     gradients = GDict([(loss, dt.ones_like(loss))])
 
     for node in topological_sort(loss):
+        if node not in gradients:
+            continue
         gradient = gradients[node]
-
         for inp, grad in zip(node.inputs(), node.compute_gradients(gradient)):
+            if grad is None:
+                continue
             if inp not in gradients:
                 gradients[inp] = grad
             else:
                 gradients[inp] += grad
-    return [gradients.get(param, dt.zeros_like(param)) for param in params]
+    result = []
+    for param in params:
+        param_grad = gradients.get(param)
+        if param_grad is None:
+            param_grad = dt.zeros_like(param)
+        result.append(param_grad)
+    return result

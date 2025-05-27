@@ -1,6 +1,6 @@
 from . import timestat
 from . import core
-from .core import constant, variable
+from .core import constant, variable, array
 
 from . import typing
 

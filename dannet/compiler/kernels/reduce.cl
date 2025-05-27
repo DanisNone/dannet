@@ -13,8 +13,8 @@ __kernel void reduce(
         shiftO += ((shiftB / stridesON[i]) % shapeO[i]) * stridesO[i];
     }
 
-    dtypeB res = init_value;
-    for (size_t i = 0; i < sizeI; i++)
+    dtypeB res = init_operation(A[shiftO + offsetA]);
+    for (size_t i = 1; i < sizeI; i++)
     {
         size_t shiftI = 0;
         for (int axis = 0; axis < ndimI; axis++)

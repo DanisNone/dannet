@@ -1,9 +1,13 @@
 import dannet as dt
 
-from . import utils
+from .utils import (
+    Generator,
+    register_impl,
+    build_kernel
+)
 
 
-@utils.register_impl(dt.nnet.convolve._UpSampleZeros)
+@register_impl(dt.nnet.convolve._UpSampleZeros)
 def matmul(
     device,
     node: dt.nnet.convolve._UpSampleZeros,
@@ -13,18 +17,17 @@ def matmul(
     A,  = input_buffers
     B = output_buffer
 
-    headers = utils.generate_nodes_info(
+    gen = Generator()
+    gen.nodes_info(
         A=node.x,
         B=node
     )
-    headers.append(
-        utils.generate_static_array('upsample_size', node._upsample_size)
-    )
+    gen.static_array('upsample_size', node._upsample_size)
 
     global_size = (node.size, )
     local_size = None
 
-    kernel = utils.build_kernel(device, 'upsamplezeros.cl', headers)
+    kernel = build_kernel(device, 'upsamplezeros.cl', gen)
     return lambda: kernel.upsamplezeros(
         device.queue,
         global_size,

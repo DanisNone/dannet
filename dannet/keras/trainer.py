@@ -40,8 +40,10 @@ class DannetTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         if self.trainable_weights:
-            trainable_weights = [convert_to_tensor(
-                w) for w in self.trainable_weights]
+            trainable_weights = [
+                convert_to_tensor(w)
+                for w in self.trainable_weights
+            ]
             gradients = dt.gradients(loss, trainable_weights)
             self.optimizer.apply(gradients, self.trainable_weights)
         else:

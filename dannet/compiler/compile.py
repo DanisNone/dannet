@@ -57,7 +57,7 @@ class compile:
         self._constants_loaded: bool = False
         self._kernels: list[tuple[
             TensorBase,
-            Callable[[], cl.Event | None]
+            Callable[[], cl.Event]
         ]] = []
 
         self._is_eager_mode = bool(is_eager_mode)
@@ -133,11 +133,6 @@ class compile:
 
     def _filter_nodes(self):
         for node in self._nodes:
-            if not self.device.is_support(node._dtype):
-                raise NotSupportDtypeError(
-                    f'dtype {node.dtype} not supported on device {self.device}'
-                )
-
             if isinstance(node, dt.core.Constant):
                 self._constant_nodes.append(node)
             elif isinstance(node, dt.core.Variable):
@@ -321,11 +316,14 @@ class compile:
             return
         with dt.timestat.record('compile_kernels'):
             for node in self._compute_nodes:
-                input_buffers = [self._buffers[inp._buffer]
-                                 for inp in node.inputs()]
+                input_buffers = [
+                    self._buffers[inp._buffer]
+                    for inp in node.inputs()
+                ]
                 output_buffer = self._buffers[node._buffer]
                 kernel = dt.compiler.compile_node(
-                    self.device, node, input_buffers, output_buffer)
+                    self.device, node, input_buffers, output_buffer
+                )
                 if kernel is not None:
                     self._kernels.append((node, kernel))
 

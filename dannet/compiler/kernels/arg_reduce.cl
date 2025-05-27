@@ -4,7 +4,7 @@ __kernel void reduce(__global const dtypeA *A, __global dtypeB *B)
     // global_size == 1
     // global_id == 0
 
-    dtypeB index = 0;
+    dtypeB index = dt_zero_dtypeB();
     dtypeA value = A[offsetA];
 
     for (size_t i = 0; i < sizeA; i++)
@@ -39,7 +39,7 @@ __kernel void reduce(__global const dtypeA *A, __global dtypeB *B)
             shiftO += ((shiftBR / stridesAN[axis]) % shapeA[axis]) * stridesA[axis];
     }
 
-    dtypeB index = 0;
+    dtypeB index = dt_zero_dtypeB();
     dtypeA value = A[shiftO + offsetA];
     for (size_t i = 0; i < shapeA[skeep_axis]; i++)
     {

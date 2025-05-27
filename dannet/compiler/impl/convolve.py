@@ -1,8 +1,6 @@
 import dannet as dt
 from .utils import (
-    generate_nodes_info,
-    generate_static_array,
-    generate_mode,
+    Generator,
     build_kernel,
     register_impl
 )
@@ -15,11 +13,12 @@ def conv(device, node: dt.nnet.convolve._ConvND, input_buffers, output_buffer):
     A, B = input_buffers
     C = output_buffer
     assert 1 <= node.rank <= 3
-    headers = generate_nodes_info(A=node.input, B=node.kernel, C=node)
-    headers.append(generate_static_array('stride', node._conv_strides))
+    gen = Generator()
+    gen.nodes_info(A=node.input, B=node.kernel, C=node)
+    gen.static_array('stride', node._conv_strides)
 
-    headers.append(generate_mode(f'conv{node.rank}d'))
-    kernel = build_kernel(device, 'convolve.cl', headers)
+    gen.mode(f'conv{node.rank}d')
+    kernel = build_kernel(device, 'convolve.cl', gen)
 
     global_size = (node.size,)
     local_size = None
@@ -38,11 +37,12 @@ def depthwise_conv(
     A, B = input_buffers
     C = output_buffer
 
-    headers = generate_nodes_info(A=node.input, B=node.kernel, C=node)
-    headers.append(generate_static_array('stride', node._conv_strides))
+    gen = Generator()
+    gen.nodes_info(A=node.input, B=node.kernel, C=node)
+    gen.static_array('stride', node._conv_strides)
 
-    headers.append(generate_mode('depthwise_conv2d'))
-    kernel = build_kernel(device, 'convolve.cl', headers)
+    gen.mode('depthwise_conv2d')
+    kernel = build_kernel(device, 'convolve.cl', gen)
 
     global_size = (node.size,)
     local_size = None

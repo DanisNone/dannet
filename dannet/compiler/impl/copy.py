@@ -1,8 +1,6 @@
 import dannet as dt
 from .utils import (
-    generate_nodes_info,
-    generate_static_array,
-    generate_mode,
+    Generator,
     default_strides,
     build_kernel,
     register_impl
@@ -16,13 +14,12 @@ def copy(device, node: dt.basic._Copy, input_buffers, output_buffer):
     (A,) = input_buffers
     B = output_buffer
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(
-        generate_static_array('stridesAN', default_strides(node.x))
-    )
-    headers.append(generate_mode('strided'))
-    kernel = build_kernel(device, 'copy.cl', headers)
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
+    gen.static_array('stridesAN', default_strides(node.x))
+    gen.mode('strided')
 
+    kernel = build_kernel(device, 'copy.cl', gen)
     global_size = (node.size,)
     local_size = None
     return lambda: kernel.copy_strided(
@@ -38,13 +35,12 @@ def cast(device, node: dt.basic._Cast, input_buffers, output_buffer):
     (A,) = input_buffers
     B = output_buffer
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(
-        generate_static_array('stridesAN', default_strides(node.x))
-    )
-    headers.append(generate_mode('strided'))
-    kernel = build_kernel(device, 'copy.cl', headers)
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
+    gen.static_array('stridesAN', default_strides(node.x))
+    gen.mode('strided')
 
+    kernel = build_kernel(device, 'copy.cl', gen)
     global_size = (node.size,)
     local_size = None
     return lambda: kernel.copy_strided(
@@ -53,10 +49,10 @@ def cast(device, node: dt.basic._Cast, input_buffers, output_buffer):
     )
 
 
-# TODO: implement smart reshape
 @register_impl(dt.basic._Reshape)
 def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
     assert node._is_contiguous
+
     (A,) = input_buffers
     B = output_buffer
 
@@ -64,13 +60,12 @@ def reshape(device, node: dt.basic._Reshape, input_buffers, output_buffer):
         assert node._buffer_offset == node.x._buffer_offset
         return None
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(
-        generate_static_array('stridesAN', default_strides(node.x))
-    )
-    headers.append(generate_mode('strided'))
-    kernel = build_kernel(device, 'copy.cl', headers)
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
+    gen.static_array('stridesAN', default_strides(node.x))
+    gen.mode('strided')
 
+    kernel = build_kernel(device, 'copy.cl', gen)
     global_size = (node.size,)
     local_size = None
     return lambda: kernel.copy_strided(
@@ -85,15 +80,15 @@ def update(device, node: dt.core.Update, input_buffers, output_buffer):
     var, value = input_buffers
     assert var is output_buffer
 
-    headers = generate_nodes_info(A=node._value, B=node._variable)
-    headers.append(generate_static_array(
-        'stridesAN', default_strides(node._value)
-    ))
-    headers.append(generate_mode('strided'))
-    kernel = build_kernel(device, 'copy.cl', headers)
+    gen = Generator()
+    gen.nodes_info(A=node._value, B=node._variable)
+    gen.static_array('stridesAN', default_strides(node._value))
+    gen.mode('strided')
 
+    kernel = build_kernel(device, 'copy.cl', gen)
     global_size = (node.size,)
     local_size = None
     return lambda: kernel.copy_strided(
-        device.queue, global_size, local_size, value, var
+        device.queue, global_size, local_size,
+        value, var
     )

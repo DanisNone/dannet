@@ -1,10 +1,7 @@
 import math
 import dannet as dt
 from .utils import (
-    generate_nodes_info,
-    generate_defines,
-    generate_static_array,
-    generate_mode,
+    Generator,
     default_strides,
     build_kernel,
     register_impl
@@ -21,12 +18,11 @@ def arg_reduce_full(
     A, = input_buffers
     B = output_buffer
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(
-        generate_static_array('stridesAN', default_strides(node.x))
-    )
-    headers.append(generate_mode('full'))
-    headers.append(f'''
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
+    gen.static_array('stridesAN', default_strides(node.x))
+    gen.mode('full')
+    gen.line(f'''
 bool condition(dtypeA x, dtypeA y)
 {{
     return {condition};
@@ -36,7 +32,7 @@ bool condition(dtypeA x, dtypeA y)
     global_size = (1, )
     local_size = None
 
-    kernel = build_kernel(device, 'arg_reduce.cl', headers)
+    kernel = build_kernel(device, 'arg_reduce.cl', gen)
     return lambda: kernel.reduce(device.queue, global_size, local_size, A, B)
 
 
@@ -58,26 +54,24 @@ def arg_reduce(
             device, node, input_buffers, output_buffer, condition
         )
 
-    headers = generate_nodes_info(A=node.x, B=node)
-    headers.append(
-        generate_static_array('stridesAN', default_strides(node.x))
-    )
-    headers.extend(generate_defines(
+    gen = Generator()
+    gen.nodes_info(A=node.x, B=node)
+    gen.static_array('stridesAN', default_strides(node.x))
+    gen.defines(
         skeep_axis=node._axis,
-        sizeRight=math.prod(node.x._shape[node._axis+1:]))
+        sizeRight=math.prod(node.x._shape[node._axis + 1:])
     )
-    headers.append(generate_mode('by_axis'))
-    headers.append(f'''
-bool condition(dtypeA x, dtypeA y)
+    gen.mode('by_axis')
+    gen.line(f'''
+dt_bool condition(dtypeA x, dtypeA y)
 {{
-    return {condition};
-}}
-''')
+    return {condition}(x, y);
+}}''')
 
-    global_size = (node.size, )
+    global_size = (node.size,)
     local_size = None
 
-    kernel = build_kernel(device, 'arg_reduce.cl', headers)
+    kernel = build_kernel(device, 'arg_reduce.cl', gen)
     return lambda: kernel.reduce(device.queue, global_size, local_size, A, B)
 
 
@@ -88,7 +82,7 @@ def min(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        'x > y',
+        'dt_greater_dtypeA',
     )
 
 
@@ -99,5 +93,5 @@ def max(device, node, input_buffers, output_buffer):
         node,
         input_buffers,
         output_buffer,
-        'x < y',
+        'dt_less_dtypeA',
     )

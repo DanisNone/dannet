@@ -42,7 +42,22 @@ class _Reduce(dt.core.TensorBase):
 
 class _Sum(_Reduce):
     def result_type(self, dtype):
-        return dt.dtype.max_dtype(dtype, 'uint32')
+        if dt.dtype.is_bool_dtype(dtype):
+            return 'int64'
+        if dt.dtype.is_signed_dtype(dtype):
+            return 'int64'
+        if dt.dtype.is_unsigned_dtype(dtype):
+            return 'uint64'
+        return dtype
+
+    def _compute_gradients(self, grad):
+        grad = dt.reshape(grad, self._keepdims_shape)
+        return [dt.broadcast_to(grad, self.x.shape)]
+
+
+class _DefaultDtypeSum(_Reduce):
+    def result_type(self, dtype):
+        return dtype
 
     def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
@@ -51,7 +66,7 @@ class _Sum(_Reduce):
 
 class _Mean(_Reduce):
     def result_type(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
+        return dt.dtype.promote_to_float(dtype)
 
     def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)
@@ -61,7 +76,13 @@ class _Mean(_Reduce):
 
 class _Prod(_Reduce):
     def result_type(self, dtype):
-        return dt.dtype.max_dtype(dtype, 'uint32')
+        if dt.dtype.is_bool_dtype(dtype):
+            return 'int64'
+        if dt.dtype.is_signed_dtype(dtype):
+            return 'int64'
+        if dt.dtype.is_unsigned_dtype(dtype):
+            return 'uint64'
+        return dtype
 
     def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)

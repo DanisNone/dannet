@@ -23,5 +23,5 @@ __kernel void gather(
 
     shiftA += ix * stridesA[0];
 
-    C[shiftC + offsetC] = A[shiftA];
+    C[shiftC + offsetC] = dt_convert_to_dtypeC(A[shiftA]);
 }

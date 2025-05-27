@@ -25,13 +25,15 @@ class _ElementWiseUnary(_ElementWise):
         return [self.x]
 
 
-class _ElementWiseUnaryFloat(_ElementWiseUnary):
+class _ElementWiseUnaryFC(_ElementWiseUnary):
     def result_dtype(self, dtype):
-        return dt.dtype.max_dtype(dtype, dt.dtype.float_dtype)
+        return dt.dtype.promote_to_float(dtype)
 
 
 class _Negative(_ElementWiseUnary):
     def result_dtype(self, dtype):
+        if dt.dtype.is_bool_dtype(dtype):
+            raise TypeError('negative does not accept dtype bool.')
         return dtype
 
     def _compute_gradients(self, grad):
@@ -48,6 +50,8 @@ class _Reciprocal(_ElementWiseUnary):
 
 class _Square(_ElementWiseUnary):
     def result_dtype(self, dtype):
+        if dt.dtype.is_bool_dtype(dtype):
+            return 'int32'
         return dtype
 
     def _compute_gradients(self, grad):
@@ -56,6 +60,8 @@ class _Square(_ElementWiseUnary):
 
 class _Abs(_ElementWiseUnary):
     def result_dtype(self, dtype):
+        if dt.dtype.is_complex_dtype(dtype):
+            return dt.dtype.real_part_of_complex_dtype(dtype)
         return dtype
 
     def _compute_gradients(self, grad):
@@ -64,124 +70,128 @@ class _Abs(_ElementWiseUnary):
 
 class _Sign(_ElementWiseUnary):
     def result_dtype(self, dtype):
+        if dt.dtype.is_bool_dtype(dtype):
+            raise TypeError('sign does not accept dtype bool.')
         return dtype
 
     def _compute_gradients(self, grad):
         return None
 
 
-class _Sqrt(_ElementWiseUnaryFloat):
+class _Sqrt(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * dt.cast(0.5, grad.dtype) / self]
 
 
-class _Rsqrt(_ElementWiseUnaryFloat):
+class _Rsqrt(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * dt.cast(-0.5, grad.dtype) * self / self.x]
 
 
-class _Exp(_ElementWiseUnaryFloat):
+class _Exp(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * self]
 
 
-class _Exp2(_ElementWiseUnaryFloat):
+class _Exp2(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * self * dt.cast(dt.c_log2, grad.dtype)]
 
 
-class _Exp10(_ElementWiseUnaryFloat):
+class _Exp10(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * self * dt.cast(dt.c_log10, grad.dtype)]
 
 
-class _Expm1(_ElementWiseUnaryFloat):
+class _Expm1(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * (self + 1)]
 
 
-class _Log(_ElementWiseUnaryFloat):
+class _Log(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / self.x]
 
 
-class _Log2(_ElementWiseUnaryFloat):
+class _Log2(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / self.x * dt.cast(dt.c_inv_log2, grad.dtype)]
 
 
-class _Log10(_ElementWiseUnaryFloat):
+class _Log10(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / self.x * dt.cast(dt.c_inv_log10, grad.dtype)]
 
 
-class _Log1p(_ElementWiseUnaryFloat):
+class _Log1p(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / (self.x + 1)]
 
 
-class _Sin(_ElementWiseUnaryFloat):
+class _Sin(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * dt.cos(self.x)]
 
 
-class _Cos(_ElementWiseUnaryFloat):
+class _Cos(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [-grad * dt.sin(self.x)]
 
 
-class _Tan(_ElementWiseUnaryFloat):
+class _Tan(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * (1 + dt.square(self))]
 
 
-class _Sinh(_ElementWiseUnaryFloat):
+class _Sinh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * dt.cosh(self.x)]
 
 
-class _Cosh(_ElementWiseUnaryFloat):
+class _Cosh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * dt.sinh(self.x)]
 
 
-class _Tanh(_ElementWiseUnaryFloat):
+class _Tanh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad * (1 - dt.square(self))]
 
 
-class _Arcsin(_ElementWiseUnaryFloat):
+class _Arcsin(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / dt.sqrt(1 - dt.square(self.x))]
 
 
-class _Arccos(_ElementWiseUnaryFloat):
+class _Arccos(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [-grad / dt.sqrt(1 - dt.square(self.x))]
 
 
-class _Arctan(_ElementWiseUnaryFloat):
+class _Arctan(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / (1 + dt.square(self.x))]
 
 
-class _Arcsinh(_ElementWiseUnaryFloat):
+class _Arcsinh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / dt.sqrt(1 + dt.square(self.x))]
 
 
-class _Arccosh(_ElementWiseUnaryFloat):
+class _Arccosh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / dt.sqrt(-1 + dt.square(self.x))]
 
 
-class _Arctanh(_ElementWiseUnaryFloat):
+class _Arctanh(_ElementWiseUnaryFC):
     def _compute_gradients(self, grad):
         return [grad / (1 - dt.square(self.x))]
 
 
 class _RoundBase(_ElementWiseUnary):
     def result_dtype(self, dtype):
+        if dt.dtype.is_complex_dtype(dtype):
+            raise TypeError(f'round operations not accept dtype {dtype}.')
         return dtype
 
     def _compute_gradients(self, grad):
@@ -189,7 +199,10 @@ class _RoundBase(_ElementWiseUnary):
 
 
 class _Round(_RoundBase):
-    pass
+    def result_dtype(self, dtype):
+        if dt.dtype.is_bool_dtype(dtype):
+            raise TypeError('round does not accept dtype bool.')
+        return dtype
 
 
 class _Trunc(_RoundBase):
@@ -227,7 +240,7 @@ class _ElementWiseBinary(_ElementWise):
 
 class _Add(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         return [grad, grad]
@@ -235,7 +248,14 @@ class _Add(_ElementWiseBinary):
 
 class _Subtract(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
+            raise TypeError(
+                'dannet boolean subtract, '
+                'the `-` operator, is not supported, '
+                'use the bitwise_xor, the `^` operator, '
+                'or the logical_xor function instead'
+            )
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         return [grad, -grad]
@@ -243,7 +263,7 @@ class _Subtract(_ElementWiseBinary):
 
 class _Multiply(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         return [grad * self.y, grad * self.x]
@@ -251,7 +271,8 @@ class _Multiply(_ElementWiseBinary):
 
 class _Divide(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2, dt.dtype.float_dtype)
+        dtype = dt.dtype.promote_dtypes(dtype1, dtype2)
+        return dt.dtype.promote_to_float(dtype)
 
     def _compute_gradients(self, grad):
         return [grad / self.y, -grad * self.x / dt.square(self.y)]
@@ -259,13 +280,9 @@ class _Divide(_ElementWiseBinary):
 
 class _Power(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        result = dt.dtype.max_dtype(dtype1, dtype2)
-        if dt.dtype.is_float_dtype(dtype1) or dt.dtype.is_float_dtype(dtype2):
-            return result
-
-        if dt.dtype.is_unsigned_dtype(dtype1):
-            result = dt.dtype.to_unsigned_dtype(result)
-        return result
+        if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
+            return 'int32'
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         grad_x = grad * self.y * dt.power(self.x, self.y - 1)
@@ -276,7 +293,7 @@ class _Power(_ElementWiseBinary):
 
 class _Minimum(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         mask = dt.equal(self, self.x)
@@ -288,7 +305,7 @@ class _Minimum(_ElementWiseBinary):
 
 class _Maximum(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         mask = dt.equal(self, self.x)
@@ -300,7 +317,16 @@ class _Maximum(_ElementWiseBinary):
 
 class _FloorDivide(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2)
+        if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
+            return 'int32'
+        if (
+            dt.dtype.is_complex_dtype(dtype1) or
+            dt.dtype.is_complex_dtype(dtype2)
+        ):
+            raise TypeError(
+                'floor_divide does not support complex-valued inputs'
+            )
+        return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
         return None
@@ -308,16 +334,28 @@ class _FloorDivide(_ElementWiseBinary):
 
 class _Logaddexp(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2, dt.dtype.float_dtype)
+        result = dt.dtype.promote_dtypes(dtype1, dtype2)
+        return dt.dtype.promote_to_float(result)
 
     def _compute_gradients(self, grad):
         self_grad = grad / dt.exp(self)
         return [dt.exp(self.x) * self_grad, dt.exp(self.y) * self_grad]
 
 
+class _Logaddexp2(_ElementWiseBinary):
+    def result_dtype(self, dtype1, dtype2):
+        result = dt.dtype.promote_dtypes(dtype1, dtype2)
+        return dt.dtype.promote_to_float(result)
+
+    def _compute_gradients(self, grad):
+        self_grad = grad / dt.exp(self) * dt.c_log2
+        return [dt.exp(self.x) * self_grad, dt.exp(self.y) * self_grad]
+
+
 class _Arctan2(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
-        return dt.dtype.max_dtype(dtype1, dtype2, dt.dtype.float_dtype)
+        result = dt.dtype.promote_dtypes(dtype1, dtype2)
+        return dt.dtype.promote_to_float(result)
 
     def _compute_gradients(self, grad):
         norm2 = dt.square(self.x) + dt.square(self.y)
@@ -341,7 +379,8 @@ class _ElementWiseTernary(_ElementWise):
         self.z = dt.broadcast_to(self.z, self._shape)
 
         self._dtype = self.result_dtype(
-            self.x._dtype, self.y._dtype, self.z._dtype)
+            self.x._dtype, self.y._dtype, self.z._dtype
+        )
 
         self._init_default_buffer()
 
@@ -355,20 +394,29 @@ class _ElementWiseTernary(_ElementWise):
 
 class _Where(_ElementWiseTernary):
     def result_dtype(self, dtype1, dtype2, dtype3):
-        return dt.dtype.max_dtype(dtype2, dtype3)
+        return dt.dtype.promote_dtypes(dtype2, dtype3)
 
     def _compute_gradients(self, grad):
-        mask = self.x.cast(dt.dtype.bool_dtype)
         return [
             None,
-            grad * mask,
-            grad * dt.logical_not(mask)
+            dt.where(self.x, grad, dt.zeros_like(grad)),
+            dt.where(self.x, dt.zeros_like(grad), grad)
         ]
 
 
 class _Clip(_ElementWiseTernary):
     def result_dtype(self, dtype1, dtype2, dtype3):
-        return dtype1
+        if (
+            dt.dtype.is_complex_dtype(dtype1) or
+            dt.dtype.is_complex_dtype(dtype2) or
+            dt.dtype.is_complex_dtype(dtype3)
+        ):
+            raise ValueError(
+                'Clip received a complex value either through '
+                'the input or the min/max keywords. '
+                'Complex values have no ordering and cannot be clipped'
+            )
+        return dt.dtype.promote_dtypes(dtype1, dtype2, dtype3)
 
     def _compute_gradients(self, grad):
         condition = dt.logical_and(
@@ -401,7 +449,7 @@ class _Matmul(dt.core.TensorBase):
         self.y = dt.broadcast_to(self.y, (*batch_shape, *self.y._shape[-2:]))
         self._shape = batch_shape + (self.x._shape[-2], self.y._shape[-1])
 
-        self._dtype = dt.dtype.max_dtype(self.x.dtype, self.y.dtype, 'uint32')
+        self._dtype = dt.dtype.promote_dtypes(self.x.dtype, self.y.dtype)
 
         self._init_default_buffer()
 
@@ -611,7 +659,8 @@ def tensordot(x, y, axes):
 
     x = dt.reshape(x, As + (1, ) * len(Bs) + (-1,))
     y = dt.reshape(y, (1, ) * len(As) + Bs + (-1,))
-    return dt.sum(x * y, axis=-1)
+
+    return dt.core._node_prepare(dt.reduce._DefaultDtypeSum(x * y, axis=-1))
 
 
 def dot(x, y):
@@ -674,7 +723,7 @@ def cross(
         out_shape = (3, ) + out_shape
         axisc = dt.utils.normalize_axis_index(axisc, len(out_shape), 'axisc')
 
-    dtype = dt.dtype.max_dtype(x.dtype, y.dtype)
+    dtype = dt.dtype.promote_dtypes(x.dtype, y.dtype)
     x = x.astype(dtype)
     y = y.astype(dtype)
 
@@ -710,6 +759,9 @@ def cross(
 
 
 def round(x, decimals=0):
+    if dt.dtype.is_bool_dtype(x.dtype):
+        raise TypeError('round does not accept dtype bool.')
+
     if decimals == 0:
         return _base_round(x)
     x_dtype = x.dtype
@@ -724,6 +776,14 @@ def round(x, decimals=0):
     x = _base_round(x)
     x = x / factor
     return dt.cast(x, x_dtype)
+
+
+def clip(x, y, z):
+    x = dt.convert_to_tensor(x)
+    y = dt.convert_to_tensor(y)
+    z = dt.convert_to_tensor(z)
+
+    return dt.core._node_prepare(_Clip(x, y, z))
 
 
 negative = _make_unary('negative', _Negative)
@@ -774,10 +834,10 @@ minimum = _make_binary('minimum', _Minimum)
 maximum = _make_binary('maximum', _Maximum)
 floor_divide = _make_binary('floor_divide', _FloorDivide)
 logaddexp = _make_binary('logaddexp', _Logaddexp)
+logaddexp2 = _make_binary('logaddexp2', _Logaddexp2)
 arctan2 = _make_binary('arctan2', _Arctan2)
 
 where = _make_ternary('where', _Where)
-clip = _make_ternary('clip', _Clip)
 
 
 __all__ = [
@@ -795,7 +855,7 @@ __all__ = [
     'add', 'subtract', 'multiply', 'divide',
     'power', 'minimum', 'maximum',
     'floor_divide',
-    'logaddexp',
+    'logaddexp', 'logaddexp2',
     'arctan2',
 
     'where', 'clip',

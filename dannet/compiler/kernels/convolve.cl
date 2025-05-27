@@ -15,7 +15,7 @@ __kernel void conv(
     W_out *= stride[0];
     H_out *= stride[1];
         
-    dtypeC sum = 0;
+    dtypeC sum = dt_zero_dtypeC();
 
 
     for (size_t kw = 0; kw < shapeB[0]; ++kw)
@@ -41,7 +41,12 @@ __kernel void conv(
                     c_out  * stridesB[3] +
                     offsetB
                 ];
-                sum += a * b;
+
+                sum = dt_mad_dtypeC(
+                    dt_convert_dtypeA_to_dtypeC(a),
+                    dt_convert_dtypeB_to_dtypeC(b),
+                    sum
+                );
             }
         }
     }
@@ -71,7 +76,7 @@ __kernel void depthwise_conv(
     W_out *= stride[0];
     H_out *= stride[1];
 
-    dtypeC sum = 0;
+    dtypeC sum = dt_zero_dtypeC();
 
     for (size_t kw = 0; kw < shapeB[0]; ++kw)
     {
@@ -96,7 +101,11 @@ __kernel void depthwise_conv(
                 offsetB
             ];
 
-            sum += a * b;
+            sum = dt_mad_dtypeC(
+                dt_convert_dtypeA_to_dtypeC(a),
+                dt_convert_dtypeB_to_dtypeC(b),
+                sum
+            );
         }
     }
 
