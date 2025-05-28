@@ -460,6 +460,9 @@ class Constant(TensorBase):
     def __graph_hash__(self):
         return hash((Constant, self._shape, self._dtype))
 
+    def __str__(self):
+        return str(self._value)
+
     def __repr__(self):
         shape = getattr(self, '_shape', 'UNKNOWN')
         dtype = getattr(self, '_dtype', 'UNKNOWN')
