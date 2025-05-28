@@ -239,7 +239,6 @@ def mean(x: dt.typing.TensorLike, axis=None, keepdims=False):
     return res
 
 sum = _make_reduce('sum', _Sum)
-mean = _make_reduce('mean', _Mean)
 prod = _make_reduce('prod', _Prod)
 
 min = _make_reduce('min', _Min)

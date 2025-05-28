@@ -217,6 +217,32 @@ class _Floor(_RoundBase):
     pass
 
 
+
+class _Conjugate(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        return dtype
+    
+    def _compute_gradients(self, grad):
+        return [dt.conjugate(grad)]
+
+
+class _Real(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        assert dt.dtype.is_complex_dtype(dtype)
+        return dt.dtype.real_part_of_complex_dtype(dtype)
+    
+    def _compute_gradients(self, grad):
+        return [grad.cast(self.x.dtype)]
+
+
+class _Imag(_ElementWiseUnary):
+    def result_dtype(self, dtype):
+        assert dt.dtype.is_complex_dtype(dtype)
+        return dt.dtype.real_part_of_complex_dtype(dtype)
+    
+    def _compute_gradients(self, grad):
+        return [grad.cast(self.x.dtype) * 1j]
+
 class _ElementWiseBinary(_ElementWise):
     def __init__(self, x, y):
         self.x = dt.convert_to_tensor(x)
@@ -778,13 +804,23 @@ def round(x, decimals=0):
     return dt.cast(x, x_dtype)
 
 
-def clip(x, y, z):
+def conjugate(x):
     x = dt.convert_to_tensor(x)
-    y = dt.convert_to_tensor(y)
-    z = dt.convert_to_tensor(z)
+    if not dt.dtype.is_complex_dtype(x.dtype):
+        return x
+    return dt.core._node_prepare(_Conjugate(x))
 
-    return dt.core._node_prepare(_Clip(x, y, z))
+def real(x):
+    x = dt.convert_to_tensor(x)
+    if not dt.dtype.is_complex_dtype(x.dtype):
+        return x
+    return dt.core._node_prepare(_Real(x))
 
+def imag(x):
+    x = dt.convert_to_tensor(x)
+    if not dt.dtype.is_complex_dtype(x.dtype):
+        return dt.zeros_like(x)
+    return dt.core._node_prepare(_Imag(x))
 
 negative = _make_unary('negative', _Negative)
 reciprocal = _make_unary('reciprocal', _Reciprocal)
@@ -838,7 +874,9 @@ logaddexp2 = _make_binary('logaddexp2', _Logaddexp2)
 arctan2 = _make_binary('arctan2', _Arctan2)
 
 where = _make_ternary('where', _Where)
+clip = _make_ternary('clip', _Clip)
 
+conj = conjugate
 
 __all__ = [
     'negative', 'reciprocal', 'square',
@@ -861,5 +899,8 @@ __all__ = [
     'where', 'clip',
     'matmul', 'tensordot', 'dot', 'vdot',
     'outer', 'inner',
-    'cross'
+    'cross',
+
+    'conjugate', 'conj',
+    'real', 'imag'
 ]

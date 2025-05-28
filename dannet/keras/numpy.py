@@ -276,13 +276,13 @@ def concatenate(xs, axis=0):
 
 
 def conjugate(x):
-    # all tensors is real only
-    return convert_to_tensor(x)
+    x = convert_to_tensor(x)
+    return dt.conjugate(x)
 
 
 def conj(x):
-    # all tensors is real only
-    return convert_to_tensor(x)
+    x = convert_to_tensor(x)
+    return dt.conj(x)
 
 
 def copy(x):
@@ -429,8 +429,8 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    # all tensors is real only
-    return zeros_like(x)
+    x = convert_to_tensor(X)
+    return dt.imag(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -637,9 +637,8 @@ def unravel_index(x, shape):
 
 
 def real(x):
-    # all tensors is real only
-    return convert_to_tensor(x)
-
+    x = convert_to_tensor(x)
+    return dt.real(x)
 
 def reciprocal(x):
     x = convert_to_tensor(x)

@@ -57,31 +57,20 @@ dtypeB operation(dtypeA x_inp)
 
 def register_unary(
     class_: type[dt.ops.math._ElementWiseUnary],
-    op: str, custom: bool = False
+    op: str, custom: bool = False,
+    workA='A', workB='B'
 ):
     @register_impl(class_)
     def inner(device, node, input_buffers, output_buffer):
         return unary(
             device, node, input_buffers,
-            output_buffer, op, custom=custom
+            output_buffer, op, custom=custom,
+            workA=workA, workB=workB
         )
 
 
-@register_impl(dt.math._Abs)
-def abs(device, node, input_buffers, output_buffer):
-    return unary(
-        device, node, input_buffers, output_buffer,
-        'abs', workA='A', workB='A'
-    )
-
-
-@register_impl(dt.logical._LogicalNot)
-def logical_not(device, node, input_buffers, output_buffer):
-    return unary(
-        device, node, input_buffers, output_buffer,
-        'logical_not', workA='A', workB='A'
-    )
-
+register_unary(dt.math._Abs, 'abs', workA='A', workB='A')
+register_unary(dt.logical._LogicalNot, 'logical_not', workA='A', workB='A')
 
 register_unary(dt.math._Negative, 'negative')
 register_unary(dt.math._Square, 'square')
@@ -123,7 +112,13 @@ register_unary(dt.math._Trunc, 'trunc')
 register_unary(dt.math._Floor, 'floor')
 register_unary(dt.math._Ceil, 'ceil')
 
+register_unary(dt.math._Conjugate, 'conjugate')
+register_unary(dt.math._Real, 'real', workA='A', workB='A')
+register_unary(dt.math._Imag, 'imag', workA='A', workB='A')
+
+
 register_unary(dt.bitwise._BitwiseNot, 'bitwise_not')
+
 
 register_unary(
     dt.nnet.activations._Relu,

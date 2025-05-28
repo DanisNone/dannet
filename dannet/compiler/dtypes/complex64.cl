@@ -636,7 +636,20 @@ static inline dt_bool dt_not_equal_complex64(dt_complex64 x, dt_complex64 y) {
     return x_imag != y_imag;
 }
 
+static inline dt_complex64 dt_conjugate_complex64(dt_complex64 x) {
+    return make_complex64(
+        x.real,
+        normalize_float32_output(-normalize_float32_input(x.imag))
+    );
+}
 
+static inline dt_float32 dt_real_complex64(dt_complex64 x) {
+    return x.real;
+}
+
+static inline dt_float32 dt_imag_complex64(dt_complex64 x) {
+    return x.imag;
+}
 
 #define _make_complex64_eq_func(func, op) \
 static inline dt_bool dt_##func##_complex64(dt_complex64 x, dt_complex64 y) {\
@@ -658,5 +671,7 @@ _make_complex64_eq_func(less_equal, <=)
 _make_complex64_logical_func(logical_and, &&)
 _make_complex64_logical_func(logical_or, ||)
 _make_complex64_logical_func(logical_xor, !=)
+
+
 
 #endif
