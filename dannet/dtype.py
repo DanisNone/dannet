@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dannet as dt
 import numpy as np
-
+import ml_dtypes
 
 def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
     if isinstance(dtype, np.dtype):
@@ -60,7 +60,7 @@ def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
-        float16, float32, float64
+        float16, bfloat16, float32, float64
     ]
 
 
@@ -140,6 +140,10 @@ def _promote_dtypes2(dtype1, dtype2):
         if type2 == 'f':
             return from_info('c', max(size1, size2*2))
         return dtype1
+    if type1 == 'bf':
+        if type2 == 'f':
+            return from_info('f', max(size2, 32))
+        return dtype1
     if type1 == 'f':
         if type2 == 'f':
             return from_info('f', max(size1, size2))
@@ -170,6 +174,8 @@ support = [
     'int64',
 
     'float16',
+    'bfloat16',
+
     'float32',
     'float64',
 
@@ -191,6 +197,8 @@ _dtype_info = {
     'uint64': ('u', 64),
 
     'float16': ('f', 16),
+    'bfloat16': ('bf', 16),
+    
     'float32': ('f', 32),
     'float64': ('f', 64),
 
@@ -212,6 +220,8 @@ graph = {
     'uint64': ['float64'],
 
     'float16': ['float32'],
+    'bfloat16': ['float32'],
+
     'float32': ['float64', 'complex64'],
     'float64': ['complex128'],
 
@@ -237,6 +247,8 @@ uint32 = 'uint32'
 uint64 = 'uint64'
 
 float16 = 'float16'
+bfloat16 = 'bfloat16'
+
 float32 = 'float32'
 float64 = 'float64'
 

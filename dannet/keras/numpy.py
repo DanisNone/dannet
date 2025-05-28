@@ -885,7 +885,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=None, dtype=None):
-    raise NotImplementedError('eye')
+    return dt.eye(N=N, M=M, k=k, dtype=dtype)
 
 
 def floor_divide(x1, x2):

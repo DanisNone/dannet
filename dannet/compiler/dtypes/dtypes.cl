@@ -14,6 +14,8 @@
 #include "dtypes/uint64.cl"
 
 #include "dtypes/float16.cl"
+#include "dtypes/bfloat16.cl"
+
 #include "dtypes/float32.cl"
 #include "dtypes/float64.cl"
 

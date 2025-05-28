@@ -1,5 +1,6 @@
 #ifndef _FLOAT64_CL_
 #define _FLOAT64_CL_
+#include "dtypes/bool.cl"
 
 #ifndef cl_khr_fp64
 typedef ulong dt_float64;
@@ -176,20 +177,21 @@ static inline dt_float64 dt_arctan2_float64(dt_float64 x, dt_float64 y) {
 static inline dt_float64 dt_logaddexp_float64(dt_float64 x, dt_float64 y) {
     dt_float64_work xn = normalize_float64_input(x);
     dt_float64_work yn = normalize_float64_input(y);
-    
+    if (xn < yn) {dt_float64_work tmp = xn; xn = yn; yn = tmp;}
     return normalize_float64_output(
-        fmax(x, y) + 
-        log(1 + exp(-fabs(x - y)))
+        xn + 
+        log1p(exp(yn - xn))
     );
 }
 
 static inline dt_float64 dt_logaddexp2_float64(dt_float64 x, dt_float64 y) {
     dt_float64_work xn = normalize_float64_input(x);
     dt_float64_work yn = normalize_float64_input(y);
-    
+    if (xn < yn) {dt_float64_work tmp = xn; xn = yn; yn = tmp;}
+
     return normalize_float64_output(
-        fmax(x, y) + 
-        log1p(exp2(-fabs(x - y))) / dt_const_log2_float64
+        xn + 
+        log1p(exp2(yn - xn)) / dt_const_log2_float64
     );
 }
 

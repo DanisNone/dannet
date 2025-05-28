@@ -25,7 +25,7 @@ def arg_reduce_full(
     gen.line(f'''
 bool condition(dtypeA x, dtypeA y)
 {{
-    return {condition};
+    return {condition}(x, y);
 }}
 ''')
 

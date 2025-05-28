@@ -8,8 +8,8 @@ typedef uint dt_float32_bits;
 typedef float dt_float32_work;
 
 
-__constant dt_float32 dt_const_log2_float32 = 0.6931471805599453;
-__constant dt_float32 dt_const_log10_float32 = 2.302585092994046;
+__constant dt_float32_work dt_const_log2_float32 = 0.6931471805599453;
+__constant dt_float32_work dt_const_log10_float32 = 2.302585092994046;
 
 static inline dt_float32 normalize_float32_input(dt_float32 x)  { return x; }
 static inline dt_float32 normalize_float32_output(dt_float32 x) { return x; }
@@ -91,20 +91,21 @@ static inline dt_float32 dt_arctan2_float32(dt_float32 x, dt_float32 y) {
 static inline dt_float32 dt_logaddexp_float32(dt_float32 x, dt_float32 y) {
     dt_float32_work xn = normalize_float32_input(x);
     dt_float32_work yn = normalize_float32_input(y);
-    
+    if (xn < yn) {dt_float32_work tmp = xn; xn = yn; yn = tmp;}
     return normalize_float32_output(
-        fmax(x, y) + 
-        log(1 + exp(-fabs(x - y)))
+        xn + 
+        log1p(exp(yn - xn))
     );
 }
 
 static inline dt_float32 dt_logaddexp2_float32(dt_float32 x, dt_float32 y) {
     dt_float32_work xn = normalize_float32_input(x);
     dt_float32_work yn = normalize_float32_input(y);
-    
+    if (xn < yn) {dt_float32_work tmp = xn; xn = yn; yn = tmp;}
+
     return normalize_float32_output(
-        fmax(x, y) + 
-        log1p(exp2(-fabs(x - y))) / dt_const_log2_float32
+        xn + 
+        log1p(exp2(yn - xn)) / dt_const_log2_float32
     );
 }
 

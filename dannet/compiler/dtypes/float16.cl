@@ -1,6 +1,7 @@
 #ifndef _FLOAT16_CL_
 #define _FLOAT16_CL_
 
+#include "dtypes/bool.cl"
 #ifndef cl_khr_fp16
 typedef ushort dt_float16;
 typedef uint dt_float16_bits;
@@ -170,20 +171,21 @@ static inline dt_float16 dt_arctan2_float16(dt_float16 x, dt_float16 y) {
 static inline dt_float16 dt_logaddexp_float16(dt_float16 x, dt_float16 y) {
     dt_float16_work xn = normalize_float16_input(x);
     dt_float16_work yn = normalize_float16_input(y);
-    
+    if (xn < yn) {dt_float16_work tmp = xn; xn = yn; yn = tmp;}
     return normalize_float16_output(
-        fmax(x, y) + 
-        log(1 + exp(-fabs(x - y)))
+        xn + 
+        log1p(exp(yn - xn))
     );
 }
 
 static inline dt_float16 dt_logaddexp2_float16(dt_float16 x, dt_float16 y) {
     dt_float16_work xn = normalize_float16_input(x);
     dt_float16_work yn = normalize_float16_input(y);
-    
+    if (xn < yn) {dt_float16_work tmp = xn; xn = yn; yn = tmp;}
+
     return normalize_float16_output(
-        fmax(x, y) + 
-        log1p(exp2(-fabs(x - y))) / dt_const_log2_float16
+        xn + 
+        log1p(exp2(yn - xn)) / dt_const_log2_float16
     );
 }
 

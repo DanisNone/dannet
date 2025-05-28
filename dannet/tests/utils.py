@@ -5,6 +5,7 @@ import jax.random as jrandom
 def get_atol_rtol(dtype):
     return {
         'float16':     (1e-3, 1e-5),
+        'bfloat16':    (1e-2, 1e-4),
         'float32':     (1e-5, 1e-8),
         'float64':     (1e-8, 1e-12),
         'complex64':   (1e-5, 1e-8),
@@ -108,6 +109,7 @@ integers_dtypes = [
 
 floating_dtypes = [
     'float16',
+    'bfloat16',
     'float32',
     'float64'
 ]

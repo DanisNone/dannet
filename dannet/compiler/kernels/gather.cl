@@ -17,11 +17,11 @@ __kernel void gather(
             shiftA += coord * stridesA[axis - ndimB + 1];
     }
 
-    size_t ix = B[shiftB];
+    dt_int64 ix = B[shiftB];
     
     if (ix < 0) ix += shapeA[0];
 
     shiftA += ix * stridesA[0];
 
-    C[shiftC + offsetC] = dt_convert_to_dtypeC(A[shiftA]);
+    C[shiftC + offsetC] = dt_convert_dtypeA_to_dtypeC(A[shiftA]);
 }

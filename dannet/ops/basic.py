@@ -920,7 +920,9 @@ def arange(
     return dt.cast(res, dtype)
 
 
-def eye(N: int, M: int | None = None, k: int = 0, dtype=None):
+def eye(N: int, M: int | None = None, k: int | None = None, dtype=None):
+    if k is None:
+        k = 0
     if dtype is None:
         dtype = dt.dtype.float32
     res = np.eye(N, M, k, dtype)
