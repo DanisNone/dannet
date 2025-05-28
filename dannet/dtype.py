@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import dannet as dt
 import numpy as np
-import ml_dtypes
+import ml_dtypes  # noqa: F401
+
 
 def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
     if isinstance(dtype, np.dtype):
@@ -198,7 +199,7 @@ _dtype_info = {
 
     'float16': ('f', 16),
     'bfloat16': ('bf', 16),
-    
+
     'float32': ('f', 32),
     'float64': ('f', 64),
 

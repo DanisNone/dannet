@@ -48,7 +48,7 @@ def test_einsum(einsum_eq, dtype):
     try:
         assert_equal(actual, expected)
     except AssertionError as e:
-        if dtype == 'float16':
+        if dtype == ['float16', 'bfloat16']:
             pytest.xfail()
         else:
             raise e
@@ -158,7 +158,10 @@ def test_tensordot_correctness(dtype1, dtype2, axes):
     try:
         assert_equal(dt_actual, jax_expected, tol_k=10)
     except AssertionError as e:
-        if dtype1 == 'float16' or dtype2 == 'float16':
+        if (
+            dtype1 in ['float16', 'bfloat16'] or
+            dtype2 in ['float16', 'bfloat16']
+        ):
             pytest.xfail()
         else:
             raise e

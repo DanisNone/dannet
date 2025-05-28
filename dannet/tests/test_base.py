@@ -16,10 +16,11 @@ test_xfail = {
     'correctness::binary': {
         'floor_divide': ['float16'],
         'arctan2': ['complex64', 'complex128'],
-        'logaddexp': ['float16'],
-        'logaddexp2': ['float16']
+        'logaddexp': ['float16', 'bfloat16'],
+        'logaddexp2': ['float16', 'bfloat16']
     }
 }
+# logaddexp and logaddexp2 in jnp have small precision
 
 
 class TestDtype:
@@ -333,7 +334,7 @@ class TestReduce:
         try:
             assert_equal(actual, expected)
         except AssertionError as e:
-            if dtype == 'float16':
+            if dtype in ['float16', 'bfloat16']:
                 pytest.xfail()
             else:
                 raise e

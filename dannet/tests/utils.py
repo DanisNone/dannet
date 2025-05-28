@@ -71,9 +71,9 @@ def get_random_array(shape, dtype1, dtype2=None):
         ):
             info2 = jnp.iinfo(dt2)
             max_float = min(
-                jnp.finfo(dt1).max,
+                jnp.finfo(dt1).max,  # type: ignore
                 float(info2.max)
-            )  # type: ignore
+            )
             return jnp.clip(arr, 0, max_float).astype(dt1)
         return arr.astype(dt1)
 
