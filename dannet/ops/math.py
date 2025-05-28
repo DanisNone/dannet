@@ -217,11 +217,10 @@ class _Floor(_RoundBase):
     pass
 
 
-
 class _Conjugate(_ElementWiseUnary):
     def result_dtype(self, dtype):
         return dtype
-    
+
     def _compute_gradients(self, grad):
         return [dt.conjugate(grad)]
 
@@ -230,7 +229,7 @@ class _Real(_ElementWiseUnary):
     def result_dtype(self, dtype):
         assert dt.dtype.is_complex_dtype(dtype)
         return dt.dtype.real_part_of_complex_dtype(dtype)
-    
+
     def _compute_gradients(self, grad):
         return [grad.cast(self.x.dtype)]
 
@@ -239,9 +238,10 @@ class _Imag(_ElementWiseUnary):
     def result_dtype(self, dtype):
         assert dt.dtype.is_complex_dtype(dtype)
         return dt.dtype.real_part_of_complex_dtype(dtype)
-    
+
     def _compute_gradients(self, grad):
         return [grad.cast(self.x.dtype) * 1j]
+
 
 class _ElementWiseBinary(_ElementWise):
     def __init__(self, x, y):
@@ -810,17 +810,20 @@ def conjugate(x):
         return x
     return dt.core._node_prepare(_Conjugate(x))
 
+
 def real(x):
     x = dt.convert_to_tensor(x)
     if not dt.dtype.is_complex_dtype(x.dtype):
         return x
     return dt.core._node_prepare(_Real(x))
 
+
 def imag(x):
     x = dt.convert_to_tensor(x)
     if not dt.dtype.is_complex_dtype(x.dtype):
         return dt.zeros_like(x)
     return dt.core._node_prepare(_Imag(x))
+
 
 negative = _make_unary('negative', _Negative)
 reciprocal = _make_unary('reciprocal', _Reciprocal)

@@ -221,6 +221,7 @@ def count_nonzero(x: dt.typing.TensorLike, axis=None, keepdims=False):
     mask = (x != 0)
     return dt.sum(mask, axis=axis, keepdims=keepdims)
 
+
 def mean(x: dt.typing.TensorLike, axis=None, keepdims=False):
     x = dt.convert_to_tensor(x)
     is_float16 = False
@@ -231,12 +232,13 @@ def mean(x: dt.typing.TensorLike, axis=None, keepdims=False):
 
     if x.size == y.size:
         y = dt.reshape(x, y.shape)
-    
+
     res = dt.core._node_prepare(y)
 
     if is_float16:
         res = res.cast(dt.dtype.float16)
     return res
+
 
 sum = _make_reduce('sum', _Sum)
 prod = _make_reduce('prod', _Prod)

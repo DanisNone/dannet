@@ -63,7 +63,10 @@ class _RandomFloat(dt.core.TensorBase):
 
         self._init_default_buffer()
 
-        if not dt.dtype.is_float_dtype(self.dtype) or self.dtype == dt.dtype.float16:
+        if (
+            not dt.dtype.is_float_dtype(self.dtype) or
+            self.dtype == dt.dtype.float16
+        ):
             raise TypeError(f'RandomFloat not support {self.dtype}')
 
         if rng is None:

@@ -135,7 +135,13 @@ def amin(x, axis=None, keepdims=False):
 
 
 def append(x1, x2, axis=None):
-    raise NotImplementedError('append')
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if axis is None:
+        return dt.concatenate([x1.reshape(-1), x2.reshape(-1)], axis=0)
+    else:
+        return dt.concatenate([x1, x2], axis=axis)
 
 
 def arange(start, stop=None, step=1, dtype=None):
@@ -198,7 +204,11 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    raise NotImplementedError('average')
+    x = convert_to_tensor(x)
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        return dt.sum(x * weights, axis=axis) / dt.sum(weights, axis=axis)
+    return dt.mean(x, axis=axis)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -237,19 +247,25 @@ def bitwise_xor(x, y):
 
 
 def bitwise_left_shift(x, y):
-    raise NotImplementedError('bitwise_left_shift')
+    return left_shift(x, y)
 
 
 def left_shift(x, y):
-    raise NotImplementedError('left_shift')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.left_shift(x, y)
 
 
 def bitwise_right_shift(x, y):
-    raise NotImplementedError('bitwise_right_shift')
+    return right_shift(x, y)
 
 
 def right_shift(x, y):
-    raise NotImplementedError('right_shift')
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+
+    return dt.right_shift(x, y)
 
 
 def broadcast_to(x, shape):
@@ -425,7 +441,7 @@ def hstack(xs):
 
 
 def identity(n, dtype=None):
-    raise NotImplementedError('identity')
+    return eye(n, n, dtype)
 
 
 def imag(x):
@@ -639,6 +655,7 @@ def unravel_index(x, shape):
 def real(x):
     x = convert_to_tensor(x)
     return dt.real(x)
+
 
 def reciprocal(x):
     x = convert_to_tensor(x)

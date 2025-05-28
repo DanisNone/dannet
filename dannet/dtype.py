@@ -42,17 +42,20 @@ def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
         uint8, uint16, uint32, uint64
     ]
 
+
 def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         int8, int16, int32, int64
     ]
 
+
 def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         uint8, uint16, uint32, uint64
     ]
+
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
@@ -66,6 +69,7 @@ def is_complex_dtype(dtype: dt.typing.DTypeLike) -> bool:
     return dtype in [
         complex64, complex128
     ]
+
 
 def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = np.dtype(normalize_dtype(dtype))
@@ -214,7 +218,6 @@ graph = {
     'complex64': ['complex128'],
     'complex128': []
 }
-
 
 
 py_bool = 'bool'
