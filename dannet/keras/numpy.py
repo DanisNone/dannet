@@ -429,7 +429,7 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    x = convert_to_tensor(X)
+    x = convert_to_tensor(x)
     return dt.imag(x)
 
 
