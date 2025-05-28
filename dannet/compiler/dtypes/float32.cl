@@ -7,15 +7,13 @@ typedef float dt_float32;
 typedef uint dt_float32_bits;
 typedef float dt_float32_work;
 
-
-__constant dt_float32_work dt_const_log2_float32 = 0.6931471805599453;
-__constant dt_float32_work dt_const_log10_float32 = 2.302585092994046;
-
 static inline dt_float32 normalize_float32_input(dt_float32 x)  { return x; }
 static inline dt_float32 normalize_float32_output(dt_float32 x) { return x; }
 static inline dt_float32 dt_zero_float32() { return 0; }
 static inline dt_float32 dt_one_float32() { return normalize_float32_output((dt_float32_work)1); }
 
+__constant dt_float32_work dt_const_log2_float32 = 0.6931471805599453;
+__constant dt_float32_work dt_const_log10_float32 = 2.302585092994046;
 
 static inline dt_float32 dt_add_float32(dt_float32 x, dt_float32 y) {
     return normalize_float32_output(

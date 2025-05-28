@@ -7,10 +7,6 @@ typedef ushort dt_bfloat16;
 typedef ushort dt_bfloat16_bits;
 typedef float dt_bfloat16_work;
 
-__constant dt_bfloat16_work dt_const_log2_bfloat16 = 0.6931471805599453;
-__constant dt_bfloat16_work dt_const_log10_bfloat16 = 2.302585092994046;
-
-
 float normalize_bfloat16_input(dt_bfloat16 h) {
     return as_float(((uint)h) << 16);
 }
@@ -39,6 +35,8 @@ dt_bfloat16 normalize_bfloat16_output(float x) {
 static inline dt_bfloat16 dt_zero_bfloat16() { return 0; }
 static inline dt_bfloat16 dt_one_bfloat16() { return normalize_bfloat16_output((dt_bfloat16_work)1); }
 
+__constant dt_bfloat16_work dt_const_log2_bfloat16 = 0.6931471805599453;
+__constant dt_bfloat16_work dt_const_log10_bfloat16 = 2.302585092994046;
 
 static inline dt_bfloat16 dt_add_bfloat16(dt_bfloat16 x, dt_bfloat16 y) {
     return normalize_bfloat16_output(

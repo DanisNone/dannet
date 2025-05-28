@@ -2,14 +2,10 @@
 #define _FLOAT16_CL_
 
 #include "dtypes/bool.cl"
-#ifndef cl_khr_fp16
+#ifdef cl_khr_fp16
 typedef ushort dt_float16;
 typedef uint dt_float16_bits;
 typedef float dt_float16_work;
-
-
-__constant dt_float16 dt_const_log2_float16 = 0x3b44;
-__constant dt_float16 dt_const_log10_float16 = 0x4013;
 
 float normalize_float16_input(dt_float16 h) {
     uint s = (h >> 15) & 0x00000001;
@@ -87,15 +83,14 @@ typedef ushort dt_float16_bits;
 
 static inline dt_float16 normalize_float16_input(dt_float16 x)  { return x; }
 static inline dt_float16 normalize_float16_output(dt_float16 x) { return x; }
-
-__constant dt_float16 dt_const_log2_float16 = 0.6931471805599453;
-__constant dt_float16 dt_const_log10_float16 = 2.302585092994046;
 #endif
 
 
 static inline dt_float16 dt_zero_float16() { return 0; }
 static inline dt_float16 dt_one_float16() { return normalize_float16_output((dt_float16_work)1); }
 
+__constant dt_float16_work dt_const_log2_float16 = 0.6931471805599453;
+__constant dt_float16_work dt_const_log10_float16 = 2.302585092994046;
 
 static inline dt_float16 dt_add_float16(dt_float16 x, dt_float16 y) {
     return normalize_float16_output(

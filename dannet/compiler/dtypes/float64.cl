@@ -7,9 +7,6 @@ typedef ulong dt_float64;
 typedef uint dt_float64_bits;
 typedef float dt_float64_work;
 
-__constant dt_float64 dt_const_log2_float64 = 0x3fe62e42fefa39efUL;
-__constant dt_float64 dt_const_log10_float64 = 0x40026bb1bbb55516UL;
-
 float normalize_float64_input(dt_float64 h) {
     uint sign     = (h >> 63) & 0x1;
     int  exponent = (int)((h >> 52) & 0x7FF);
@@ -94,14 +91,14 @@ typedef double dt_float64_work;
 
 static inline dt_float64 normalize_float64_input(dt_float64 x)  { return x; }
 static inline dt_float64 normalize_float64_output(dt_float64 x) { return x; }
-__constant dt_float64 dt_const_log2_float64 = 0.6931471805599453;
-__constant dt_float64 dt_const_log10_float64 = 2.302585092994046;
 #endif
 
 
 static inline dt_float64 dt_zero_float64() { return 0; }
 static inline dt_float64 dt_one_float64() { return normalize_float64_output((dt_float64_work)1); }
 
+__constant dt_float64_work dt_const_log2_float64 = 0.6931471805599453;
+__constant dt_float64_work dt_const_log10_float64 = 2.302585092994046;
 
 static inline dt_float64 dt_add_float64(dt_float64 x, dt_float64 y) {
     return normalize_float64_output(
