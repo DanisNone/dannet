@@ -417,6 +417,18 @@ class TensorBase(abc.ABC, metaclass=TensorMeta):
     def var(self, axis=None, keepdims=False):
         return dt.var(self, axis=axis, keepdims=keepdims)
 
+    @property
+    def real(self):
+        return dt.real(self)
+
+    @property
+    def imag(self):
+        return dt.imag(self)
+
+    def conjugate(self):
+        return dt.conjugate(self)
+    conj = conjugate
+
 
 class Constant(TensorBase):
     def __init__(
