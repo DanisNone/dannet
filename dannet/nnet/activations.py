@@ -112,7 +112,7 @@ def softmax(x, axis=-1):
 
 class _LogSumExp(dt.reduce._Reduce):
     def result_type(self, dtype):
-        return dt.dtype.promote_dtypes(dtype, dt.dtype.float_dtype)
+        return dt.dtype.promote_to_float(dtype)
 
     def _compute_gradients(self, grad):
         grad = dt.reshape(grad, self._keepdims_shape)

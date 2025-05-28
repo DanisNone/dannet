@@ -6,7 +6,7 @@ import dannet as dt
 class RandomGenerator:
     def __init__(self, seed=None):
         if seed is None:
-            seed = np.random.randint(2**64, dtype='uint64')
+            seed = np.random.randint(2**64, dtype=np.uint64)
         self.seed = np.uint64(seed)
 
     def get_seed(self, n: int):
@@ -25,7 +25,7 @@ class _RandomInt(dt.core.TensorBase):
                  rng: Optional[RandomGenerator] = None
                  ):
         self._shape = dt.utils.normalize_shape(shape)
-        self._dtype = 'uint64'
+        self._dtype = dt.dtype.uint64
 
         self._init_default_buffer()
 
@@ -63,7 +63,7 @@ class _RandomFloat(dt.core.TensorBase):
 
         self._init_default_buffer()
 
-        if not dt.dtype.is_float_dtype(self.dtype) or self.dtype == 'float16':
+        if not dt.dtype.is_float_dtype(self.dtype) or self.dtype == dt.dtype.float16:
             raise TypeError(f'RandomFloat not support {self.dtype}')
 
         if rng is None:

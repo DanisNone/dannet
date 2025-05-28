@@ -97,9 +97,9 @@ class Device:
 
     def is_support(self, dtype: dt.typing.DTypeLike) -> bool:
         dtype = dt.dtype.normalize_dtype(dtype)
-        if dtype == 'float64':
+        if dtype == dt.dtype.float64:
             return 'cl_khr_fp64' in self.device.extensions
-        if dtype == 'float16':
+        if dtype == dt.dtype.float16:
             return 'cl_khr_fp16' in self.device.extensions
         return True
 

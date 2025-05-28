@@ -429,11 +429,11 @@ class Constant(TensorBase):
             dtype is None
         ):
             if isinstance(value, int):
-                dtype = dt.dtype.int_dtype
+                dtype = dt.dtype.py_int
             if isinstance(value, float):
-                dtype = dt.dtype.float_dtype
+                dtype = dt.dtype.py_float
             if isinstance(value, complex):
-                dtype = dt.dtype.complex_dtype
+                dtype = dt.dtype.py_complex
         self._value = np.array(value, dtype=dtype)
         dtype = self._value.dtype
 

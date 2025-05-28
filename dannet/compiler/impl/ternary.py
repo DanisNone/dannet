@@ -37,7 +37,7 @@ def ternary(
     workD = t.get(workD, workD)
 
     gen.line(f'''
-dtypeC operation(dtypeA x, dtypeB y, dtypeC z) {{
+dtypeD operation(dtypeA x, dtypeB y, dtypeC z) {{
 {op}
 }}''')
     gen.dtype_names(workA=workA, workB=workB, workC=workC)

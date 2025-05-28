@@ -16,7 +16,7 @@ def random_int(
 ):
     assert node._is_contiguous
     A = output_buffer
-    assert node._dtype == 'uint64'
+    assert node._dtype == dt.dtype.uint64
 
     global_size = (node.size,)
     local_size = None
@@ -37,7 +37,7 @@ def random_float(
     output_buffer
 ):
     A = output_buffer
-    assert node._dtype in ['float32', 'float64']
+    assert node._dtype in [dt.dtype.float32, dt.dtype.float64]
 
     global_size = (node.size,)
     local_size = None

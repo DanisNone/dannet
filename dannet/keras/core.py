@@ -195,7 +195,7 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    return 'int32'
+    return dt.dtype.int32
 
 
 def remat(f):

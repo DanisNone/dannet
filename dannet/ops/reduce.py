@@ -43,11 +43,11 @@ class _Reduce(dt.core.TensorBase):
 class _Sum(_Reduce):
     def result_type(self, dtype):
         if dt.dtype.is_bool_dtype(dtype):
-            return 'int64'
+            return dt.dtype.int64
         if dt.dtype.is_signed_dtype(dtype):
-            return 'int64'
+            return dt.dtype.int64
         if dt.dtype.is_unsigned_dtype(dtype):
-            return 'uint64'
+            return dt.dtype.uint64
         return dtype
 
     def _compute_gradients(self, grad):
@@ -77,11 +77,11 @@ class _Mean(_Reduce):
 class _Prod(_Reduce):
     def result_type(self, dtype):
         if dt.dtype.is_bool_dtype(dtype):
-            return 'int64'
+            return dt.dtype.int64
         if dt.dtype.is_signed_dtype(dtype):
-            return 'int64'
+            return dt.dtype.int64
         if dt.dtype.is_unsigned_dtype(dtype):
-            return 'uint64'
+            return dt.dtype.uint64
         return dtype
 
     def _compute_gradients(self, grad):
@@ -114,7 +114,7 @@ class _Max(_Reduce):
 
 class _Any(_Reduce):
     def result_type(self, dtype):
-        return dt.dtype.bool_dtype
+        return dt.dtype.bool_
 
     def _compute_gradients(self, grad):
         return None
@@ -122,7 +122,7 @@ class _Any(_Reduce):
 
 class _All(_Reduce):
     def result_type(self, dtype):
-        return dt.dtype.bool_dtype
+        return dt.dtype.bool_
 
     def _compute_gradients(self, grad):
         return None
@@ -157,7 +157,7 @@ class _ArgReduce(dt.core.TensorBase):
                 del output_shape[self._axis]
             self._shape = tuple(output_shape)
 
-        self._dtype = dt.dtype.uint_dtype
+        self._dtype = dt.dtype.uint32
 
         self._init_default_buffer()
 
@@ -221,6 +221,22 @@ def count_nonzero(x: dt.typing.TensorLike, axis=None, keepdims=False):
     mask = (x != 0)
     return dt.sum(mask, axis=axis, keepdims=keepdims)
 
+def mean(x: dt.typing.TensorLike, axis=None, keepdims=False):
+    x = dt.convert_to_tensor(x)
+    is_float16 = False
+    if x.dtype == dt.dtype.float16:
+        x = x.cast(dt.dtype.float32)
+        is_float16 = True
+    y = _Mean(x, axis=axis, keepdims=keepdims)
+
+    if x.size == y.size:
+        y = dt.reshape(x, y.shape)
+    
+    res = dt.core._node_prepare(y)
+
+    if is_float16:
+        res = res.cast(dt.dtype.float16)
+    return res
 
 sum = _make_reduce('sum', _Sum)
 mean = _make_reduce('mean', _Mean)

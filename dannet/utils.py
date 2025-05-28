@@ -23,13 +23,13 @@ def convert_to_tensor(x: dt.typing.TensorLike) -> dt.core.TensorBase:
     if isinstance(x, (np.generic, list, tuple)):
         return dt.constant(x)
     if isinstance(x, bool):
-        return dt.constant(x, dt.dtype.bool_dtype)
+        return dt.constant(x, dt.dtype.py_bool)
     if isinstance(x, int):
-        return dt.constant(x, dt.dtype.int_dtype)
+        return dt.constant(x, dt.dtype.py_int)
     if isinstance(x, float):
-        return dt.constant(x, dt.dtype.float_dtype)
+        return dt.constant(x, dt.dtype.py_float)
     if isinstance(x, complex):
-        return dt.constant(x, dt.dtype.complex_dtype)
+        return dt.constant(x, dt.dtype.py_complex)
     if hasattr(x, '__array__'):
         x = np.asarray(x)
         return dt.constant(x)

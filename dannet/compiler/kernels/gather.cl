@@ -17,7 +17,7 @@ __kernel void gather(
             shiftA += coord * stridesA[axis - ndimB + 1];
     }
 
-    int ix = B[shiftB];
+    size_t ix = B[shiftB];
     
     if (ix < 0) ix += shapeA[0];
 

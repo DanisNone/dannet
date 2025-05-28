@@ -59,7 +59,7 @@ class _BitwiseXor(_BitwiseBinary):
 class _Shift(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
         if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
-            return 'int32'
+            return dt.dtype.int32
 
         if (
             dt.dtype.is_float_dtype(dtype1) or

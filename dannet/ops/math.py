@@ -51,7 +51,7 @@ class _Reciprocal(_ElementWiseUnary):
 class _Square(_ElementWiseUnary):
     def result_dtype(self, dtype):
         if dt.dtype.is_bool_dtype(dtype):
-            return 'int32'
+            return dt.dtype.int32
         return dtype
 
     def _compute_gradients(self, grad):
@@ -281,7 +281,7 @@ class _Divide(_ElementWiseBinary):
 class _Power(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
         if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
-            return 'int32'
+            return dt.dtype.int32
         return dt.dtype.promote_dtypes(dtype1, dtype2)
 
     def _compute_gradients(self, grad):
@@ -318,7 +318,7 @@ class _Maximum(_ElementWiseBinary):
 class _FloorDivide(_ElementWiseBinary):
     def result_dtype(self, dtype1, dtype2):
         if dt.dtype.is_bool_dtype(dtype1) and dt.dtype.is_bool_dtype(dtype2):
-            return 'int32'
+            return dt.dtype.int32
         if (
             dt.dtype.is_complex_dtype(dtype1) or
             dt.dtype.is_complex_dtype(dtype2)
@@ -768,8 +768,8 @@ def round(x, decimals=0):
     if dt.dtype.is_integer_dtype(x_dtype):
         if decimals > 0:
             return x
-        factor = dt.cast(dt.power(10.0, decimals), dt.dtype.float_dtype)
-        x = dt.cast(x, dt.dtype.float_dtype)
+        factor = dt.cast(dt.power(10.0, decimals), dt.dtype.float32)
+        x = dt.cast(x, dt.dtype.float32)
     else:
         factor = dt.cast(dt.power(10.0, decimals), x.dtype)
     x = x * factor

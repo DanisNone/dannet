@@ -51,7 +51,6 @@ class _ConvND(dt.core.TensorBase):
         self._dtype = dt.dtype.promote_dtypes(
             self.input._dtype,
             self.kernel._dtype,
-            'uint32',
         )
 
         self._init_default_buffer()
@@ -137,8 +136,7 @@ class _DepthwiseConv2D(dt.core.TensorBase):
 
         self._dtype = dt.dtype.promote_dtypes(
             self.input._dtype,
-            self.kernel._dtype,
-            'uint32',
+            self.kernel._dtype
         )
 
         self._init_default_buffer()

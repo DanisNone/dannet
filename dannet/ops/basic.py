@@ -403,7 +403,7 @@ class _Slice(dt.core.TensorBase):
 class _Gather(dt.core.TensorBase):
     def __init__(self, x, indices):
         self.x = dt.convert_to_tensor(x)
-        self.indices = dt.cast(indices, dt.dtype.int_dtype)
+        self.indices = dt.cast(indices, dt.dtype.int32)
 
         self._shape = self.indices.shape + self.x.shape[1:]
         self._dtype = self.x.dtype
@@ -432,7 +432,7 @@ class _Gather(dt.core.TensorBase):
 
 class _OneHot(dt.core.TensorBase):
     def __init__(self, indices, depth, dtype):
-        self.indices = dt.cast(indices, dt.dtype.int_dtype)
+        self.indices = dt.cast(indices, dt.dtype.int32)
         self._depth = int(depth)
 
         if self._depth <= 0:
@@ -553,7 +553,7 @@ class _Diagonal(dt.core.TensorBase):
             input_shape[-2],
             input_shape[-1],
             k=self._offset,
-            dtype=dt.dtype.bool_dtype
+            dtype=dt.dtype.bool_
         )
 
         grad_expanded = dt.expand_dims(grad, (-1, -2))
@@ -570,13 +570,13 @@ class _Diagonal(dt.core.TensorBase):
 
 def zeros(shape, dtype=None):
     if dtype is None:
-        dtype = dt.dtype.float_dtype
+        dtype = dt.dtype.float32
     return broadcast_to(cast(0, dtype), shape)
 
 
 def ones(shape, dtype=None):
     if dtype is None:
-        dtype = dt.dtype.float_dtype
+        dtype = dt.dtype.float32
     return broadcast_to(cast(1, dtype), shape)
 
 
@@ -823,7 +823,7 @@ def split(x, indices_or_sections, axis=0):
 
 def take(x, indices, axis=None):
     x = dt.convert_to_tensor(x)
-    indices = dt.cast(indices, dt.dtype.int_dtype)
+    indices = dt.cast(indices, dt.dtype.int32)
 
     if axis is None:
         flat = dt.reshape(x, (-1,))
@@ -864,7 +864,7 @@ def take(x, indices, axis=None):
 
 def one_hot(x, depth, axis=-1, dtype=None):
     if dtype is None:
-        dtype = dt.dtype.float_dtype
+        dtype = dt.dtype.float32
     x = dt.convert_to_tensor(x)
     if axis < 0:
         axis += x.ndim + 1
@@ -922,20 +922,20 @@ def arange(
 
 def eye(N: int, M: int | None = None, k: int = 0, dtype=None):
     if dtype is None:
-        dtype = dt.dtype.float_dtype
+        dtype = dt.dtype.float32
     res = np.eye(N, M, k, dtype)
     return dt.constant(res)
 
 
 def tri(N, M=None, k=0, dtype=None):
     if dtype is None:
-        dtype = dt.dtype.float_dtype
+        dtype = dt.dtype.float32
 
     if M is None:
         M = N
 
-    a = arange(N, dtype='int64')
-    b = arange(-k, M-k, dtype='int64')
+    a = arange(N, dtype=dt.dtype.int64)
+    b = arange(-k, M-k, dtype=dt.dtype.int64)
     m = (dt.expand_dims(a, 1) >= dt.expand_dims(b, 0))
 
     return dt.cast(m, dtype)
@@ -977,7 +977,7 @@ def hamming(M: int):
 def signbit(x):
     x = dt.convert_to_tensor(x)
     if dt.dtype.is_bool_dtype(x.dtype):
-        return dt.zeros_like(x, dtype=dt.dtype.bool_dtype)
+        return dt.zeros_like(x, dtype=dt.dtype.bool_)
     if dt.dtype.is_integer_dtype(x.dtype):
         return x < 0
 
@@ -989,15 +989,11 @@ def signbit(x):
         bitcast(x, uint),
         dt.constant(mask, uint)
     )
-    return x.cast(dt.dtype.bool_dtype)
+    return x.cast(dt.dtype.bool_)
 
 
 def angle(x):
-    #  all tensors is real
-    x = dt.convert_to_tensor(x)
-    if not dt.dtype.is_float_dtype(x.dtype):
-        x = dt.cast(x, dt.dtype.float_dtype)
-    return dt.cast(dt.pi, x.dtype) * (x < 0)
+    raise NotImplementedError('angle')
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
@@ -1023,7 +1019,7 @@ def diag(x, k=0):
     x = dt.convert_to_tensor(x)
     if x.ndim == 1:
         N = x.shape[0]
-        mask = dt.eye(N, dtype=dt.dtype.bool_dtype)
+        mask = dt.eye(N, dtype=dt.dtype.bool_)
         zeros = dt.zeros((N, N), dtype=x.dtype)
         res = dt.where(mask, x, zeros)
         a, b = (0, k) if k > 0 else (-k, 0)

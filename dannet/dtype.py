@@ -10,13 +10,13 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> str:
     elif isinstance(dtype, type) and issubclass(dtype, np.generic):
         dtype = np.dtype(dtype).name
     elif dtype is bool or dtype == 'bool':
-        dtype = bool_dtype
+        dtype = py_bool
     elif dtype is int or dtype == 'int':
-        dtype = int_dtype
+        dtype = py_int
     elif dtype is float or dtype == 'float':
-        dtype = float_dtype
+        dtype = py_float
     elif dtype is complex or dtype == 'complex':
-        dtype = complex_dtype
+        dtype = py_complex
     elif isinstance(dtype, str):
         dtype = dtype.lower()
     else:
@@ -32,28 +32,40 @@ def itemsize(dtype: dt.typing.DTypeLike) -> int:
 
 
 def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.bool_)
+    return normalize_dtype(dtype) == bool_
 
 
 def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.integer)
-
+    dtype = normalize_dtype(dtype)
+    return dtype in [
+        int8, int16, int32, int64,
+        uint8, uint16, uint32, uint64
+    ]
 
 def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.signedinteger)
-
+    dtype = normalize_dtype(dtype)
+    return dtype in [
+        int8, int16, int32, int64
+    ]
 
 def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.unsignedinteger)
-
+    dtype = normalize_dtype(dtype)
+    return dtype in [
+        uint8, uint16, uint32, uint64
+    ]
 
 def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.floating)
+    dtype = normalize_dtype(dtype)
+    return dtype in [
+        float16, float32, float64
+    ]
 
 
 def is_complex_dtype(dtype: dt.typing.DTypeLike) -> bool:
-    return np.issubdtype(np.dtype(normalize_dtype(dtype)), np.complexfloating)
-
+    dtype = normalize_dtype(dtype)
+    return dtype in [
+        complex64, complex128
+    ]
 
 def to_signed_dtype(dtype: dt.typing.DTypeLike) -> str:
     dtype = np.dtype(normalize_dtype(dtype))
@@ -88,7 +100,7 @@ def promote_dtypes(*dtypes: dt.typing.DTypeLike) -> str:
         key=support.index, reverse=True
     )
     if len(norm_dtypes) == 0:
-        return bool_dtype
+        return bool_
 
     result = norm_dtypes[0]
     for dtype in norm_dtypes[1:]:
@@ -181,6 +193,7 @@ _dtype_info = {
     'complex64': ('c', 64),
     'complex128': ('c', 128),
 }
+
 graph = {
     'bool': ['int8', 'uint8'],
 
@@ -203,14 +216,26 @@ graph = {
 }
 
 
-def _compute_depth(dtype):
-    if dtype == 'bool':
-        return 1
-    return min(_compute_depth(d) for d in graph[dtype]) + 1
+
+py_bool = 'bool'
+py_int = 'int32'
+py_float = 'float32'
+py_complex = 'complex64'
 
 
-bool_dtype = 'bool'
-int_dtype = 'int32'
-uint_dtype = 'uint32'
-float_dtype = 'float32'
-complex_dtype = 'complex64'
+bool_ = 'bool'
+int8 = 'int8'
+int16 = 'int16'
+int32 = 'int32'
+int64 = 'int64'
+uint8 = 'uint8'
+uint16 = 'uint16'
+uint32 = 'uint32'
+uint64 = 'uint64'
+
+float16 = 'float16'
+float32 = 'float32'
+float64 = 'float64'
+
+complex64 = 'complex64'
+complex128 = 'complex128'

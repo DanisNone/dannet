@@ -108,14 +108,14 @@ def default_typed_sum(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.reduce._Mean)
 def mean(device, node, input_buffers, output_buffer):
-    final_op = 'dt_divide_dtypeB(res, dt_convert_uint64_to_dtypeB(inner_size))'
+    scale = f'dt_convert_float32_to_dtypeB({node.x.size / node.size})'
     return reduce(
         device,
         node,
         input_buffers,
         output_buffer,
-        op='dt_add_dtypeB(acc, x)',
-        final_op=final_op
+        init_op=f'dt_divide_dtypeB(x, {scale})',
+        op=f'dt_add_dtypeB(acc, dt_divide_dtypeB(x, {scale}))',
     )
 
 
@@ -151,7 +151,7 @@ def max(device, node, input_buffers, output_buffer):
 
 @register_impl(dt.reduce._Any)
 def any(device, node, input_buffers, output_buffer):
-    assert node.dtype == dt.dtype.bool_dtype
+    assert node.dtype == dt.dtype.bool_
     return reduce(
         device,
         node,

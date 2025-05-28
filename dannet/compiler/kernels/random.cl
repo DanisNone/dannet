@@ -1,13 +1,13 @@
 #ifdef int_mode
 __kernel void random(
-    __global ulong* A,
-    ulong seed
+    __global dt_uint64* A,
+    dt_uint64 seed
 )
 {
-    ulong index = get_global_id(0);
+    dt_uint64 index = get_global_id(0);
     
-    ulong GOLDEN_RATIO = 0x9E3779B97F4A7C15;
-    ulong x = seed + GOLDEN_RATIO * index;
+    dt_uint64 GOLDEN_RATIO = 0x9E3779B97F4A7C15;
+    dt_uint64 x = seed + GOLDEN_RATIO * index;
 
 
     // xorshift64 step
@@ -23,13 +23,13 @@ __kernel void random(
 #ifdef float_mode
 __kernel void random_float(
     __global dtypeA* A,
-    ulong seed
+    dt_uint64 seed
 )
 {
-    ulong index = get_global_id(0);
+    dt_uint64 index = get_global_id(0);
     
-    ulong GOLDEN_RATIO = 0x9E3779B97F4A7C15;
-    ulong x = seed + GOLDEN_RATIO * index;
+    dt_uint64 GOLDEN_RATIO = 0x9E3779B97F4A7C15;
+    dt_uint64 x = seed + GOLDEN_RATIO * index;
 
 
     // xorshift64 step
@@ -38,6 +38,9 @@ __kernel void random_float(
     x ^= x << 17;
     
     // normalize
-    A[index] = x / (dtypeA)((ulong)-1);
+    A[index] = dt_divide_dtypeA(
+        dt_convert_uint64_to_dtypeA(x),
+        dt_convert_uint64_to_dtypeA((dt_uint64)-1)
+    );
 }
 #endif

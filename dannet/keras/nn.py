@@ -106,7 +106,7 @@ def one_hot(x, num_classes, axis=-1, dtype='float32', sparse=False):
     if sparse:
         raise ValueError('Unsupported value `sparse=True` with Dannet backend')
 
-    x = convert_to_tensor(x, dtype=dt.dtype.int_dtype)
+    x = convert_to_tensor(x, dtype=dt.dtype.int32)
     output = dt.one_hot(x, num_classes, axis, dtype)
     return output
 
@@ -141,7 +141,7 @@ def sparse_categorical_crossentropy(
     target, output,
     from_logits=False, axis=-1
 ):
-    target = convert_to_tensor(target, dtype=dt.dtype.int_dtype)
+    target = convert_to_tensor(target, dtype=dt.dtype.int32)
     output = convert_to_tensor(output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
