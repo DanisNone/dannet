@@ -6,6 +6,7 @@ from . import typing
 
 from .ops import *
 from . import nnet
+from . import linalg
 from .gradient import gradients
 
 from . import dtype
