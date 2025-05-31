@@ -635,7 +635,6 @@ def matmul(x, y, transpose_a=False, transpose_b=False):
 
 
 def tensordot(x, y, axes):
-    # TODO: it's a very bad implementaition
     x = dt.convert_to_tensor(x)
     y = dt.convert_to_tensor(y)
 
@@ -650,8 +649,8 @@ def tensordot(x, y, axes):
         if isinstance(axes_y, int):
             axes_y = (axes_y, )
 
-    axes_x = dt.utils.normalize_axis_tuple(x, axes_x)
-    axes_y = dt.utils.normalize_axis_tuple(y, axes_y)
+    axes_x = dt.utils.normalize_axis_tuple(axes_x, x)
+    axes_y = dt.utils.normalize_axis_tuple(axes_y, y)
     if len(axes_x) != len(axes_y):
         raise ValueError('Number of axes for contraction must be equal')
 
@@ -663,6 +662,7 @@ def tensordot(x, y, axes):
                 f'!= y.shape[{b_axis}]={y.shape[b_axis]}'
             )
 
+    
     perm = []
     for i in range(x.ndim):
         if i not in axes_x:
@@ -677,16 +677,12 @@ def tensordot(x, y, axes):
     perm.extend(axes_y)
     y = dt.transpose(y, perm)
 
-    x = dt.reshape(x, x.shape[:x.ndim - len(axes_x)] + (-1, ))
-    y = dt.reshape(y, y.shape[:y.ndim - len(axes_y)] + (-1, ))
-
-    As = x.shape[:-1]
-    Bs = y.shape[:-1]
-
-    x = dt.reshape(x, As + (1, ) * len(Bs) + (-1,))
-    y = dt.reshape(y, (1, ) * len(As) + Bs + (-1,))
-
-    return dt.core._node_prepare(dt.reduce._DefaultDtypeSum(x * y, axis=-1))
+    xs = x.ndim - len(axes_x)
+    ys = x.ndim - len(axes_x)
+    expand_x = dt.expand_dims(x, range(xs, xs + ys))
+    expand_y = dt.expand_dims(y, range(ys))
+    z = expand_x * expand_y
+    return dt.sum(z, axis=range(-len(axes_x), 0), dtype=z.dtype)
 
 
 def dot(x, y):

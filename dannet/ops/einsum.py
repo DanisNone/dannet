@@ -23,9 +23,7 @@ def _einsum_one_arg(einsum_str, operands: list):
 
     perm = [input.index(c) for c in einsum_output]
 
-    sum_ = dt.core._node_prepare(
-        dt.reduce._DefaultDtypeSum(operands[0], sum_axes)
-    )
+    sum_ = dt.sum(operands[0], sum_axes, dtype=operands[0].dtype)
     return dt.transpose(sum_, perm)
 
 

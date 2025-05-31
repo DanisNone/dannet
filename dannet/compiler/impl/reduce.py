@@ -98,14 +98,6 @@ def sum(device, node, input_buffers, output_buffer):
     )
 
 
-@register_impl(dt.reduce._DefaultDtypeSum)
-def default_typed_sum(device, node, input_buffers, output_buffer):
-    return reduce(
-        device, node, input_buffers, output_buffer,
-        op='dt_add_dtypeB(acc, x)',
-    )
-
-
 @register_impl(dt.reduce._Mean)
 def mean(device, node, input_buffers, output_buffer):
     scale = f'dt_convert_float32_to_dtypeB({node.x.size / node.size})'

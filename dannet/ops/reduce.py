@@ -5,9 +5,9 @@ import dannet as dt
 
 
 class _Reduce(dt.core.TensorBase):
-    def __init__(self, x, axis=None, keepdims=False):
+    def __init__(self, x, axis=None, keepdims=False, dtype=None):
         self.x = dt.convert_to_tensor(x)
-        axis = dt.utils.normalize_axis_tuple(self.x, axis)
+        axis = dt.utils.normalize_axis_tuple(axis, self.x)
 
         shape = []
         keepdims_shape = []
@@ -22,8 +22,12 @@ class _Reduce(dt.core.TensorBase):
 
         self._keepdims_shape = tuple(map(int, keepdims_shape))
         self._shape = tuple(map(int, shape))
-        self._dtype = self.result_type(self.x.dtype)
 
+        if dtype is None:
+            self._dtype = self.result_type(self.x.dtype)
+        else:
+            self._dtype = dt.dtype.normalize_dtype(dtype)
+        
         self._axis = tuple(axis)
         self._keepdims = bool(keepdims)
 
@@ -48,15 +52,6 @@ class _Sum(_Reduce):
             return dt.dtype.int64
         if dt.dtype.is_unsigned_dtype(dtype):
             return dt.dtype.uint64
-        return dtype
-
-    def _compute_gradients(self, grad):
-        grad = dt.reshape(grad, self._keepdims_shape)
-        return [dt.broadcast_to(grad, self.x.shape)]
-
-
-class _DefaultDtypeSum(_Reduce):
-    def result_type(self, dtype):
         return dtype
 
     def _compute_gradients(self, grad):
@@ -183,9 +178,9 @@ class _ArgMax(_ArgReduce):
 
 
 def _make_reduce(name: str, class_: type[_Reduce]):
-    def inner(x: dt.typing.TensorLike, axis=None, keepdims=False):
+    def inner(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
         x = dt.convert_to_tensor(x)
-        y = class_(x, axis=axis, keepdims=keepdims)
+        y = class_(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
         if x.size == y.size:
             y = dt.reshape(x, y.shape)
@@ -203,16 +198,16 @@ def _make_arg_reduce(name: str, class_: type[_ArgReduce]):
     return inner
 
 
-def var(x: dt.typing.TensorLike, axis=None, keepdims=False):
+def var(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
     x = dt.convert_to_tensor(x)
 
-    mean = dt.mean(x, axis, keepdims=True)
-    variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims)
+    mean = dt.mean(x, axis, keepdims=True, dtype=dtype)
+    variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims, dtype=dtype)
     return variance
 
 
-def std(x: dt.typing.TensorLike, axis=None, keepdims=False):
-    variance = var(x, axis=axis, keepdims=keepdims)
+def std(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
+    variance = var(x, axis=axis, keepdims=keepdims, dtype=dtype)
     return dt.sqrt(variance)
 
 
@@ -222,22 +217,26 @@ def count_nonzero(x: dt.typing.TensorLike, axis=None, keepdims=False):
     return dt.sum(mask, axis=axis, keepdims=keepdims)
 
 
-def mean(x: dt.typing.TensorLike, axis=None, keepdims=False):
+
+def mean(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
+    if dtype is not None:
+        dtype = dt.dtype.normalize_dtype(dtype)
     x = dt.convert_to_tensor(x)
-    is_float16 = False
-    if x.dtype == dt.dtype.float16:
-        x = x.cast(dt.dtype.float32)
-        is_float16 = True
-    y = _Mean(x, axis=axis, keepdims=keepdims)
+    
+    result_dtype = dtype or x.dtype
+    compute_dtype = result_dtype
+
+    if x.dtype == dt.dtype.float16 and dtype is None:
+        compute_dtype = dt.dtype.float32
+    
+    y = _Mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
 
     if x.size == y.size:
         y = dt.reshape(x, y.shape)
 
     res = dt.core._node_prepare(y)
 
-    if is_float16:
-        res = res.cast(dt.dtype.float16)
-    return res
+    return res.cast(result_dtype)
 
 
 sum = _make_reduce('sum', _Sum)

@@ -1,4 +1,5 @@
 import math
+import operator
 from typing import Sequence
 
 import numpy as np
@@ -680,11 +681,17 @@ def squeeze(x, axis=None):
 def expand_dims(x, axis):
     x = dt.convert_to_tensor(x)
 
-    if type(axis) not in (tuple, list):
-        axis = (axis,)
+    try:
+        axis = operator.index(axis)
+        axis = (axis, )
+    except TypeError:
+        axis = tuple(
+            operator.index(d) for d in axis
+        )
+
 
     out_ndim = len(axis) + x.ndim
-    axis = dt.utils.normalize_axis_tuple(out_ndim, axis)
+    axis = dt.utils.normalize_axis_tuple(axis, out_ndim)
 
     shape_it = iter(x.shape)
     shape = [
@@ -716,8 +723,8 @@ def swapaxes(x, axis1, axis2):
 
 def moveaxis(x, source, destination):
     x = dt.convert_to_tensor(x)
-    source = dt.utils.normalize_axis_tuple(x, source)
-    destination = dt.utils.normalize_axis_tuple(x, destination)
+    source = dt.utils.normalize_axis_tuple(source, x)
+    destination = dt.utils.normalize_axis_tuple(destination, x)
 
     if len(source) != len(destination):
         raise ValueError(

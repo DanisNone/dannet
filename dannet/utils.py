@@ -65,8 +65,8 @@ def broadcast_shape_to(
 
 
 def normalize_axis_tuple(
+    axis: None | SupportsIndex | Sequence[SupportsIndex],
     x: dt.typing.TensorLike | int,
-    axis: None | SupportsIndex | Sequence[SupportsIndex]
 ) -> tuple[int, ...]:
     if isinstance(x, int):
         ndim = x
