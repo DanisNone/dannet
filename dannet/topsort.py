@@ -7,7 +7,8 @@ from dannet.graph_collections import GList
 def topological_sort(
     tensors: Sequence[dt.core.TensorBase] | dt.core.TensorBase
 ) -> list[dt.core.TensorBase]:
-    result = GList()
+    result: GList[dt.core.TensorBase] = GList()
+
     if isinstance(tensors, dt.core.TensorBase):
         tensors = [tensors]
     tensors = list(tensors)

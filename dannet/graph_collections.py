@@ -7,6 +7,8 @@ from typing import (
 
 T = TypeVar('T')
 U = TypeVar('U')
+K = TypeVar('K')
+V = TypeVar('V')
 
 
 class GraphList(Sequence[T], Generic[T]):
@@ -68,13 +70,17 @@ class GraphList(Sequence[T], Generic[T]):
                 f'\'{type(self).__name__}\' and '
                 f'\'{type(other).__name__}\''
             )
-        return GraphList(self._data + other._data)
+
+        result: GraphList[T | U] = GraphList()
+        result.extend(self)
+        result.extend(other)
+        return result
 
     def clear(self) -> None:
         self._data.clear()
 
     def copy(self) -> GraphList[T]:
-        copied = GraphList()
+        copied: GraphList[T] = GraphList()
         copied._data = self._data.copy()
         return copied
 
@@ -86,11 +92,6 @@ class GraphList(Sequence[T], Generic[T]):
 
     def tolist(self) -> list[T]:
         return self._data
-
-
-K = TypeVar('K')
-V = TypeVar('V')
-T = TypeVar('T')
 
 
 class GraphDict(Generic[K, V]):
@@ -199,11 +200,6 @@ class GraphDict(Generic[K, V]):
         return f'GraphDict({{{items}}})'
 
 
-K = TypeVar('K')
-V = TypeVar('V')
-T = TypeVar('T')
-
-
 class GraphSet(Generic[T]):
     def __init__(self, init: Iterable[T] | None = None):
         self._buckets: dict[int, list[T]] = {}
@@ -266,7 +262,7 @@ class GraphSet(Generic[T]):
                 yield x
 
     def copy(self) -> GraphSet[T]:
-        new_set = GraphSet()
+        new_set: GraphSet[T] = GraphSet()
         for item in self:
             new_set.add(item)
         return new_set
@@ -281,21 +277,21 @@ class GraphSet(Generic[T]):
         return result
 
     def intersection(self, other: Iterable[T]) -> GraphSet[T]:
-        result = GraphSet()
+        result: GraphSet[T] = GraphSet()
         for item in self:
             if item in other:
                 result.add(item)
         return result
 
     def difference(self, other: Iterable[T]) -> GraphSet[T]:
-        result = GraphSet()
+        result: GraphSet[T] = GraphSet()
         for item in self:
             if item not in other:
                 result.add(item)
         return result
 
     def symmetric_difference(self, other: Iterable[T]) -> GraphSet[T]:
-        result = GraphSet()
+        result: GraphSet[T] = GraphSet()
         for item in self:
             if item not in other:
                 result.add(item)

@@ -1,14 +1,15 @@
 import math
 import operator
-from typing import Sequence
+from typing import Sequence, SupportsIndex
 
 import numpy as np
 import dannet as dt
+from dannet.core import TensorBase
 
 py_slice = slice
 
 
-class _BroadcastTo(dt.core.TensorBase):
+class _BroadcastTo(TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
 
@@ -46,7 +47,7 @@ class _BroadcastTo(dt.core.TensorBase):
         return {}
 
 
-class _Cast(dt.core.TensorBase):
+class _Cast(TensorBase):
     def __init__(self, x, new_dtype):
         self.x = dt.convert_to_tensor(x)
 
@@ -65,7 +66,7 @@ class _Cast(dt.core.TensorBase):
         return {}
 
 
-class _Bitcast(dt.core.TensorBase):
+class _Bitcast(TensorBase):
     def __init__(self, x, new_dtype):
         self.x = dt.convert_to_tensor(x)
 
@@ -93,7 +94,7 @@ class _Bitcast(dt.core.TensorBase):
         return {}
 
 
-class _Reshape(dt.core.TensorBase):
+class _Reshape(TensorBase):
     def __init__(self, x, new_shape):
         self.x = dt.convert_to_tensor(x)
 
@@ -148,7 +149,7 @@ class _Reshape(dt.core.TensorBase):
         return {}
 
 
-class _Transpose(dt.core.TensorBase):
+class _Transpose(TensorBase):
     def __init__(self, x, axes=None):
         self.x = dt.convert_to_tensor(x)
 
@@ -180,7 +181,7 @@ class _Transpose(dt.core.TensorBase):
         return {'axes': self._axes}
 
 
-class _Flip(dt.core.TensorBase):
+class _Flip(TensorBase):
     def __init__(self, x, axes):
         self.x = dt.convert_to_tensor(x)
         ndim = self.x.ndim
@@ -230,7 +231,7 @@ class _Flip(dt.core.TensorBase):
         return {'axes': self._axes}
 
 
-class _Copy(dt.core.TensorBase):
+class _Copy(TensorBase):
     def __init__(self, x):
         self.x = dt.convert_to_tensor(x)
 
@@ -249,8 +250,8 @@ class _Copy(dt.core.TensorBase):
         return {}
 
 
-class _Pad(dt.core.TensorBase):
-    def __init__(self, x, paddings):
+class _Pad(TensorBase):
+    def __init__(self, x, paddings) -> None:
         self.x = dt.convert_to_tensor(x)
         norm_paddings: list[tuple[int, int]] = []
         for p in paddings:
@@ -299,7 +300,7 @@ class _Pad(dt.core.TensorBase):
         return {'paddings': self._paddings}
 
 
-class _Slice(dt.core.TensorBase):
+class _Slice(TensorBase):
     def __init__(self, x, slices):
         self.x = dt.convert_to_tensor(x)
         ndim = self.x.ndim
@@ -314,8 +315,8 @@ class _Slice(dt.core.TensorBase):
 
         slices = list(slices)
         for i in range(len(slices)):
-            if hasattr(slices[i], '__index__'):
-                s = int(slices[i])
+            if isinstance(slices[i], SupportsIndex):
+                s = operator.index(slices[i])
                 slices[i] = (s, s+1, 1)
             elif isinstance(slices[i], py_slice):
                 s = slices[i]
@@ -401,7 +402,7 @@ class _Slice(dt.core.TensorBase):
         return {'slices': self._slices}
 
 
-class _Gather(dt.core.TensorBase):
+class _Gather(TensorBase):
     def __init__(self, x, indices):
         self.x = dt.convert_to_tensor(x)
         self.indices = dt.cast(indices, dt.dtype.int32)
@@ -431,7 +432,7 @@ class _Gather(dt.core.TensorBase):
         return {}
 
 
-class _OneHot(dt.core.TensorBase):
+class _OneHot(TensorBase):
     def __init__(self, indices, depth, dtype):
         self.indices = dt.cast(indices, dt.dtype.int32)
         self._depth = int(depth)
@@ -455,7 +456,7 @@ class _OneHot(dt.core.TensorBase):
         return {'depth': self._depth}
 
 
-class _Concatenate(dt.core.TensorBase):
+class _Concatenate(TensorBase):
     def __init__(self, tensors):
         self._tensors = [dt.convert_to_tensor(x) for x in tensors]
         if not self._tensors:
@@ -510,7 +511,7 @@ class _Concatenate(dt.core.TensorBase):
         return {}
 
 
-class _Diagonal(dt.core.TensorBase):
+class _Diagonal(TensorBase):
     def __init__(self, x, offset=0):
         self.x = dt.convert_to_tensor(x)
         if self.x.ndim < 2:
@@ -569,104 +570,133 @@ class _Diagonal(dt.core.TensorBase):
         }
 
 
-def zeros(shape, dtype=None):
+def zeros(
+    shape: dt.typing.ShapeLike,
+    dtype: dt.typing.DTypeLikeO = None
+):
     if dtype is None:
         dtype = dt.dtype.float32
     return broadcast_to(cast(0, dtype), shape)
 
 
-def ones(shape, dtype=None):
+def ones(
+    shape: dt.typing.ShapeLike,
+    dtype: dt.typing.DTypeLikeO = None
+):
     if dtype is None:
         dtype = dt.dtype.float32
     return broadcast_to(cast(1, dtype), shape)
 
 
-def zeros_like(x, dtype: dt.typing.DTypeLike | None = None):
+def zeros_like(
+    x: dt.typing.TensorLike,
+    dtype: dt.typing.DTypeLikeO = None
+):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
     return broadcast_to(cast(0, dtype), x.shape)
 
 
-def ones_like(x, dtype: dt.typing.DTypeLike | None = None):
+def ones_like(
+    x: dt.typing.TensorLike,
+    dtype: dt.typing.DTypeLikeO = None
+):
     x = dt.convert_to_tensor(x)
     if dtype is None:
         dtype = x.dtype
     return broadcast_to(cast(1, dtype), x.shape)
 
 
-def broadcast_to(x, shape):
-    x = dt.convert_to_tensor(x)
-    y = _BroadcastTo(x, shape)
+def broadcast_to(
+    x: dt.typing.TensorLike,
+    shape: dt.typing.ShapeLike
+):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _BroadcastTo(x_arr, shape)
 
-    if x.shape == y.shape:
-        y = x
-    return dt.core._node_prepare(y)
+    if x_arr.shape == y_arr.shape:
+        return x_arr
+    return dt.core._node_prepare(y_arr)
 
 
-def reduce_to(x, shape):
-    x = dt.convert_to_tensor(x)
+def reduce_to(
+    x: dt.typing.TensorLike,
+    shape: dt.typing.ShapeLike
+):
+    x_arr = dt.convert_to_tensor(x)
     shape = dt.utils.normalize_shape(shape)
 
-    if x.ndim < len(shape):
-        raise ValueError(f'Fail reduce {x} to {shape}')
+    if x_arr.ndim < len(shape):
+        raise ValueError(f'Fail reduce {x_arr} to {shape}')
 
-    pad_shape = (1, ) * (x.ndim - len(shape)) + shape
+    pad_shape = (1, ) * (x_arr.ndim - len(shape)) + shape
     sum_axis = []
 
-    for i, (dim1, dim2) in enumerate(zip(x._shape, pad_shape)):
+    for i, (dim1, dim2) in enumerate(zip(x_arr.shape, pad_shape)):
         if dim1 == dim2:
             continue
         elif dim2 == 1:
             sum_axis.append(i)
         else:
-            raise ValueError(f'Fail reduce {x} to {shape}')
-    return dt.reshape(dt.sum(x, axis=sum_axis), shape)
+            raise ValueError(f'Fail reduce {x_arr} to {shape}')
+    return dt.reshape(dt.sum(x_arr, axis=sum_axis), shape)
 
 
-def cast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike | None):
-    x = dt.convert_to_tensor(x)
+def cast(
+    x: dt.typing.TensorLike,
+    dtype: dt.typing.DTypeLikeO
+):
+    x_arr = dt.convert_to_tensor(x)
     if dtype is None:
-        return x
-    y = _Cast(x, dtype)
-    if x.dtype == y.dtype:
-        y = x
-    return dt.core._node_prepare(y)
+        return x_arr
+    y_arr = _Cast(x_arr, dtype)
+    if x_arr.dtype == y_arr.dtype:
+        return x_arr
+    return dt.core._node_prepare(y_arr)
 
 
-def bitcast(x: dt.typing.TensorLike, dtype: dt.typing.DTypeLike):
-    x = dt.convert_to_tensor(x)
-    y = _Bitcast(x, dtype)
-    return dt.core._node_prepare(y)
+def bitcast(
+    x: dt.typing.TensorLike,
+    dtype: dt.typing.DTypeLike
+):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _Bitcast(x_arr, dtype)
+    return dt.core._node_prepare(y_arr)
 
 
-def reshape(x, shape):
-    x = dt.convert_to_tensor(x)
-    y = _Reshape(x, shape)
+def reshape(
+    x: dt.typing.TensorLike,
+    shape: dt.typing.ShapeLike
+):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _Reshape(x_arr, shape)
 
-    if x.shape == y.shape:
-        y = x
-    return dt.core._node_prepare(y)
+    if x_arr.shape == y_arr.shape:
+        return x_arr
+    return dt.core._node_prepare(y_arr)
 
 
-def squeeze(x, axis=None):
-    x = dt.convert_to_tensor(x)
-    shape = x.shape
-    ndim = x.ndim
+def squeeze(
+    x: dt.typing.TensorLike,
+    axis: dt.typing.AxisO = None
+):
+    x_arr = dt.convert_to_tensor(x)
+    shape = x_arr.shape
 
     if axis is None:
-        axes = [i for i, dim in enumerate(shape) if dim == 1]
+        axis = [i for i, dim in enumerate(shape) if dim == 1]
+    elif isinstance(axis, SupportsIndex):
+        axis = [operator.index(axis)]
     else:
-        if isinstance(axis, (list, tuple)):
-            axes = list(axis)
-        else:
-            axes = [axis]
-        axes = [a + ndim if a < 0 else a for a in axes]
+        axis = [
+            operator.index(d)
+            for d in axis
+        ]
 
-    for a in axes:
-        if a < 0 or a >= ndim:
-            raise ValueError(
-                f'axis {a} is out of bounds for tensor of dimension {ndim}')
+    axis = dt.utils.normalize_axis_tuple(axis, x_arr)
+
+    for a in axis:
         if shape[a] != 1:
             raise ValueError(
                 f'cannot select an axis to squeeze '
@@ -674,57 +704,68 @@ def squeeze(x, axis=None):
                 f'axis {a} has size {shape[a]}'
             )
 
-    new_shape = [dim for i, dim in enumerate(shape) if i not in axes]
-    return reshape(x, new_shape)
+    new_shape = [dim for i, dim in enumerate(shape) if i not in axis]
+    return reshape(x_arr, new_shape)
 
 
-def expand_dims(x, axis):
-    x = dt.convert_to_tensor(x)
+def expand_dims(
+    x: dt.typing.TensorLike,
+    axis: dt.typing.Axis
+):
+    x_arr = dt.convert_to_tensor(x)
 
-    try:
-        axis = operator.index(axis)
-        axis = (axis, )
-    except TypeError:
+    if isinstance(axis, SupportsIndex):
+        axis = (operator.index(axis), )
+    else:
         axis = tuple(
             operator.index(d) for d in axis
         )
 
-
-    out_ndim = len(axis) + x.ndim
+    out_ndim = len(axis) + x_arr.ndim
     axis = dt.utils.normalize_axis_tuple(axis, out_ndim)
 
-    shape_it = iter(x.shape)
+    shape_it = iter(x_arr.shape)
     shape = [
         1 if ax in axis
         else next(shape_it)
         for ax in range(out_ndim)
     ]
 
-    return dt.reshape(x, shape)
+    return dt.reshape(x_arr, shape)
 
 
-def transpose(x, axes=None):
-    x = dt.convert_to_tensor(x)
-    y = _Transpose(x, axes)
+def transpose(
+    x: dt.typing.TensorLike,
+    axes: dt.typing.AxisO = None
+):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _Transpose(x_arr, axes)
 
-    if list(y._axes) == sorted(y._axes):
-        y = x
-    return dt.core._node_prepare(y)
+    if list(y_arr._axes) == sorted(y_arr._axes):
+        return x_arr
+    return dt.core._node_prepare(y_arr)
 
 
-def swapaxes(x, axis1, axis2):
-    x = dt.convert_to_tensor(x)
-
-    axes = list(range(x.ndim))
+def swapaxes(
+    x: dt.typing.TensorLike,
+    axis1: SupportsIndex,
+    axis2: SupportsIndex
+):
+    x_arr = dt.convert_to_tensor(x)
+    axes = list(range(x_arr.ndim))
     axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
 
-    return dt.transpose(x, axes)
+    return dt.transpose(x_arr, axes)
 
 
-def moveaxis(x, source, destination):
-    x = dt.convert_to_tensor(x)
-    source = dt.utils.normalize_axis_tuple(source, x)
-    destination = dt.utils.normalize_axis_tuple(destination, x)
+def moveaxis(
+    x_arr: dt.typing.TensorLike,
+    source: dt.typing.Axis,
+    destination: dt.typing.Axis
+):
+    x_arr = dt.convert_to_tensor(x_arr)
+    source = dt.utils.normalize_axis_tuple(source, x_arr)
+    destination = dt.utils.normalize_axis_tuple(destination, x_arr)
 
     if len(source) != len(destination):
         raise ValueError(
@@ -732,76 +773,91 @@ def moveaxis(x, source, destination):
             'the same number of elements'
         )
 
-    order = [n for n in range(x.ndim) if n not in source]
+    order = [n for n in range(x_arr.ndim) if n not in source]
 
     for dest, src in sorted(zip(destination, source)):
         order.insert(dest, src)
 
-    return transpose(x, order)
+    return transpose(x_arr, order)
 
 
-def flip(x, axis=None):
-    x = dt.convert_to_tensor(x)
-    y = _Flip(x, axis)
-    return dt.core._node_prepare(y)
+def flip(
+    x_arr: dt.typing.TensorLike,
+    axis: dt.typing.AxisO = None
+):
+    x_arr = dt.convert_to_tensor(x_arr)
+    y_arr = _Flip(x_arr, axis)
+    return dt.core._node_prepare(y_arr)
 
 
-def rot90(x, k=1, axes=(0, 1)):
-    x = dt.convert_to_tensor(x)
+def rot90(
+    x: dt.typing.TensorLike,
+    k: int = 1,
+    axes: tuple[SupportsIndex, SupportsIndex] = (0, 1)
+):
+    x_arr = dt.convert_to_tensor(x)
 
     if len(axes) != 2:
         raise ValueError('len(axes) must be 2.')
 
-    axes = tuple(axes)
+    a1, a2 = dt.utils.normalize_axis_tuple(axes, x_arr)
     k = int(k) % 4
 
-    axes = tuple(ax if ax >= 0 else x.ndim + ax for ax in axes)
-
-    if any(ax >= x.ndim for ax in axes):
-        raise ValueError('Axes must be less than tensor\'s ndim.')
-
-    if axes[0] == axes[1]:
+    if a1 == a2:
         raise ValueError('Axes must be different.')
 
-    perm = list(range(x.ndim))
-    perm[axes[0]], perm[axes[1]] = perm[axes[1]], perm[axes[0]]
+    perm = list(range(x_arr.ndim))
+    perm[a1], perm[a2] = perm[a2], perm[a1]
 
     if k == 0:
-        return x
+        return x_arr
     elif k == 1:
-        return flip(transpose(x, perm), axes[0])
+        return flip(transpose(x_arr, perm), a1)
     elif k == 2:
-        return flip(x, (axes[0], axes[1]))
+        return flip(x_arr, (a1, a2))
     else:
-        return flip(transpose(x, perm), axes[1])
+        return flip(transpose(x_arr, perm), a2)
 
 
-def pad(x, paddings):
-    x = dt.convert_to_tensor(x)
-    y = _Pad(x, paddings)
-    if x.shape == y.shape:
-        y = x
-    return dt.core._node_prepare(y)
+def pad(
+    x: dt.typing.TensorLike,
+    paddings: Sequence[SupportsIndex | tuple[SupportsIndex, SupportsIndex]]
+):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _Pad(x_arr, paddings)
+    if x_arr.shape == y_arr.shape:
+        y_arr = x_arr
+    return dt.core._node_prepare(y_arr)
 
 
-def copy(x):
-    x = dt.convert_to_tensor(x)
-    y = _Copy(x)
-    return dt.core._node_prepare(y)
+def copy(x: dt.typing.TensorLike):
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = _Copy(x_arr)
+    return dt.core._node_prepare(y_arr)
 
 
-def slice(x, slices):
-    y = _Slice(x, slices)
-    return dt.core._node_prepare(y)
+def slice(
+    x_arr: dt.typing.TensorLike,
+    slices: Sequence[
+        SupportsIndex |
+        py_slice
+    ]
+):
+    y_arr = _Slice(x_arr, slices)
+    return dt.core._node_prepare(y_arr)
 
 
-def split(x, indices_or_sections, axis=0):
-    x = dt.convert_to_tensor(x)
-    axis = dt.utils.normalize_axis_index(axis, x.ndim)
-    L = x.shape[axis]
+def split(
+    x: dt.typing.TensorLike,
+    indices_or_sections: SupportsIndex | Sequence[SupportsIndex],
+    axis: SupportsIndex = 0
+):
+    x_arr = dt.convert_to_tensor(x)
+    axis = dt.utils.normalize_axis_index(axis, x_arr.ndim)
+    L = x_arr.shape[axis]
 
-    if isinstance(indices_or_sections, int):
-        n = indices_or_sections
+    if isinstance(indices_or_sections, SupportsIndex):
+        n = operator.index(indices_or_sections)
         if n <= 0:
             raise ValueError('number of sections must be positive')
         if L % n != 0:
@@ -812,52 +868,58 @@ def split(x, indices_or_sections, axis=0):
         indices = [*range(0, L, L//n), L]
     else:
         if hasattr(indices_or_sections, 'tolist'):
-            indices_or_sections = indices_or_sections.tolist()
-        indices = [0] + list(indices_or_sections) + [L]
+            indices_or_sections = indices_or_sections.tolist()  # type: ignore
+        indices = [0] + list(
+            map(operator.index, indices_or_sections)  # type: ignore
+        ) + [L]
 
     result = []
     for i in range(len(indices) - 1):
         start = indices[i]
         end = indices[i+1]
 
-        slices = [py_slice(None)] * x.ndim
+        slices = [py_slice(None)] * x_arr.ndim
         slices[axis] = py_slice(start, end)
-        print(slices, indices)
-        result.append(x[tuple(slices)])
+        result.append(x_arr[tuple(slices)])
 
     return result
 
 
-def take(x, indices, axis=None):
-    x = dt.convert_to_tensor(x)
-    indices = dt.cast(indices, dt.dtype.int32)
+def take(
+    x: dt.typing.TensorLike,
+    indices: dt.typing.TensorLike,
+    axis: SupportsIndex | None = None
+):
+    x_arr = dt.convert_to_tensor(x)
+    indices_arr = dt.cast(indices, dt.dtype.int32)
 
     if axis is None:
-        flat = dt.reshape(x, (-1,))
-        res = _Gather(flat, indices)
+        flat = dt.reshape(x_arr, (-1,))
+        res = _Gather(flat, indices_arr)
         return dt.core._node_prepare(res)
+    axis = operator.index(axis)
 
-    ndim = x.ndim
+    ndim = x_arr.ndim
     norm_axis = axis if axis >= 0 else axis + ndim
     if not (0 <= norm_axis < ndim):
         raise ValueError(f'axis {axis} out of range for tensor of ndim {ndim}')
 
     if norm_axis != 0:
         axes = [norm_axis] + [i for i in range(ndim) if i != norm_axis]
-        x = dt.transpose(x, axes)
+        x_arr = dt.transpose(x_arr, axes)
 
-    head = x.shape[0]
-    tail = math.prod(x.shape[1:])
-    x_flat = dt.reshape(x, (head, tail))
+    head = x_arr.shape[0]
+    tail = math.prod(x_arr.shape[1:])
+    x_flat = dt.reshape(x_arr, (head, tail))
 
-    gathered = _Gather(x_flat, indices)
+    gathered = _Gather(x_flat, indices_arr)
     gathered = dt.core._node_prepare(gathered)
 
-    out_shape = indices.shape + x.shape[1:]
+    out_shape = indices_arr.shape + x_arr.shape[1:]
     out = dt.reshape(gathered, out_shape)
 
     if norm_axis != 0:
-        i_ndim = indices.ndim
+        i_ndim = indices_arr.ndim
 
         perm2 = [
             *range(i_ndim, norm_axis + i_ndim),
@@ -869,24 +931,29 @@ def take(x, indices, axis=None):
     return out
 
 
-def one_hot(x, depth, axis=-1, dtype=None):
-    if dtype is None:
-        dtype = dt.dtype.float32
-    x = dt.convert_to_tensor(x)
-    if axis < 0:
-        axis += x.ndim + 1
+def one_hot(
+    x_arr: dt.typing.TensorLike,
+    depth: int,
+    axis: SupportsIndex = -1,
+    dtype: dt.typing.DTypeLikeO = None
+):
+    x_arr = dt.convert_to_tensor(x_arr)
 
-    res = _OneHot(x, depth, dtype)
+    axis_ = operator.index(axis)
+    if axis_ < 0:
+        axis_ += x_arr.ndim + 1
+
+    res = _OneHot(x_arr, depth, dtype or dt.dtype.float32)
     res = dt.core._node_prepare(res)
 
     perm = list(range(res.ndim))
-    perm[axis], perm[-1] = perm[-1], perm[axis]
+    perm[axis_], perm[-1] = perm[-1], perm[axis_]
     return transpose(res, perm)
 
 
 def concatenate(
     arrays: Sequence[dt.typing.TensorLike],
-    axis=0
+    axis: SupportsIndex = 0
 ):
     arrays = list(arrays)
     if len(arrays) == 1:
@@ -907,9 +974,8 @@ def hstack(arrays: Sequence[dt.typing.TensorLike]):
 
 def stack(
     arrays: Sequence[dt.typing.TensorLike],
-    axis=0
+    axis: SupportsIndex = 0
 ):
-    arrays = [dt.convert_to_tensor(a) for a in arrays]
     expanded = [dt.expand_dims(a, axis) for a in arrays]
     return concatenate(expanded, axis=axis)
 
@@ -918,9 +984,9 @@ def arange(
     start: int | float,
     stop: int | float | None = None,
     step: int | float = 1,
-    dtype=None
+    dtype: dt.typing.DTypeLikeO = None
 ):
-    res = np.arange(start, stop, step)
+    res: np.ndarray = np.arange(start, stop, step)
     if res.shape[0] <= 0:
         raise ValueError(f'arange() invalid length ({res.shape[0]}) for range '
                          f'[{start}, {stop}) with step {step}')
@@ -936,7 +1002,7 @@ def eye(N: int, M: int | None = None, k: int | None = None, dtype=None):
     return dt.constant(res)
 
 
-def tri(N, M=None, k=0, dtype=None):
+def tri(N: int, M=None, k=0, dtype=None):
     if dtype is None:
         dtype = dt.dtype.float32
 
@@ -950,18 +1016,20 @@ def tri(N, M=None, k=0, dtype=None):
     return dt.cast(m, dtype)
 
 
-def tril(m, k=0):
-    m = dt.convert_to_tensor(m)
-    mask = tri(*m.shape[-2:], k=k, dtype=bool)
+def tril(m: dt.typing.TensorLike, k: int = 0):
+    m_arr = dt.convert_to_tensor(m)
+    N, M = m_arr.shape[-2:]
+    mask = tri(N, M, k=k, dtype=bool)
 
-    return dt.where(mask, m, zeros(1, m.dtype))
+    return dt.where(mask, m_arr, zeros(1, m_arr.dtype))
 
 
-def triu(m, k=0):
-    m = dt.convert_to_tensor(m)
-    mask = tri(*m.shape[-2:], k=k-1, dtype=bool)
+def triu(m: dt.typing.TensorLike, k: int = 0):
+    m_arr = dt.convert_to_tensor(m)
+    N, M = m_arr.shape[-2:]
+    mask = tri(N, M, k=k-1, dtype=bool)
 
-    return dt.where(mask, zeros(1, m.dtype), m)
+    return dt.where(mask, zeros(1, m_arr.dtype), m_arr)
 
 
 def bartlett(M: int):
@@ -983,31 +1051,38 @@ def hamming(M: int):
     return 0.54 - 0.46*dt.cos(n)
 
 
-def signbit(x):
-    x = dt.convert_to_tensor(x)
-    if dt.dtype.is_bool_dtype(x.dtype):
-        return dt.zeros_like(x, dtype=dt.dtype.bool_)
-    if dt.dtype.is_integer_dtype(x.dtype):
-        return x < 0
+def signbit(x: dt.typing.TensorLike):
+    x_arr = dt.convert_to_tensor(x)
+    if (
+        dt.dtype.is_bool_dtype(x_arr.dtype) or
+        dt.dtype.is_signed_dtype(x_arr.dtype)
+    ):
+        return dt.zeros_like(x_arr)
+    if dt.dtype.is_integer_dtype(x_arr.dtype):
+        return x_arr < 0
 
-    bits = x.itemsize * 8
+    bits = x_arr.itemsize * 8
     uint = dt.dtype.normalize_dtype(f'uint{bits}')
     mask = 1 << (bits - 1)
 
-    x = dt.bitwise_and(
-        bitcast(x, uint),
+    x_arr = dt.bitwise_and(
+        bitcast(x_arr, uint),
         dt.constant(mask, uint)
     )
-    return x.cast(dt.dtype.bool_)
+    return x_arr.cast(dt.dtype.bool_)
 
 
 def angle(x):
     raise NotImplementedError('angle')
 
 
-def diagonal(x, offset=0, axis1=0, axis2=1):
-    x = dt.convert_to_tensor(x)
-    ndim = x.ndim
+def diagonal(
+    x: dt.typing.TensorLike,
+    offset: int = 0,
+    axis1: int = 0, axis2: int = 1
+):
+    x_arr = dt.convert_to_tensor(x)
+    ndim = x_arr.ndim
     if ndim < 2:
         raise ValueError(f'diagonal requires ndim>=2, got ndim={ndim}')
 
@@ -1017,40 +1092,47 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         raise ValueError(f'axis1 and axis2 must be different, both = {axis1}')
 
     perm = [i for i in range(ndim) if i not in (axis1, axis2)] + [axis1, axis2]
-    x_t = x.transpose(perm)
+    x_t = x_arr.transpose(perm)
 
     res = _Diagonal(x_t, offset)
 
     return dt.core._node_prepare(res)
 
 
-def diag(x, k=0):
-    x = dt.convert_to_tensor(x)
-    if x.ndim == 1:
-        N = x.shape[0]
+def diag(x: dt.typing.TensorLike, k: int = 0):
+    x_arr = dt.convert_to_tensor(x)
+    if x_arr.ndim == 1:
+        N = x_arr.shape[0]
         mask = dt.eye(N, dtype=dt.dtype.bool_)
-        zeros = dt.zeros((N, N), dtype=x.dtype)
-        res = dt.where(mask, x, zeros)
+        zeros = dt.zeros((N, N), dtype=x_arr.dtype)
+        res = dt.where(mask, x_arr, zeros)
         a, b = (0, k) if k > 0 else (-k, 0)
         return dt.pad(res, ((a, b), (b, a)))
-    elif x.ndim == 2:
-        return diagonal(x, k)
+    elif x_arr.ndim == 2:
+        return diagonal(x_arr, k)
     else:
         raise ValueError('Input must be 1- or 2-d.')
 
 
-def diagflat(x, k=0):
+def diagflat(x: dt.typing.TensorLike, k: int = 0):
     x = dt.convert_to_tensor(x)
     flat = dt.reshape(x, (-1,))
     return diag(flat, k)
 
 
-def trace(x, offset=0, axis1=0, axis2=1):
+def trace(
+    x: dt.typing.TensorLike,
+    offset: int = 0,
+    axis1: int = 0, axis2: int = 1
+):
     d = diagonal(x, offset, axis1, axis2)
     return dt.sum(d, axis=-1)
 
 
-def meshgrid(*xi, indexing='xy'):
+def meshgrid(
+    *xi: dt.typing.TensorLike,
+    indexing: str = 'xy'
+):
     ndim = len(xi)
 
     if indexing not in ['xy', 'ij']:

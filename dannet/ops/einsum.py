@@ -123,8 +123,9 @@ def einsum(
                 left_pos.append(input_left.find(s))
                 right_pos.append(input_right.find(s))
 
+            x, y = tmp_operands
             result = dt.tensordot(
-                *tmp_operands, axes=(tuple(left_pos), tuple(right_pos))
+                x, y, axes=(tuple(left_pos), tuple(right_pos))
             )
 
             if tensor_result != results_index:

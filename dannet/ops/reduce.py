@@ -27,7 +27,7 @@ class _Reduce(dt.core.TensorBase):
             self._dtype = self.result_type(self.x.dtype)
         else:
             self._dtype = dt.dtype.normalize_dtype(dtype)
-        
+
         self._axis = tuple(axis)
         self._keepdims = bool(keepdims)
 
@@ -202,7 +202,10 @@ def var(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
     x = dt.convert_to_tensor(x)
 
     mean = dt.mean(x, axis, keepdims=True, dtype=dtype)
-    variance = dt.mean(dt.square(x - mean), axis, keepdims=keepdims, dtype=dtype)
+    variance = dt.mean(
+        dt.square(x - mean),
+        axis, keepdims=keepdims, dtype=dtype
+    )
     return variance
 
 
@@ -217,18 +220,17 @@ def count_nonzero(x: dt.typing.TensorLike, axis=None, keepdims=False):
     return dt.sum(mask, axis=axis, keepdims=keepdims)
 
 
-
 def mean(x: dt.typing.TensorLike, axis=None, keepdims=False, dtype=None):
     if dtype is not None:
         dtype = dt.dtype.normalize_dtype(dtype)
     x = dt.convert_to_tensor(x)
-    
+
     result_dtype = dtype or x.dtype
     compute_dtype = result_dtype
 
-    if x.dtype == dt.dtype.float16 and dtype is None:
+    if dtype is None and x.dtype in [dt.dtype.float16, dt.dtype.bfloat16]:
         compute_dtype = dt.dtype.float32
-    
+
     y = _Mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
 
     if x.size == y.size:

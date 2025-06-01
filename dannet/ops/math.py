@@ -662,7 +662,6 @@ def tensordot(x, y, axes):
                 f'!= y.shape[{b_axis}]={y.shape[b_axis]}'
             )
 
-    
     perm = []
     for i in range(x.ndim):
         if i not in axes_x:
@@ -704,10 +703,10 @@ def vdot(x, y):
 
 
 def outer(x: dt.typing.TensorLike, y: dt.typing.TensorLike):
-    x = dt.reshape(x, (-1, 1))
-    y = dt.reshape(y, (1, -1))
+    x_arr = dt.reshape(x, (-1, 1))
+    y_arr = dt.reshape(y, (1, -1))
 
-    return x * y
+    return x_arr * y_arr
 
 
 def inner(x, y):
@@ -722,55 +721,58 @@ def cross(
     if axis is not None:
         axisa, axisb, axisc = (axis,) * 3
 
-    x = dt.convert_to_tensor(x)
-    y = dt.convert_to_tensor(y)
+    x_arr = dt.convert_to_tensor(x)
+    y_arr = dt.convert_to_tensor(y)
 
-    if x.ndim < 1 or y.ndim < 1:
+    if x_arr.ndim < 1 or y_arr.ndim < 1:
         raise ValueError('At least one array has zero dimension')
 
-    axisa = dt.utils.normalize_axis_index(axisa, x.ndim, 'axisa')
-    axisb = dt.utils.normalize_axis_index(axisb, y.ndim, 'axisb')
+    axisa = dt.utils.normalize_axis_index(axisa, x_arr.ndim, 'axisa')
+    axisb = dt.utils.normalize_axis_index(axisb, y_arr.ndim, 'axisb')
 
-    x = dt.moveaxis(x, axisa, 0)
-    y = dt.moveaxis(y, axisb, 0)
+    x_arr = dt.moveaxis(x_arr, axisa, 0)
+    y_arr = dt.moveaxis(y_arr, axisb, 0)
 
-    if x.shape[0] not in (2, 3) or y.shape[0] not in (2, 3):
+    x_shape = x_arr.shape
+    y_shape = y_arr.shape
+
+    if x_shape[0] not in (2, 3) or y_shape[0] not in (2, 3):
         raise ValueError(
             'incompatible dimensions for cross product (must be 2 or 3)'
         )
 
-    out_shape = dt.utils.broadcast_shapes(x.shape[1:], y.shape[1:])
+    out_shape = dt.utils.broadcast_shapes(x_shape[1:], y_shape[1:])
 
-    if x.shape[0] == 3 or y.shape[0] == 3:
+    if x_shape[0] == 3 or y_shape[0] == 3:
         out_shape = (3, ) + out_shape
         axisc = dt.utils.normalize_axis_index(axisc, len(out_shape), 'axisc')
 
-    dtype = dt.dtype.promote_dtypes(x.dtype, y.dtype)
-    x = x.astype(dtype)
-    y = y.astype(dtype)
+    dtype = dt.dtype.promote_dtypes(x_arr.dtype, y_arr.dtype)
+    x_arr = x_arr.astype(dtype)
+    y_arr = y_arr.astype(dtype)
 
-    x0, x1 = x[0], x[1]
-    y0, y1 = y[0], y[1]
+    x0, x1 = x_arr[0], x_arr[1]
+    y0, y1 = y_arr[0], y_arr[1]
 
-    if x.shape[0] == 2 and y.shape[0] == 2:
+    if x_shape[0] == 2 and y_shape[0] == 2:
         return x0 * y1 - x1 * y0
-    elif x.shape[0] == 2:
-        assert y.shape[0] == 3
-        y2 = y[2]
+    elif x_shape[0] == 2:
+        assert y_shape[0] == 3
+        y2 = y_arr[2]
         cp0 = x1 * y2
         cp1 = -x0 * y2
         cp2 = x0 * y1 - x1 * y0
-    elif y.shape[0] == 2:
-        assert x.shape[0] == 3
-        x2 = x[2]
+    elif y_shape[0] == 2:
+        assert x_shape[0] == 3
+        x2 = x_arr[2]
         cp0 = -x2 * y1
         cp1 = x2 * y0
         cp2 = x0 * y1 - x1 * y0
     else:
-        assert x.shape[0] == 3
-        assert y.shape[0] == 3
-        x2 = x[2]
-        y2 = y[2]
+        assert x_shape[0] == 3
+        assert y_shape[0] == 3
+        x2 = x_arr[2]
+        y2 = y_arr[2]
 
         cp0 = x1 * y2 - x2 * y1
         cp1 = x2 * y0 - x0 * y2

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Sequence, SupportsIndex
+from typing import SupportsIndex
 
 import numpy as np
 import dannet as dt
@@ -38,12 +38,12 @@ def convert_to_tensor(x: dt.typing.TensorLike) -> dt.core.TensorBase:
 
 
 def broadcast_shapes(*shapes: dt.typing.ShapeLike) -> tuple[int, ...]:
-    shapes = tuple(normalize_shape(shape) for shape in shapes)
-    ndim = max(map(len, shapes), default=0)
+    norm_shapes = tuple(normalize_shape(shape) for shape in shapes)
+    ndim = max(map(len, norm_shapes), default=0)
 
     result = [1] * ndim
-    for shape in shapes:
-        shape = (1, ) * (ndim - len(shape)) + shape
+    for shape in norm_shapes:
+        shape = (1, ) * (ndim - len(norm_shapes)) + shape
         for i, (dim1, dim2) in enumerate(zip(result, shape)):
             if dim1 == dim2 or dim2 == 1:
                 continue
@@ -65,24 +65,24 @@ def broadcast_shape_to(
 
 
 def normalize_axis_tuple(
-    axis: None | SupportsIndex | Sequence[SupportsIndex],
-    x: dt.typing.TensorLike | int,
+    axis: dt.typing.Axis | None,
+    x: dt.core.TensorBase | int,
 ) -> tuple[int, ...]:
     if isinstance(x, int):
         ndim = x
     else:
-        ndim = dt.convert_to_tensor(x).ndim
+        ndim = x.ndim
 
     if axis is None:
         axis = range(ndim)
     if isinstance(axis, SupportsIndex):
         axis = [axis]
 
-    axis = [normalize_axis_index(i, ndim) for i in axis]
-    if len(set(axis)) != len(axis):
+    res_axis = [normalize_axis_index(i, ndim) for i in axis]
+    if len(set(res_axis)) != len(res_axis):
         raise ValueError(f'repeated axis: {axis}')
 
-    return tuple(axis)
+    return tuple(res_axis)
 
 
 def normalize_axis_index(

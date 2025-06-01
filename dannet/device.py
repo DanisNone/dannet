@@ -18,8 +18,8 @@ class mem_flags(enum.IntFlag):
 
 
 class Device:
-    _instances = {}
-    _stack = []
+    _instances: dict[tuple[int, int], Device] = {}
+    _stack: list[Device] = []
 
     def __new__(cls, platform_id=0, device_id=0):
         key = (platform_id, device_id)
@@ -28,7 +28,7 @@ class Device:
             cls._instances[key] = inst
         return cls._instances[key]
 
-    def __init__(self, platform_id=0, device_id=0):
+    def __init__(self, platform_id=0, device_id=0) -> None:
         if getattr(self, '_initialized', False):
             return
 
