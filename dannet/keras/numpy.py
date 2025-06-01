@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 import dannet as dt
 
 from keras.src import tree

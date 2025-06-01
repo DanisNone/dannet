@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 import builtins
 
 import numpy as np

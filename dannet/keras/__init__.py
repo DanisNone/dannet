@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 from keras.src.backend.common.name_scope import name_scope
 from dannet.keras import core
 from dannet.keras.core import convert_to_tensor

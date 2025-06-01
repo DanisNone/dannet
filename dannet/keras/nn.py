@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 import numpy as np
 import dannet as dt
 

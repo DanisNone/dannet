@@ -1,3 +1,5 @@
+raise NotImplementedError
+
 import warnings
 
 import numpy as np
