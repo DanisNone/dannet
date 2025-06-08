@@ -5,11 +5,14 @@ import numpy as np
 
 
 class Platform:
+    name: str
     def get_devices(self) -> list[Device]: ...
 
 
 class Device:
-    ...
+    type: int
+    name: str
+    address_bits: int
 
 
 class Context:
@@ -61,6 +64,15 @@ class Program:
         binaries: bytes
     ): ...
 
+    def __getattr__(self, attr: str) -> Kernel: ...
+
+    def build(
+        self,
+        options: list[str] = [],
+        devices: list[Device] | None = None,
+        cache_dir: str | None = None
+    ) -> None: ...
+
 
 class Kernel:
     def __init__(
@@ -68,6 +80,15 @@ class Kernel:
         program: Program,
         name: str
     ): ...
+
+    def __call__(
+        self,
+        queue: CommandQueue,
+        global_size: tuple[int, ...],
+        local_size: tuple[int, ...] | None,
+        *args: Any,
+        wait_for: list[Event] | None = None
+    ) -> Event: ...
 
 
 def get_platforms() -> list[Platform]: ...
@@ -95,3 +116,10 @@ def enqueue_copy(
 
 class mem_flags:
     READ_WRITE: int
+
+class device_type:
+    CPU: int
+    GPU: int
+    ACCELERATOR: int
+    DEFAULT: int
+    CUSTOM: int

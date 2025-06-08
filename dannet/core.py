@@ -9,7 +9,7 @@ class TensorInfo:
         self,
         shape: tuple[int, ...],
         dtype: dt.dtypes.DannetDtype,
-        strides: tuple[int, ...],
+        strides: tuple[int, ...] | None = None,
         buffer_offset: int = 0
     ):
         if min(shape, default=1) < 0:
@@ -19,6 +19,9 @@ class TensorInfo:
 
         self._shape = shape
         self._dtype = dtype
+
+        if strides is None:
+            strides = self.get_strides(shape)
         self._strides = strides
 
         if buffer_offset < 0:
@@ -27,19 +30,29 @@ class TensorInfo:
             )
         self._buffer_offset = buffer_offset
 
-    @classmethod
-    def from_numpy(cls, array: np.ndarray) -> TensorInfo:
+        if len(self._shape) > 64:
+            raise ValueError(
+                "maximum supported dimension for an Tensor "
+                f"is currently 64. ndim={len(self._shape)}"
+            )
+
+    @staticmethod
+    def get_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
         strides: list[int] = []
         s = 1
-        for dim in array.shape:
+        for dim in shape:
             strides.append(s)
             s *= dim
         strides.reverse()
+        return tuple(strides)
 
+    @classmethod
+    def from_numpy(cls, array: np.ndarray) -> TensorInfo:
+        strides = cls.get_strides(array.shape)
         return cls(
             shape=array.shape,
             dtype=array.dtype,
-            strides=tuple(strides),
+            strides=strides,
             buffer_offset=0
         )
 
@@ -49,7 +62,7 @@ class Tensor:
         self,
         buffer: dt.device.DeviceBuffer,
         tensor_info: TensorInfo,
-        event: dt.device.DeviceEvent | None,
+        event: dt.device.DeviceEvent | None = None,
     ):
         self._buffer = buffer
         self._tensor_info = tensor_info
@@ -97,3 +110,97 @@ class Tensor:
 
     def __repr__(self) -> str:
         return repr(self._read_from_buffer())
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return self._tensor_info._shape
+
+    @property
+    def dtype(self) -> dt.dtypes.DannetDtype:
+        return self._tensor_info._dtype
+
+    @property
+    def strides(self) -> tuple[int, ...]:
+        return self._tensor_info._strides
+
+    @property
+    def ndim(self) -> int:
+        return len(self._tensor_info._shape)
+
+    @property
+    def size(self) -> int:
+        result: int = 1
+        for dim in self._tensor_info._shape:
+            result *= dim
+        return result
+
+    @property
+    def device(self) -> dt.Device:
+        return self._buffer.device
+
+
+def array(
+    object: dt.typing.TensorLike,
+    dtype: dt.typing.DtypeLike | None = None,
+    device: dt.Device | None = None
+) -> Tensor:
+    if device is None:
+        device = dt.current_device()
+
+    with device:
+        if isinstance(object, Tensor):
+            if (
+                (dtype is None or object.dtype == dtype) and
+                object.device == device
+            ):
+                return object
+            return object.astype(dtype)
+
+        if device is None:
+            device = dt.current_device()
+        object = np.array(object)
+        buffer = device.allocate_buffer(object.nbytes)
+        dt.device.write_buffer(buffer, object)
+        return Tensor(
+            buffer, TensorInfo.from_numpy(object), event=None
+        )
+
+
+def empty(
+    shape: dt.typing.ShapeLike,
+    dtype: dt.typing.DtypeLike,
+    device: dt.Device | None = None
+) -> Tensor:
+    if device is None:
+        device = dt.current_device()
+    shape = dt.utils.normalize_shape(shape)
+    dtype = dt.utils.normalize_dtype(dtype)
+
+    size = 1
+    for dim in shape:
+        size *= dim
+
+    buffer = device.allocate_buffer(size * np.dtype(dtype).itemsize)
+    return Tensor(
+        buffer,
+        TensorInfo(shape, dtype),
+        event=None
+    )
+
+
+def empty_like(
+    x: dt.typing.TensorLike,
+    dtype: dt.typing.DtypeLikeO = None,
+    device: dt.Device | None = None
+) -> Tensor:
+    if not isinstance(x, Tensor):
+        x = np.array(x)
+    shape = x.shape
+    dtype = dtype or x.dtype
+    return empty(shape, dtype, device)
+
+
+__all__ = [
+    "array",
+    "empty", "empty_like"
+]
