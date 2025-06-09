@@ -18,7 +18,7 @@ class TensorInfo:
             )
 
         self._shape = shape
-        self._dtype = dtype
+        self._dtype = dt.dtypes.normalize_dtype(dtype)
 
         if strides is None:
             strides = self.get_strides(shape)
@@ -80,7 +80,7 @@ class Tensor:
             return self._computed
         self.wait_compute()
 
-        itemsize = np.dtype(self._tensor_info._dtype).itemsize
+        itemsize = dt.dtypes.itemsize(self._tensor_info._dtype)
         assert self._buffer.nbytes % itemsize == 0
 
         array = np.empty(
@@ -138,10 +138,43 @@ class Tensor:
     def device(self) -> dt.Device:
         return self._buffer.device
 
+    def __neg__(self) -> Tensor:
+        return dt.negative(self)
+
+    def __add__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.add(self, other)
+
+    def __radd__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.add(other, self)
+
+    def __sub__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.subtract(self, other)
+
+    def __rsub__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.subtract(other, self)
+
+    def __mul__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.multiply(self, other)
+
+    def __rmul__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.multiply(other, self)
+
+    def __truediv__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.divide(self, other)
+
+    def __rtruediv__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.divide(other, self)
+
+    def __pow__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.power(self, other)
+
+    def __rpow__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.power(other, self)
+
 
 def array(
     object: dt.typing.TensorLike,
-    dtype: dt.typing.DtypeLike | None = None,
+    dtype: dt.typing.DTypeLike | None = None,
     device: dt.Device | None = None
 ) -> Tensor:
     if device is None:
@@ -158,7 +191,7 @@ def array(
 
         if device is None:
             device = dt.current_device()
-        object = np.array(object)
+        object = np.asarray(object, dtype=dtype)
         buffer = device.allocate_buffer(object.nbytes)
         dt.device.write_buffer(buffer, object)
         return Tensor(
@@ -168,7 +201,7 @@ def array(
 
 def empty(
     shape: dt.typing.ShapeLike,
-    dtype: dt.typing.DtypeLike,
+    dtype: dt.typing.DTypeLike,
     device: dt.Device | None = None
 ) -> Tensor:
     if device is None:
@@ -190,7 +223,7 @@ def empty(
 
 def empty_like(
     x: dt.typing.TensorLike,
-    dtype: dt.typing.DtypeLikeO = None,
+    dtype: dt.typing.DTypeLikeO = None,
     device: dt.Device | None = None
 ) -> Tensor:
     if not isinstance(x, Tensor):

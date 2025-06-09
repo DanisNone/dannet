@@ -250,11 +250,14 @@ class DeviceKernel:
         for arg in args:
             if isinstance(arg, DeviceBuffer):
                 if arg.device != self.__device:
-                    raise ValueError("")
-                arg = arg.__cl_buffer
-            new_args.append(args)
-
-        event = self.__cl_kernel.__call__(
+                    raise ValueError(
+                        f"Buffer belongs to device {arg.device}, "
+                        f"but kernel expects device {self.__device}. "
+                        "All buffers must be on the same device as the kernel."
+                    )
+                arg = arg.__get_cl_buffer__()
+            new_args.append(arg)
+        event = self.__cl_kernel(
             self.__device.__get_cl_queue__(),
             global_size, local_size,
             *new_args,

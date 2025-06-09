@@ -71,7 +71,8 @@ class BuildInfo:
         self.headers.append(s)
 
     def build(self, source: str) -> str:
-        source = "\n".join(self.headers + [source])
+        headers = ['#include "dtypes/core.cl"'] + self.headers
+        source = "\n".join(headers + [source])
         for dtype_name, dtype in self.dtypes.items():
             source = source.replace(
                 f"${dtype_name}$",
@@ -80,12 +81,12 @@ class BuildInfo:
         return source
 
 
-@functools.lru_cache
+@functools.cache
 def _build_from_source(
-    device: dt.Device, source: str
+    device: dt.Device, source: str, options: tuple[str, ...] = ()
 ) -> dt.device.DeviceProgram:
     program = dt.device.DeviceProgram(device, source)
-    program.build()
+    program.build(list(options))
     return program
 
 
@@ -95,9 +96,15 @@ def build_program(
     build_info: BuildInfo
 ) -> dt.device.DeviceProgram:
 
-    root = Path(__file__).parent / "kernels"
-    with open(root / path) as file:
+    root = Path(__file__).parent.parent
+    with open(root / "kernels" / path) as file:
         source = file.read()
 
     source = build_info.build(source)
-    return _build_from_source(device, source)
+
+    with open("last_compiled.cl", "w") as file:
+        file.write(source)
+    options = (
+        f"-I {root}",
+    )
+    return _build_from_source(device, source, options)
