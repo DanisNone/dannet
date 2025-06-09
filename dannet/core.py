@@ -40,7 +40,7 @@ class TensorInfo:
     def get_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
         strides: list[int] = []
         s = 1
-        for dim in shape:
+        for dim in shape[::-1]:
             strides.append(s)
             s *= dim
         strides.reverse()
@@ -89,7 +89,7 @@ class Tensor:
         )
         dt.device.read_buffer(self._buffer, array)
 
-        array_with_offset = array[self._tensor_info._buffer_offset * itemsize:]
+        array_with_offset = array[self._tensor_info._buffer_offset:].copy()
 
         strides = [
             s * itemsize
@@ -129,10 +129,18 @@ class Tensor:
 
     @property
     def size(self) -> int:
-        result: int = 1
+        result = 1
         for dim in self._tensor_info._shape:
             result *= dim
         return result
+
+    @property
+    def itemsize(self) -> int:
+        return dt.dtypes.itemsize(self.dtype)
+
+    @property
+    def nbytes(self) -> int:
+        return self.size * self.itemsize
 
     @property
     def device(self) -> dt.Device:

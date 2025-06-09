@@ -11,3 +11,5 @@ from dannet.compiler.impl.unary import (
 from dannet.compiler.impl.binary import (
     add, subtract, multiply, divide, power
 )
+
+from dannet.compiler.impl.matmul import matmul
