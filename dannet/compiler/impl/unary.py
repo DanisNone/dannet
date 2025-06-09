@@ -114,50 +114,79 @@ def to_inexact(
     return dt.dtypes.promote_to_inexact(x)
 
 
+gradop = partial(GradientOp, nondiff_argnum=(1,))
+
 negative_op = make_unary("negative", partial(not_bool, "negative"))
-negative = GradientOp(negative_op, lambda grad, out, args, kwargs: -grad)
+negative = gradop(negative_op, lambda grad, out, args, kwargs: -grad)
+
+positive_op = make_unary("positive", identity_dtype)
+_positive = gradop(positive_op, lambda grad, out, args, kwargs: grad)
+
+
+def positive(x: dt.typing.TensorLike, /, dtype: DTypeLikeO = None) -> Tensor:
+    x = dt.array(x)
+    if dtype is None:
+        dtype = x.dtype
+    dtype = dt.dtypes.normalize_dtype(dtype)
+    if x.dtype == dtype:
+        return x
+    return _positive(x, dtype)
+
+
+def astype(x: dt.typing.TensorLike, dtype: DTypeLike | None) -> Tensor:
+    return positive(x, dtype)
+
+
+negative_op = make_unary("negative", partial(not_bool, "negative"))
+negative = gradop(negative_op, lambda grad, out, args, kwargs: -grad)
 
 square_op = make_unary("square", identity_dtype)
-square = GradientOp(
+square = gradop(
     square_op,
     lambda grad, out, args, kwargs: 2 * grad * args[0]
 )
 
+sqrt_op = make_unary("sqrt", to_inexact)
+sqrt = gradop(
+    sqrt_op,
+    lambda grad, out, args, kwargs: grad / (2 * out)
+)
+
 sin_op = make_unary("sin", to_inexact)
-sin = GradientOp(
+sin = gradop(
     sin_op,
-    lambda grad, out, args, kwargs: grad * cos(args[0])
-)  # type: ignore
+    lambda grad, out, args, kwargs: grad * cos(args[0])  # type: ignore
+)
 
 cos_op = make_unary("cos", to_inexact)
-cos = GradientOp(cos_op, lambda grad, out, args, kwargs: -grad * sin(args[0]))
+cos = gradop(cos_op, lambda grad, out, args, kwargs: -grad * sin(args[0]))
 
 tan_op = make_unary("tan", to_inexact)
-tan = GradientOp(
+tan = gradop(
     tan_op,
     lambda grad, out, args, kwargs: grad * (1 + dt.square(out))
 )
 
 sinh_op = make_unary("sinh", to_inexact)
-sinh = GradientOp(
+sinh = gradop(
     sinh_op,
-    lambda grad, out, args, kwargs: grad * cosh(args[0])
-)  # type: ignore
+    lambda grad, out, args, kwargs: grad * cosh(args[0])   # type: ignore
+)
 
 cosh_op = make_unary("cosh", to_inexact)
-cosh = GradientOp(
+cosh = gradop(
     cosh_op,
     lambda grad, out, args, kwargs: grad * sinh(args[0])
 )
 
 tanh_op = make_unary("tanh", to_inexact)
-tanh = GradientOp(
+tanh = gradop(
     tanh_op,
     lambda grad, out, args, kwargs: grad * (1 - dt.square(out))
 )
 
 exp_op = make_unary("exp", to_inexact)
-exp = GradientOp(exp_op, lambda grad, out, args, kwargs: grad * out)
+exp = gradop(exp_op, lambda grad, out, args, kwargs: grad * out)
 
 log_op = make_unary("log", to_inexact)
-log = GradientOp(log_op, lambda grad, out, args, kwargs: grad / args[0])
+log = gradop(log_op, lambda grad, out, args, kwargs: grad / args[0])

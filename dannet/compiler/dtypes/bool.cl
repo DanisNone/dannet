@@ -67,6 +67,10 @@ dt_bool dt_negative_bool(dt_bool x) {
     return x;
 }
 
+dt_bool dt_positive_bool(dt_bool x) {
+    return x;
+}
+
 dt_bool dt_bitwise_not_bool(dt_bool x) {
     return !x;
 }

@@ -171,6 +171,9 @@ class Tensor:
     def __rpow__(self, other: dt.typing.TensorLike) -> Tensor:
         return dt.power(other, self)
 
+    def astype(self, dtype: dt.typing.DTypeLikeO = None) -> Tensor:
+        return dt.astype(self, dtype)
+
 
 def array(
     object: dt.typing.TensorLike,
@@ -189,8 +192,6 @@ def array(
                 return object
             return object.astype(dtype)
 
-        if device is None:
-            device = dt.current_device()
         object = np.asarray(object, dtype=dtype)
         buffer = device.allocate_buffer(object.nbytes)
         dt.device.write_buffer(buffer, object)

@@ -172,6 +172,8 @@ static inline dt_bfloat16 dt_##func##_bfloat16(dt_bfloat16 x) {\
 
 
 _make_bfloat16_func(negative, -)
+_make_bfloat16_func(positive, +)
+
 _make_bfloat16_func(abs, fabs)
 _make_bfloat16_func(sqrt, sqrt)
 _make_bfloat16_func(rsqrt, 1.0 / sqrt)

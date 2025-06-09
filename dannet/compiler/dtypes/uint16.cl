@@ -71,6 +71,10 @@ dt_uint16 dt_negative_uint16(dt_uint16 x) {
     return -x;
 }
 
+dt_uint16 dt_positive_uint16(dt_uint16 x) {
+    return x;
+}
+
 dt_uint16 dt_bitwise_not_uint16(dt_uint16 x) {
     return ~x;
 }

@@ -116,6 +116,10 @@ static inline dt_complex32 dt_negative_complex32(dt_complex32 x) {
     );
 }
 
+static inline dt_complex32 dt_positive_complex32(dt_complex32 x) { 
+    return x;
+}
+
 static inline dt_complex32 dt_square_complex32(dt_complex32 x) { 
     dt_float16_work x_real = normalize_float16_input(x.real);
     dt_float16_work x_imag = normalize_float16_input(x.imag);

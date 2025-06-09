@@ -51,7 +51,7 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> DannetDtype:
         if dtype == dt_dtype:
             return dt_dtype
     raise ValueError(
-        f"dannet not support {dtype}"
+        f"dannet not support '{dtype!r}'"
     )
 
 

@@ -71,6 +71,10 @@ dt_uint8 dt_negative_uint8(dt_uint8 x) {
     return -x;
 }
 
+dt_uint8 dt_positive_uint8(dt_uint8 x) {
+    return x;
+}
+
 dt_uint8 dt_bitwise_not_uint8(dt_uint8 x) {
     return ~x;
 }

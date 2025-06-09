@@ -71,6 +71,10 @@ dt_uint64 dt_negative_uint64(dt_uint64 x) {
     return -x;
 }
 
+dt_uint64 dt_positive_uint64(dt_uint64 x) {
+    return x;
+}
+
 dt_uint64 dt_bitwise_not_uint64(dt_uint64 x) {
     return ~x;
 }

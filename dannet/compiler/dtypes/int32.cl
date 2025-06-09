@@ -75,6 +75,9 @@ dt_int32 dt_negative_int32(dt_int32 x) {
     return -x;
 }
 
+dt_int32 dt_positive_int32(dt_int32 x) {
+    return x;
+}
 
 
 dt_int32 dt_bitwise_not_int32(dt_int32 x) {

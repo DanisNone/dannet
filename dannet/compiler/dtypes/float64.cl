@@ -234,6 +234,8 @@ static inline dt_float64 dt_##func##_float64(dt_float64 x) {\
 
 
 _make_float64_func(negative, -)
+_make_float64_func(positive, +)
+
 _make_float64_func(abs, fabs)
 _make_float64_func(sqrt, sqrt)
 _make_float64_func(rsqrt, 1.0 / sqrt)

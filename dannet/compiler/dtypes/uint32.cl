@@ -71,6 +71,10 @@ dt_uint32 dt_negative_uint32(dt_uint32 x) {
     return -x;
 }
 
+dt_uint32 dt_positive_uint32(dt_uint32 x) {
+    return x;
+}
+
 dt_uint32 dt_bitwise_not_uint32(dt_uint32 x) {
     return ~x;
 }

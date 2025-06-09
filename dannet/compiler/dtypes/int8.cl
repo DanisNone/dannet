@@ -75,6 +75,9 @@ dt_int8 dt_negative_int8(dt_int8 x) {
     return -x;
 }
 
+dt_int8 dt_positive_int8(dt_int8 x) {
+    return x;
+}
 
 
 dt_int8 dt_bitwise_not_int8(dt_int8 x) {
