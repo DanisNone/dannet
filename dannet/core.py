@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Sequence
 import numpy as np
 
 import dannet as dt
@@ -7,7 +8,7 @@ import dannet as dt
 class TensorInfo:
     def __init__(
         self,
-        shape: tuple[int, ...],
+        shape: Sequence[int],
         dtype: dt.dtypes.DannetDtype,
         strides: tuple[int, ...] | None = None,
         buffer_offset: int = 0
@@ -17,8 +18,8 @@ class TensorInfo:
                 f'All dims of Tensor must be non negative: {shape=}'
             )
 
-        self._shape = shape
-        self._dtype = dt.dtypes.normalize_dtype(dtype)
+        self._shape = dt.utils.normalize_shape(shape)
+        self._dtype = dt.utils.normalize_dtype(dtype)
 
         if strides is None:
             strides = self.get_strides(shape)
@@ -37,7 +38,7 @@ class TensorInfo:
             )
 
     @staticmethod
-    def get_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
+    def get_strides(shape: Sequence[int]) -> tuple[int, ...]:
         strides: list[int] = []
         s = 1
         for dim in shape[::-1]:
@@ -181,6 +182,12 @@ class Tensor:
 
     def astype(self, dtype: dt.typing.DTypeLikeO = None) -> Tensor:
         return dt.astype(self, dtype)
+
+    def copy(self) -> Tensor:
+        return dt.copy(self)
+    
+    def reshape(self, shape: dt.typing.ShapeLike) -> Tensor:
+        return dt.reshape(self, shape)
 
 
 def array(

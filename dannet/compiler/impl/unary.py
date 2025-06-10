@@ -137,6 +137,10 @@ def astype(x: dt.typing.TensorLike, dtype: DTypeLike | None) -> Tensor:
     return positive(x, dtype)
 
 
+def copy(x: dt.typing.TensorLike) -> Tensor:
+    return _positive(x)
+
+
 negative_op = make_unary("negative", partial(not_bool, "negative"))
 negative = gradop(negative_op, lambda grad, out, args, kwargs: -grad)
 

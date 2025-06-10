@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 import dannet as dt
@@ -120,6 +121,7 @@ def promote_to_inexact(dtype: dt.typing.DTypeLike) -> DannetDtype:
     return normalize_dtype(f'float{bits}')
 
 
+@functools.cache
 def _promote_types2(a: DannetDtype, b: DannetDtype) -> DannetDtype:
     p = _generate_promotions()
     CUB = p[a] & p[b]
@@ -143,6 +145,7 @@ _promotions_type = dict[
 ]
 
 
+@functools.cache
 def _generate_promotions() -> _promotions_type:
     integers = {
         dtype for dtype in DannetDtype._instances

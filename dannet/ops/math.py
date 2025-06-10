@@ -1,7 +1,7 @@
 # flake8: noqa: F401
 
 from dannet.compiler.impl.unary import (
-    negative, positive, astype,
+    negative, positive,
     square, sqrt,
     sin, cos, tan,
     sinh, cosh, tanh,

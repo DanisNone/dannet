@@ -114,23 +114,49 @@ def promote(x1: DTypeLike, x2: DTypeLike, dtype: DTypeLikeO) -> DannetDtype:
     return dt.promote_types(x1, x2)
 
 
+def gradop(fwd, bwd):
+    def fwd_new(
+        x1: Tensor,
+        x2: Tensor,
+        /,
+        dtype: DTypeLikeO = None
+    ) -> Tensor:
+        shape = dt.broadcast_shapes(x1.shape, x2.shape)
+        if x1.shape != shape:
+            x1 = dt.broadcast_to(x1, shape)
+        if x2.shape != shape:
+            x2 = dt.broadcast_to(x2, shape)
+        return fwd(x1, x2, dtype)
+    
+    def bwd_new(
+        grad: Tensor, out: Tensor,
+        args: tuple[Tensor, Tensor, DTypeLikeO], kwargs: Any
+    ) -> tuple[Tensor, Tensor]:
+        g1, g2 = bwd(grad, out, args, kwargs)
+        if g1.shape != args[0].shape:
+            g1 = dt.reduce_to(g2, args[0].shape)
+        if g2.shape != args[0].shape:
+            g2 = dt.reduce_to(g2, args[0].shape)
+        return (g1, g2)
+    return GradientOp(fwd_new, bwd_new, nondiff_argnum=(2,))
+
 add_op = make_binary("add", promote)
-add = GradientOp(add_op, lambda grad, out, args, kwargs: (grad, grad))
+add = gradop(add_op, lambda grad, out, args, kwargs: (grad, grad))
 
 subtract_op = make_binary("subtract", promote)
-subtract = GradientOp(
+subtract = gradop(
     subtract_op,
     lambda grad, out, args, kwargs: (grad, -grad)
 )
 
 multiply_op = make_binary("multiply", promote)
-multiply = GradientOp(
+multiply = gradop(
     multiply_op,
     lambda grad, out, args, kwargs: (grad * args[1], grad * args[0])
 )
 
 divide_op = make_binary("divide", partial(to_inexact, "divide"))
-divide = GradientOp(
+divide = gradop(
     divide_op,
     lambda grad, out, args, kwargs: (grad / args[1], -grad*out/args[1])
 )
@@ -164,4 +190,4 @@ def power_grad(
 
 
 power_op = make_binary("power", power_dtype)
-power = GradientOp(power_op, power_grad)
+power = gradop(power_op, power_grad)
