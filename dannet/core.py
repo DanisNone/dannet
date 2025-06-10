@@ -180,6 +180,24 @@ class Tensor:
     def __rpow__(self, other: dt.typing.TensorLike) -> Tensor:
         return dt.power(other, self)
 
+    def __eq__(self, other: dt.typing.TensorLike) -> Tensor:  # type: ignore
+        return dt.equal(self, other)
+    
+    def __neq__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.not_equal(self, other)
+    
+    def __lt__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.less(self, other)
+    
+    def __le__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.less_equal(self, other)
+    
+    def __gt__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.greater(self, other)
+    
+    def __ge__(self, other: dt.typing.TensorLike) -> Tensor:
+        return dt.greater_equal(self, other)
+    
     def astype(self, dtype: dt.typing.DTypeLikeO = None) -> Tensor:
         return dt.astype(self, dtype)
 

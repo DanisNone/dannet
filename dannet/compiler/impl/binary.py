@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 import dannet as dt
 from dannet.gradient import GradientOp
 from dannet.core import Tensor
@@ -18,16 +18,25 @@ def compile_binary(
     inputs: tuple[DannetDtype, DannetDtype],
     output: DannetDtype,
     op_name: str,
+    cast_to: Literal["out", "in"] = "out"
 ) -> dt.device.DeviceKernel:
     dtypeA, dtypeB = inputs
     dtypeC = output
 
+    if cast_to == "in":
+        if dtypeA != dtypeB:
+            # TODO: add message
+            raise ValueError()
+        work = dtypeA
+    else:
+        work = dtypeC
+    
     op = (f"""
 dt_$dtypeC$ operation(dt_$dtypeA$ x_inp, dt_$dtypeB$ y_inp)
 {{
-    dt_$dtypeC$ x = dt_convert_$dtypeA$_to_$dtypeC$(x_inp);
-    dt_$dtypeC$ y = dt_convert_$dtypeB$_to_$dtypeC$(y_inp);
-    return dt_{op_name}_$dtypeC$(x, y);
+    dt_$work$ x = dt_convert_$dtypeA$_to_$work$(x_inp);
+    dt_$work$ y = dt_convert_$dtypeB$_to_$work$(y_inp);
+    return dt_{op_name}_$work$(x, y);
 }}
 """)
 
@@ -35,7 +44,8 @@ dt_$dtypeC$ operation(dt_$dtypeA$ x_inp, dt_$dtypeB$ y_inp)
     build_info.add_dtypes(
         dtypeA=dtypeA,
         dtypeB=dtypeB,
-        dtypeC=dtypeC
+        dtypeC=dtypeC,
+        work=work
     )
     build_info.add_header(op)
     return build_program(device, "binary.cl", build_info).binary
@@ -49,7 +59,8 @@ dtype_func_type = Callable[
 
 def make_binary(
     op_name: str,
-    result_dtype: dtype_func_type
+    result_dtype: dtype_func_type,
+    cast_to: Literal["in", "out"] = "out"
 ) -> Callable[[Tensor, Tensor, DTypeLikeO], Tensor]:
     def inner(
         x1: Tensor,
@@ -76,7 +87,8 @@ def make_binary(
             device,
             inputs=(x1.dtype, x2.dtype),
             output=out.dtype,
-            op_name=op_name
+            op_name=op_name,
+            cast_to=cast_to
         )
 
         event = kernel(
@@ -112,6 +124,15 @@ def promote(x1: DTypeLike, x2: DTypeLike, dtype: DTypeLikeO) -> DannetDtype:
     if dtype is not None:
         return dt.dtypes.normalize_dtype(dtype)
     return dt.promote_types(x1, x2)
+
+
+def require_bool(x1: DTypeLike, x2: DTypeLike, dtype: DTypeLikeO) -> DannetDtype:
+    if dtype is not None:
+        dtype = dt.dtypes.normalize_dtype(dtype)
+        if dtype != dt.bool_:
+            # TODO: add message
+            raise ValueError()
+    return dt.bool_
 
 
 def gradop(fwd, bwd):
@@ -181,9 +202,9 @@ def power_dtype(
 
 def power_grad(
     grad: Tensor, out: Tensor,
-    args: tuple[Tensor, Tensor], kwargs: Any
+    args: tuple[Tensor, Tensor, DTypeLikeO], kwargs: Any
 ) -> tuple[Tensor, Tensor]:
-    x1, x2 = args
+    x1, x2 = args[:2]
     grad_x = grad * x2 * x1 ** (x2 - dt.ones_like(x2))
     grad_y = grad * out * dt.log(x1)
     return (grad_x, grad_y)
@@ -191,3 +212,18 @@ def power_grad(
 
 power_op = make_binary("power", power_dtype)
 power = gradop(power_op, power_grad)
+
+
+def make_cmp(op_name) -> GradientOp:
+    cmp_op = make_binary(op_name, require_bool, cast_to="in")
+    def fwd(x1: Tensor, x2: Tensor, /, dtype: DTypeLikeO = None) -> Tensor:
+        dtype_ = dt.promote_types(x1.dtype, x2.dtype)
+        return cmp_op(x1.astype(dtype_), x2.astype(dtype_), dtype)
+    return GradientOp(fwd, lambda grad, out, args, kwargs: (None, None))
+
+equal = make_cmp("equal")
+not_equal = make_cmp("not_equal")
+less = make_cmp("less")
+less_equal = make_cmp("less_equal")
+greater = make_cmp("greater")
+greater_equal = make_cmp("greater_equal")

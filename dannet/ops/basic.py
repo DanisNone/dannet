@@ -1,5 +1,6 @@
 import math
-from typing import Any, Callable, NoReturn
+import operator
+from typing import Any, Callable, NoReturn, Sequence, SupportsIndex
 import dannet as dt
 from dannet import dtypes
 from dannet.core import Tensor, TensorInfo
@@ -240,5 +241,7 @@ __all__ = [
     "broadcast_shapes", "broadcast_to",
     "transpose", "reshape", "squeeze",
     "full", "zeros", "ones",
-    "full_like", "zeros_like", "ones_like"
+    "full_like", "zeros_like", "ones_like",
+
+    "eye"
 ]
