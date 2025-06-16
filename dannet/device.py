@@ -189,6 +189,7 @@ class DeviceEvent:
     def wait(self) -> None:
         for event in self.__events:
             event.wait()
+        self.__events.clear()
 
 
 def empty_event() -> DeviceEvent:
@@ -239,13 +240,15 @@ class DeviceKernel:
 
     def __call__(
         self,
-        global_size: tuple[int, ...],
+        global_size: tuple[int, ...] | int,
         local_size: tuple[int, ...] | None,
         *args: Any,
         wait_for: DeviceEvent | None = None
     ) -> DeviceEvent:
-        wait_event = None if wait_for is None else wait_for.__events
+        wait_event = None if wait_for is None else wait_for.__get_cl_events__()
 
+        if isinstance(global_size, int):
+            global_size = (global_size, )
         new_args: list[Any] = []
         for arg in args:
             if isinstance(arg, DeviceBuffer):
@@ -297,6 +300,7 @@ def write_buffer(buffer: DeviceBuffer, array: np.ndarray) -> None:
     if cl_buffer is None:
         return
 
+    array = array.copy()
     cl.enqueue_copy(
         buffer.device.__get_cl_queue__(),
         cl_buffer, array,

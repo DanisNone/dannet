@@ -1,12 +1,6 @@
-from typing import Sequence, SupportsIndex, TypeAlias
-import numpy as np
-import dannet as dt
-
-
-_Scalar: TypeAlias = bool | int | float | complex
-TensorLike: TypeAlias = dt.core.Tensor | _Scalar | Sequence[_Scalar] | np.typing.NDArray
-
-_ScalarType: TypeAlias = type[bool] | type[int] | type[float] | type[complex]
-DTypeLike: TypeAlias = dt.dtypes.DannetDtype | np.dtype | str  | _ScalarType
-DTypeLikeO: TypeAlias = DTypeLike | None
-ShapeLike: TypeAlias = Sequence[SupportsIndex] | SupportsIndex
+from dannet.lib.typing import (  # noqa: F401
+    TensorLike as TensorLike,
+    ShapeLike as ShapeLike,
+    Axis as Axis,
+    DTypeLike as DTypeLike
+)

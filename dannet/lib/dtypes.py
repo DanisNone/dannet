@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import functools
-from typing import Any
+from typing import Any, TypeAlias
 
-import dannet as dt
+from dannet import lib
 import numpy as np
 import ml_dtypes
 
@@ -26,11 +26,15 @@ class DannetDtype(type):
     def __ne__(self, other: Any) -> bool:
         return not (self == other)
 
-    def __call__(self, x: Any) -> dt.core.Tensor:
+    def __call__(self, x: Any) -> "lib.core.BaseTensor":
         raise NotImplementedError()
 
     def __instancecheck__(self, instance: Any) -> bool:
         return isinstance(instance, self.dtype.type)
+
+
+_PyScalar: TypeAlias = type[complex] | type[int] | type[float] | type[complex]
+DTypeLike: TypeAlias = DannetDtype | np.dtype | str | _PyScalar
 
 
 def _make_dtype(np_dtype: type) -> DannetDtype:
@@ -42,7 +46,7 @@ def _make_dtype(np_dtype: type) -> DannetDtype:
     return dt_dtype
 
 
-def normalize_dtype(dtype: dt.typing.DTypeLike) -> DannetDtype:
+def normalize_dtype(dtype: DTypeLike) -> DannetDtype:
     try:
         dtype = np.dtype(dtype)
     except TypeError as e:
@@ -56,52 +60,62 @@ def normalize_dtype(dtype: dt.typing.DTypeLike) -> DannetDtype:
     )
 
 
-def is_bool_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_bool_dtype(dtype: DTypeLike) -> bool:
     return normalize_dtype(dtype) == bool_
 
 
-def is_integer_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_integer_dtype(dtype: DTypeLike) -> bool:
     return is_signed_dtype(dtype) or is_unsigned_dtype(dtype)
 
 
-def is_signed_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_signed_dtype(dtype: DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         int8, int16, int32, int64
     ]
 
 
-def is_unsigned_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_unsigned_dtype(dtype: DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         uint8, uint16, uint32, uint64
     ]
 
 
-def is_inexact_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_inexact_dtype(dtype: DTypeLike) -> bool:
     return is_float_dtype(dtype) or is_complex_dtype(dtype)
 
 
-def is_float_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_float_dtype(dtype: DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         float16, bfloat16, float32, float64
     ]
 
 
-def is_complex_dtype(dtype: dt.typing.DTypeLike) -> bool:
+def is_complex_dtype(dtype: DTypeLike) -> bool:
     dtype = normalize_dtype(dtype)
     return dtype in [
         complex64, complex128
     ]
 
 
-def itemsize(dtype: dt.typing.DTypeLike) -> int:
+def real_part_of_complex(dtype: DTypeLike) -> DannetDtype:
+    dtype_ = normalize_dtype(dtype)
+    if not is_complex_dtype(dtype):
+        raise TypeError("real_part_of_complex wait complex dtype")
+    return {
+        complex128: float64,
+        complex64: float32
+    }[dtype_]
+
+
+def itemsize(dtype: DTypeLike) -> int:
     dtype = normalize_dtype(dtype)
     return np.dtype(dtype).itemsize
 
 
-def promote_types(*dtypes: dt.typing.DTypeLike) -> DannetDtype:
+def promote_types(*dtypes: DTypeLike) -> DannetDtype:
     norm_dtypes = tuple(normalize_dtype(dtype) for dtype in dtypes)
     if len(norm_dtypes) == 0:
         return bool_
@@ -112,11 +126,11 @@ def promote_types(*dtypes: dt.typing.DTypeLike) -> DannetDtype:
     return result
 
 
-def promote_to_inexact(dtype: dt.typing.DTypeLike) -> DannetDtype:
-    dtype = normalize_dtype(dtype)
-    if is_float_dtype(dtype) or is_complex_dtype(dtype):
-        return dtype
-    bits = itemsize(dtype) * 8
+def promote_to_inexact(dtype: DTypeLike) -> DannetDtype:
+    dtype_ = normalize_dtype(dtype)
+    if is_float_dtype(dtype_) or is_complex_dtype(dtype_):
+        return dtype_
+    bits = itemsize(dtype_) * 8
     bits = max(bits, 32)
     return normalize_dtype(f'float{bits}')
 
@@ -219,6 +233,7 @@ float64 = _make_dtype(np.float64)
 complex64 = _make_dtype(np.complex64)
 complex128 = _make_dtype(np.complex128)
 
+finfo = np.finfo
 __all__ = [
     "bool_",
 

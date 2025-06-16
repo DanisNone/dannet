@@ -5,6 +5,11 @@
 #include "dtypes/convert.cl"
 
 typedef struct {
+    size_t ndim;
+    size_t data[64];
+} Shape;
+
+typedef struct {
     size_t buffer_offset;
     size_t ndim;
     size_t shape[64];
