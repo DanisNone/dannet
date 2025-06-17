@@ -76,8 +76,24 @@ def make_binary(
     return inner
 
 
+def make_binary_cmp(
+    device: Device, node: core.SymbolicTensor
+) -> kernel_func_type:
+    assert isinstance(node, binary.Binary)
+    assert node.x1.dtype == node.x2.dtype
+    return make_binary(device, node, cast="AA->A")
+
+
 register_impl(binary.Add)(make_binary)
 register_impl(binary.Subtract)(make_binary)
 register_impl(binary.Multiply)(make_binary)
 register_impl(binary.Divide)(make_binary)
 register_impl(binary.Arctan2)(make_binary)
+
+
+register_impl(binary.Equal)(make_binary_cmp)
+register_impl(binary.NotEqual)(make_binary_cmp)
+register_impl(binary.Less)(make_binary_cmp)
+register_impl(binary.LessEqual)(make_binary_cmp)
+register_impl(binary.Greater)(make_binary_cmp)
+register_impl(binary.GreaterEqual)(make_binary_cmp)

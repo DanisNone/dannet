@@ -4,15 +4,10 @@ from dannet.compiler import jit
 import dannet.lib as lib
 import dannet.core as core
 
+
 from dannet.core import (
     array as array,
     broadcast_shapes as broadcast_shapes,
-
-    add as add,
-    subtract as subtract,
-    multiply as multiply,
-    divide as divide,
-    arctan2 as arctan2,
 
     broadcast_to as broadcast_to,
     flip as flip,
@@ -65,6 +60,22 @@ from dannet.core import (
     radians as radians,
     degrees as degrees,
     angle as angle,
+
+
+    add as add,
+    subtract as subtract,
+    multiply as multiply,
+    divide as divide,
+    arctan2 as arctan2,
+
+    equal as equal,
+    not_equal as not_equal,
+    less as less,
+    less_equal as less_equal,
+    greater as greater,
+    greater_equal as greater_equal,
+
+    where as where,
 
     sum as sum,
     mean as mean,

@@ -80,12 +80,15 @@ class jit:
                 jit._is_runned = False
             output_flatten = tree.flatten(output)
 
-            output_symbolic = [out for out in output_flatten if isinstance(
-                out, core.SymbolicTensor)]
+            output_symbolic = [
+                out for out in output_flatten
+                if isinstance(out, core.SymbolicTensor)
+            ]
             compiled = compile(device, placeholders, output_symbolic)
 
             self._cache[cache_key] = (
-                compiled, placeholders, output, output_symbolic)
+                compiled, placeholders, output, output_symbolic
+            )
 
         compiled, placeholders, output, output_symbolic = self._cache[cache_key]
 

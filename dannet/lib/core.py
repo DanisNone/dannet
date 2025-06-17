@@ -113,6 +113,37 @@ class BaseTensor(abc.ABC):
     def nbytes(self) -> int:
         return self.size * self.itemsize
 
+    def __bool__(self) -> bool:
+        if self.ndim != 0:
+            raise ValueError(
+                "The truth value of an array "
+                "with more than one element is ambiguous. "
+                "Use a.any() or a.all()"
+            )
+        if not isinstance(self, ConcreteTensor):
+            if self._maybe_concrete():
+                raise NotImplementedError
+            raise ValueError
+        return bool(self.__array__())
+
+    def __eq__(self, other: TensorLike) -> BaseTensor:  # type: ignore
+        return dannet.equal(self, other)
+
+    def __ne__(self, other: TensorLike) -> BaseTensor:  # type: ignore
+        return dannet.not_equal(self, other)
+
+    def __lt__(self, other: TensorLike) -> BaseTensor:
+        return dannet.less(self, other)
+
+    def __le__(self, other: TensorLike) -> BaseTensor:
+        return dannet.less_equal(self, other)
+
+    def __gt__(self, other: TensorLike) -> BaseTensor:
+        return dannet.greater(self, other)
+
+    def __ge__(self, other: TensorLike) -> BaseTensor:
+        return dannet.greater_equal(self, other)
+
     def __add__(self, other: TensorLike) -> BaseTensor:
         return dannet.add(self, other)
 

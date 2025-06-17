@@ -39,13 +39,32 @@ def _binary_args(
     dtype: DTypeLike | None
 ) -> tuple[core.BaseTensor, core.BaseTensor, dtypes.DannetDtype | None]:
     x1, x2 = _args_to_tensor(name, x1, x2)
-    shape = core._broadcast_shapes_with_name("add", x1.shape, x2.shape)
+    shape = core._broadcast_shapes_with_name(name, x1.shape, x2.shape)
     if x1.shape != shape:
         x1 = broadcast_to(x1, shape)
     if x2.shape != shape:
         x2 = broadcast_to(x2, shape)
     dtype_ = _normalize_dtype(dtype)
     return (x1, x2, dtype_)
+
+
+def _ternary_args(
+    name: str,
+    x1: TensorLike,
+    x2: TensorLike,
+    x3: TensorLike,
+    dtype: DTypeLike | None
+) -> tuple[core.BaseTensor, core.BaseTensor, core.BaseTensor, dtypes.DannetDtype | None]:
+    x1, x2, x3 = _args_to_tensor(name, x1, x2, x3)
+    shape = core._broadcast_shapes_with_name(name, x1.shape, x2.shape)
+    if x1.shape != shape:
+        x1 = broadcast_to(x1, shape)
+    if x2.shape != shape:
+        x2 = broadcast_to(x2, shape)
+    if x3.shape != shape:
+        x3 = broadcast_to(x3, shape)
+    dtype_ = _normalize_dtype(dtype)
+    return (x1, x2, x3, dtype_)
 
 
 def _to_inexact(
@@ -73,7 +92,7 @@ _as_strides_func = Callable[
     core.BaseTensor
 ]
 _as_strides_func_shape = Callable[
-    [core.BaseTensor, ShapeLike],
+    [core.BaseTensor, tuple[int, ...]],
     core.BaseTensor
 ]
 _as_strides_func_axis = Callable[
@@ -142,6 +161,20 @@ multiply_jit: _binary_func = jit(lib.binary.multiply)
 divide_jit: _binary_func = jit(lib.binary.divide)
 arctan2_jit: _binary_func = jit(lib.binary.arctan2)
 
+equal_jit: _binary_func = jit(lib.binary.equal)
+not_equal_jit: _binary_func = jit(lib.binary.not_equal)
+less_jit: _binary_func = jit(lib.binary.less)
+less_equal_jit: _binary_func = jit(lib.binary.less_equal)
+greater_jit: _binary_func = jit(lib.binary.greater)
+greater_equal_jit: _binary_func = jit(lib.binary.greater_equal)
+
+
+# ternary
+_ternary_func = Callable[
+    [core.BaseTensor, core.BaseTensor, core.BaseTensor, core.DannetDtype | None],
+    core.BaseTensor
+]
+where_jit: _ternary_func = jit(lib.ternary.where)
 
 # reductions
 _reduce_func_sum = Callable[
@@ -404,9 +437,78 @@ def arctan2(
     return arctan2_jit(x1, x2, dtype_)
 
 
+def equal(
+    x1: TensorLike, x2: TensorLike, /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("equal", x1, x2, dtype)
+    return equal_jit(x1, x2, dtype_)
+
+
+def not_equal(
+    x1: TensorLike,
+    x2: TensorLike,
+    /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("not_equal", x1, x2, dtype)
+    return not_equal_jit(x1, x2, dtype_)
+
+
+def less(
+    x1: TensorLike,
+    x2: TensorLike,
+    /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("less", x1, x2, dtype)
+    return less_jit(x1, x2, dtype_)
+
+
+def less_equal(
+    x1: TensorLike,
+    x2: TensorLike,
+    /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("less_equal", x1, x2, dtype)
+    return less_equal_jit(x1, x2, dtype_)
+
+
+def greater(
+    x1: TensorLike,
+    x2: TensorLike,
+    /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("greater", x1, x2, dtype)
+    return greater_jit(x1, x2, dtype_)
+
+
+def greater_equal(
+    x1: TensorLike,
+    x2: TensorLike,
+    /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, dtype_ = _binary_args("greater_equal", x1, x2, dtype)
+    return greater_equal_jit(x1, x2, dtype_)
+
+
+def where(
+    x1: TensorLike,
+    x2: TensorLike,
+    x3: TensorLike, /,
+    dtype: DTypeLike | None = None
+) -> core.BaseTensor:
+    x1, x2, x3, dtype_ = _ternary_args("where", x1, x2, x3, dtype)
+    return where_jit(x1, x2, x3, dtype_)
+
+
 def broadcast_to(x: TensorLike, shape: ShapeLike) -> core.BaseTensor:
     x, = _args_to_tensor("broadcast_to", x)
-    return broadcast_to_jit(x, shape)
+    shape_ = lib.utils.normalize_shape(shape)
+    return broadcast_to_jit(x, shape_)
 
 
 def flip(x: TensorLike, axes: Axis = None) -> core.BaseTensor:
@@ -421,12 +523,14 @@ def transpose(x: TensorLike, axes: Axis = None) -> core.BaseTensor:
 
 def expand_dims(x: TensorLike, axes: ShapeLike) -> core.BaseTensor:
     x, = _args_to_tensor("expand_dims", x)
-    return expand_dims_jit(x, axes)
+    axes_ = lib.utils.normalize_shape(axes)
+    return expand_dims_jit(x, axes_)
 
 
 def squeeze(x: TensorLike, axes: ShapeLike) -> core.BaseTensor:
     x, = _args_to_tensor("squeeze", x)
-    return squeeze_jit(x, axes)
+    axes_ = lib.utils.normalize_shape(axes)
+    return squeeze_jit(x, axes_)
 
 
 def slice(x: TensorLike, slices: _slices_type) -> core.BaseTensor:

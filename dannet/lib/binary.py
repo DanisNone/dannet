@@ -124,6 +124,44 @@ class Arctan2(Binary):
         return dtype
 
 
+class Cmp(Binary):
+    def result_dtype(
+        self,
+        dtype1: DannetDtype,
+        dtype2: DannetDtype,
+        dtype: DannetDtype | None
+    ) -> DannetDtype:
+        if dtype is not None:
+            raise NotImplementedError
+        if dtype1 != dtype2:
+            raise ValueError(f"{self._name}: dtypes must equal")
+        return dtypes.bool_
+
+
+class Equal(Cmp):
+    _name = "equal"
+
+
+class NotEqual(Cmp):
+    _name = "not_equal"
+
+
+class Less(Cmp):
+    _name = "less"
+
+
+class LessEqual(Cmp):
+    _name = "less_equal"
+
+
+class Greater(Cmp):
+    _name = "greater"
+
+
+class GreaterEqual(Cmp):
+    _name = "greater_equal"
+
+
 _binary_func_type = Callable[
     [core.BaseTensor, core.BaseTensor, DannetDtype | None],
     core.BaseTensor
@@ -143,8 +181,34 @@ def make_binary(op_class: type[Binary]) -> _binary_func_type:
     return inner
 
 
+def make_cmp(op_class: type[Cmp]) -> _binary_func_type:
+    inner = make_binary(op_class)
+
+    def inner2(
+        x1: core.BaseTensor,
+        x2: core.BaseTensor, /,
+        dtype: DannetDtype | None
+    ) -> core.BaseTensor:
+        x1 = core.to_symbolic(x1)
+        x2 = core.to_symbolic(x2)
+
+        dtype_ = dtypes.promote_types(x1.dtype, x2.dtype)
+        x1 = x1.astype(dtype_)
+        x2 = x2.astype(dtype_)
+        return inner(x1, x2, None).astype(dtype)
+    inner2.__name__ = op_class.__name__
+    return inner2
+
+
 add = make_binary(Add)
 subtract = make_binary(Subtract)
 multiply = make_binary(Multiply)
 divide = make_binary(Divide)
 arctan2 = make_binary(Arctan2)
+
+equal = make_cmp(Equal)
+not_equal = make_cmp(NotEqual)
+less = make_cmp(Less)
+less_equal = make_cmp(LessEqual)
+greater = make_cmp(Greater)
+greater_equal = make_cmp(GreaterEqual)
