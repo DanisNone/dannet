@@ -152,7 +152,7 @@ log1p_jit: _unary_func = jit(lib.unary.log1p)
 
 # binary
 _binary_func = Callable[
-    [core.BaseTensor, core.BaseTensor, core.DannetDtype | None],
+    [core.BaseTensor, core.BaseTensor, dtypes.DannetDtype | None],
     core.BaseTensor
 ]
 add_jit: _binary_func = jit(lib.binary.add)
@@ -171,7 +171,7 @@ greater_equal_jit: _binary_func = jit(lib.binary.greater_equal)
 
 # ternary
 _ternary_func = Callable[
-    [core.BaseTensor, core.BaseTensor, core.BaseTensor, core.DannetDtype | None],
+    [core.BaseTensor, core.BaseTensor, core.BaseTensor, dtypes.DannetDtype | None],
     core.BaseTensor
 ]
 where_jit: _ternary_func = jit(lib.ternary.where)
@@ -348,8 +348,8 @@ def expm1(x: TensorLike, /, dtype: DTypeLike | None = None) -> core.BaseTensor:
 
 
 def log(x: TensorLike, /, dtype: DTypeLike | None = None) -> core.BaseTensor:
-    x, dtype_ = _unary_args("exp", x, dtype)
-    return exp_jit(x, dtype_)
+    x, dtype_ = _unary_args("log", x, dtype)
+    return log_jit(x, dtype_)
 
 
 def log2(x: TensorLike, /, dtype: DTypeLike | None = None) -> core.BaseTensor:
@@ -534,7 +534,7 @@ def squeeze(x: TensorLike, axes: ShapeLike) -> core.BaseTensor:
 
 
 def slice(x: TensorLike, slices: _slices_type) -> core.BaseTensor:
-    x, = _args_to_tensor("slices", x)
+    x, = _args_to_tensor("slice", x)
     return slice_jit(x, tuple(slices))
 
 
