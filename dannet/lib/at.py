@@ -57,9 +57,8 @@ class AtSliceObject:
         key = tuple(el for el in key if el is not None)
         slices, newaxes_positions, squeeze_axes = parse_getitem_key(x, key)
         slices += (slice(None, None, None), ) * (self.x.ndim - len(slices))
-
         assert len(slices) <= self.x.ndim
-        assert newaxes_positions == []
+        assert newaxes_positions == ()
 
         self.slices = slices
         self.squeeze_axes = squeeze_axes

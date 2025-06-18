@@ -177,11 +177,6 @@ def slice(
     for stride, (start, _, _) in zip(new_strides, new_slices):
         offset += stride * start
 
-    if 0 in new_shape:
-        raise NotImplementedError(
-            'dannet not support slice with zero size'
-        )
-
     return AsStrides(
         x,
         tuple(new_shape),

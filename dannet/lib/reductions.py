@@ -107,7 +107,8 @@ def make_reduction(op_class: type[Reduction]) -> _reduction_func_type:
         keepdims = bool(keepdims)
 
         perm: list[int] = sorted(
-            range(x.ndim), key=lambda i: (i in axis, abs(x.strides[i])))
+            range(x.ndim), key=lambda i: (i in axis, -abs(x.strides[i]))
+        )
         x = lib.as_strides.transpose(x, perm)
 
         out: core.BaseTensor = op_class(core.to_symbolic(x), len(axis), dtype)
